@@ -1,0 +1,108 @@
+
+#ifndef HTTP_DNS_SERVER
+	#define HTTP_DNS_SERVER "8.8.8.8"
+#endif
+#ifndef HTTP_TX_BUFF
+	#define HTTP_TX_BUFF 2
+#endif
+
+#ifndef HTTP_RX_BUFF
+	#define HTTP_RX_BUFF 2
+#endif
+
+#ifndef HTTP_TIMEOUT 'in half seconds
+	#define HTTP_TIMEOUT 60
+#endif
+
+
+#ifndef HTTP_MAX_DATA_LENGTH
+	#if HTTP_DEBUG_PRINT
+		#define HTTP_MAX_DATA_LENGTH 247
+	#else
+		#define HTTP_MAX_DATA_LENGTH 255
+	#endif
+#endif
+
+#if PLATFORM_ID=WM2000 OR PLATFORM_ID=TPP2WG2 OR PLATFORM_ID=TPP3WG2 OR PLATFORM_ID=EM2000W
+	#ifndef SUPPORTS_TLS 
+		#define SUPPORTS_TLS 1
+	#endif
+#else	
+	#define SUPPORTS_TLS 0
+#endif
+
+const HTTP_STAMP="HTTP> "
+const HTTP_CR_LF=chr(13)+chr(10)
+
+enum HTTP_REQUEST_METHODS
+
+	HTTP_GET,
+	HTTP_HEAD,
+	HTTP_POST,
+	HTTP_PUT,
+	HTTP_DELETE,
+	HTTP_PATCH
+
+end enum
+
+enum http_reply_states
+	
+	FREE,
+	DNS_NOT_COMPLETE,
+	DNS_REQUEST_SENT,
+	DNS_COMPLETE,
+	REQUEST_SENT,
+	HTTP_RESPONSE_PROCESSED,
+	HTTP_HEADERS_PROCESSED
+
+end enum
+
+type http_request_type
+
+	long_request as boolean
+	state as http_reply_states
+	url as string
+	data as string
+	domain_name as string
+	socket as byte
+	port as word 
+	ip as string(15)
+	tls as boolean
+	remaining_response_content_length as dword
+	remaining_content_length as dword
+	chunked as boolean
+	method as HTTP_REQUEST_METHODS
+	interface as pl_sock_interfaces
+	
+end type
+
+declare function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
+declare function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword) as byte
+declare function http_encode_url(unencoded_url as string) as string
+declare function http_send_post_data(byref data as string) as word
+declare function http_get_domain_name(url as string) as string
+
+declare sub http_start()
+declare sub http_stop()
+declare sub http_proc_data()
+declare sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
+declare sub http_on_sock_data_sent()
+declare sub http_proc_timer()
+declare sub http_dns_failure()
+declare sub http_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+declare sub http_send_headers(header_name as string, header_value as string)
+declare sub http_on_sock_data_sent()
+
+declare function callback_http_open_romfile() as dword
+'open the romfile that contains the certificate for the current domain
+declare sub callback_http_header_arrival(header_type as string, header_value as string)
+declare sub callback_http_content_arrival(data as string)
+declare sub callback_http_send_post_data(remaining_content_length as dword)
+declare sub callback_http_post_data_sent_ok()
+declare sub callback_http_response_code_arrival(http_response as string)
+declare sub callback_http_headers_complete()
+declare sub callback_http_request_complete()
+declare sub callback_http_request_failed(error_message as string)
+declare sub callback_http_send_headers()
+
+declare http_request_item as http_request_type

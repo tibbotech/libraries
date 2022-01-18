@@ -1,0 +1,4 @@
+
+declare function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
+declare function datetime_current_timestamp() as dword
+declare sub datetime_from_timestamp(timestamp as dword, byref days as word, byref mins as word, byref secs as byte)

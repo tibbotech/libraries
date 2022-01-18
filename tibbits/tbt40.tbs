@@ -1,0 +1,184 @@
+'***********************************************************************************************************
+'			Tibbit #40 (digital potentiometer MCP4561)
+'***********************************************************************************************************
+include "global.tbh"
+
+const TBT40_INIT_SIGNATURE=&h1002
+const TBT40_STAMP="TBT40> "
+const TBT40_CR_LF=chr(13)+chr(10)
+
+const TBT40_WRITE_ADDR=&h5E
+const TBT40_READ_ADDR=&h5F
+
+enum tbt40_regs
+	TBT40_VOLATILE_WIPER_0=&h0,			'write ,read, increment,decrement 
+	TBT40_NON_VOLATILE_WIPER_0=&h20,	'write ,read, increment,decrement 
+	TBT40_VOLATILE_TCON=&h40,
+	TBT40_STATUS=&h50
+end enum
+'--------------------------------------------------------------------
+declare sub tbt40_reg_write(addr as tbt40_regs, data as word, channel as byte)
+declare function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
+
+#if TBT40_DEBUG_PRINT=1
+	declare sub tbt40_debug_print(data as string)
+#endif
+
+'--------------------------------------------------------------------
+dim i2c_num_tbt40 as byte
+dim tbt40_init_flag as word
+
+'==============================================================================
+function tbt40_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as tbt40_errcheck
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT40_NO_SSI_AVAILABLE, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'Other error code (TBT40_SELFTEST_FAILED) indicates failure.
+	
+	tbt40_init=TBT40_OK
+	tbt40_init_flag=TBT40_INIT_SIGNATURE
+
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("++++++++++")
+	#endif
+
+	channel=si2c_register("TBT40",pin_data,pin_clk,use_ssi)
+
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("i2c num:"+str(channel))
+	#endif
+
+	if channel <4 then
+		ssi.channel=channel
+		ssi.enabled=NO
+		ssi.baudrate=1
+		ssi.clkmap=pin_clk
+		ssi.dimap=pin_data
+		ssi.domap=pin_data
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_2
+		ssi.enabled=YES
+		io.num=pin_clk
+		io.state=HIGH
+	else
+		if use_ssi=YES then
+			tbt40_init=TBT40_NO_SSI_AVAILABLE
+		end if
+	end if
+
+	si2c_get(channel)
+
+	if tbt40_reg_read(TBT40_STATUS,channel)<>&h01F0 then
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("status register incorrect")
+	#endif
+		tbt40_init=TBT40_SELFTEST_FAILED
+	end if
+
+	'enable all terminals
+	tbt40_reg_write(TBT40_VOLATILE_TCON,&h000F,channel)
+	tbt40_reg_read(TBT40_VOLATILE_TCON,channel)
+
+#if TBT40_DEBUG_PRINT=1
+	tbt40_debug_print("----------")
+#endif
+end function
+
+sub tbt40_set_ohm(impedance as dword, range as dword, save_to_eeprom as no_yes, channel as byte)
+'Sets the digital potentiometer to the "impedance" value expressed in Ohms.This value will be rounded to the nearest LOWER potentiometer step and
+'limited by the maximum value range achievable on the current IC. The range argument must correctly specify the maximum IC range in Ohms (i.e. set it to
+'10000 for 10K IC). You can set the range to the ACTUAL value measured on your IC sample. This will allow for a more precise impedance programming.
+'Note that the impedance argument specifies the impedance between I/O lines 3 and 4 of this Tibbit. The impedance between
+'terminals 2 and 3 will be in reverse, i.e. 10K - impedance for the 10K IC. Save_to_eeprom argument specifies whether the new impedance value will
+'be saved into the EEPROM (and thus persist even after the IC is power-cycled).	
+	
+	dim digital_value as word
+
+	if impedance>range then impedance=range
+
+	impedance=impedance*256
+	impedance=impedance/range	
+	digital_value=impedance
+	
+	if digital_value>256 then
+		digital_value=256
+	end if
+	
+	tbt40_set(digital_value,save_to_eeprom, channel)
+end sub
+
+
+sub tbt40_set(level as word,save_to_eeprom as no_yes, channel as byte)
+'Sets the digital potentiometer to the level (step) in the 0-256 range (there are 257 steps in total). Each step is equal to 1/257th of the IC's range
+'(5K, 10K, 50K, or 100K depending on the IC type). Step=0 indicates a near-zero impedance between the I/O lines 3 and 4 of this Tibbit.
+'At the same time, the impedance between I/O lines 2 and 3 will be at maximum.
+'Save_to_eeprom argument specifies whether the new impedance value will be saved into the EEPROM (and thus persist even after the IC is power-cycled).
+
+	if tbt40_init_flag<>TBT40_INIT_SIGNATURE then
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("The lib is not initialized, call tbt40_init() first")
+	#endif
+		exit sub
+	end if
+
+    level=level mod 257
+	tbt40_reg_write(TBT40_VOLATILE_WIPER_0,level, channel)
+
+	if save_to_eeprom=YES then
+		'Save this value to EEPROM, so after reset, this value is set
+		tbt40_reg_write(TBT40_NON_VOLATILE_WIPER_0,level, channel)
+	end if
+end sub
+
+sub tbt40_reg_write(addr as tbt40_regs, data as word, channel as byte)
+	dim cmd as byte
+	if tbt40_init_flag<>TBT40_INIT_SIGNATURE then
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("The lib is not initialized, call tbt40_init() first")
+	#endif
+		exit sub
+	end if
+
+	if data and &h0100 then
+		cmd=addr+1
+	else
+		cmd=addr
+	end if
+
+    si2c_get(channel)
+
+	si2c_start()
+	si2c_write(TBT40_WRITE_ADDR)
+	si2c_write(cmd)
+	si2c_write(data and &h00FF)
+	si2c_stop()
+end sub
+
+function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
+	tbt40_reg_read=0
+	if tbt40_init_flag<>TBT40_INIT_SIGNATURE then
+	#if TBT40_DEBUG_PRINT=1
+		tbt40_debug_print("The lib is not initialized, call tbt40_init() first")
+	#endif
+		exit function
+	end if
+
+	si2c_get(channel)
+	si2c_start()
+	si2c_write(TBT40_WRITE_ADDR)
+	si2c_write(addr+&hC)	'READ Command
+	si2c_start()
+	si2c_write(TBT40_READ_ADDR)
+	tbt40_reg_read=si2c_read(true)*256
+	tbt40_reg_read=tbt40_reg_read+si2c_read(false)
+	si2c_stop()
+end function
+
+#if TBT40_DEBUG_PRINT=1
+sub tbt40_debug_print(data as string)
+	sys.debugprint(TBT40_STAMP+data+TBT40_CR_LF)
+end sub
+#endif

@@ -1,0 +1,32 @@
+include "global.tbh"
+
+#define DT_SECS_IN_DAY 86400
+
+const datetime_seconds_since_epoch = 946684800
+
+function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
+	datetime_to_timestamp = datetime_seconds_since_epoch
+	datetime_to_timestamp = datetime_to_timestamp + (days * DT_SECS_IN_DAY) + (mins * 60) + secs
+end function
+
+function datetime_current_timestamp() as dword
+	dim datetime_days,datetime_minutes as word
+	dim datetime_secs as byte
+	rtc.getdata(datetime_days,datetime_minutes,datetime_secs)
+	datetime_current_timestamp = datetime_seconds_since_epoch
+	datetime_current_timestamp = datetime_current_timestamp + (datetime_days * DT_SECS_IN_DAY) + (datetime_minutes * 60) + datetime_secs
+end function
+
+sub datetime_from_timestamp(timestamp as dword, byref days as word, byref mins as word, byref secs as byte)
+	dim remainder as dword
+	days = 0
+	mins = 0
+	secs = 0
+	timestamp = timestamp - datetime_seconds_since_epoch
+	remainder = timestamp MOD DT_SECS_IN_DAY
+	days = (timestamp - remainder) / DT_SECS_IN_DAY
+	timestamp = remainder
+	remainder = timestamp MOD 60
+	mins = (timestamp - remainder) / 60
+	secs = remainder
+end sub

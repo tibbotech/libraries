@@ -1,0 +1,225 @@
+'***********************************************************************************************************
+'			Tibbit #29 (temperature sensor)
+'***********************************************************************************************************
+
+include "global.tbh"
+
+'--------------------------------------------------------------------
+const TBT29_INIT_SIGNATURE=&hF083
+const TBT29_STAMP="TBT29> "
+const TBT29_CR_LF=chr(13)+chr(10)
+
+const TBT29_MFG_ID	=&h54
+const TBT29_DEVID		=&h400
+
+enum tbt29_resolution
+	'TBT29_RESOLUSION_MODE_0=&h00 '0.5C (tCONV = 30 ms typical)
+	TBT29_RESOLUSION_MODE_1=&h01  '0.25C (tCONV = 65 ms typical)
+	'TBT29_RESOLUSION_MODE_2=&h02 '0.125C (tCONV = 130 ms typical)
+	'TBT29_RESOLUSION_MODE_3=&h03 '0.0625C (power-up default, tCONV = 250 ms typical)
+end enum
+
+const TBT29_WRITE_ADDR=&h30
+const TBT29_READ_ADDR=&h31
+
+enum tbt29_regs
+'	TBT29_REG_CONF=&h01,
+'	TBT29_REG_TUP=&h02,
+'	TBT29_REG_TLO=&h03,
+'	TBT29_REG_TCRIT=&h04,
+	TBT29_REG_TA=&h05,
+	TBT29_REG_MFGID=&h06,
+	TBT29_REG_IDREV=&h07,
+	TBT29_REG_RESOL=&h08
+end enum
+
+declare function tbt29_read_data(op as tbt29_regs, byref channel as byte) as word
+declare sub tbt29_write_data(op as tbt29_regs,data as word, channel as byte)
+declare sub tbt29_delay_msecond(value as word)
+
+#if TBT29_DEBUG_PRINT=1
+	declare sub tbt29_debug_print(data as string)
+#endif
+
+dim i2c_num_tbt29 as byte
+dim tbt29_init_flag as word
+
+'==============================================================================
+function tbt29_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as tbt29_errcheck
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT29_NO_SSI_AVAILABLE, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'Other error codes (TBT29_WRONG_MFGID and TBT29_WRONG_DEVID_REVISION) indicate failure.
+
+	tbt29_init=TBT29_OK
+	#if TBT29_DEBUG_PRINT=1
+		tbt29_debug_print("++++++++++")
+	#endif
+	tbt29_init_flag=TBT29_INIT_SIGNATURE
+
+	channel=si2c_register(signature, pin_data, pin_clk,use_ssi)
+	#if TBT29_DEBUG_PRINT=1
+		tbt29_debug_print("i2c num:"+str(channel))
+	#endif
+
+	if channel <4 then
+		ssi.channel=channel
+		ssi.enabled=NO
+		ssi.baudrate=10
+		ssi.clkmap=pin_clk
+		ssi.dimap=pin_data
+		ssi.domap=pin_data
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_2
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.enabled=YES
+	else
+		tbt29_init=TBT29_NO_SSI_AVAILABLE
+	end if
+
+	'check the TBT29_MFG_ID
+	if tbt29_read_data(TBT29_REG_MFGID,channel)<>TBT29_MFG_ID then
+		#if TBT29_DEBUG_PRINT=1
+			tbt29_debug_print("MFG_ID ERROR")
+		#endif 
+		tbt29_init=TBT29_WRONG_MFGID
+		goto leave
+	end if
+
+	'check the TBT29_DEVID+MCP9808_DEFAULT_REVISION
+	if tbt29_read_data(TBT29_REG_IDREV,channel)<>TBT29_DEVID then
+		#if TBT29_DEBUG_PRINT=1
+			tbt29_debug_print("DEVICE ID & REVISION ERROR")
+		#endif 
+		tbt29_init=TBT29_WRONG_DEVID_REVISION
+		goto leave
+	end if
+
+	'resolution :+0.25 C (tCONV = 65 ms typical)
+	tbt29_write_data(TBT29_REG_RESOL,TBT29_RESOLUSION_MODE_1,channel)
+leave:
+	#if TBT29_DEBUG_PRINT=1
+		tbt29_debug_print("----------")
+	#endif
+end function
+
+function tbt29_get_c(byref channel as byte) as real
+'Returns the signed floating point value expressing the temperature in deg. C.
+	tbt29_get_c=tbt29_get(channel)
+	tbt29_get_c=tbt29_get_c/4
+end function
+
+
+function tbt29_get(channel as byte) as integer
+'Returns the signed integer value expressing the temperature in 0.25 deg. C steps.	
+
+	#if PLATFORM_TYPE_32
+		const DELAY_IN_65_MS=7
+	#else
+		const DELAY_IN_65_MS=130
+	#endif
+	dim r as word
+	dim t_integer as word
+	dim t_fraction as byte
+	
+	if tbt29_init_flag<>TBT29_INIT_SIGNATURE then
+	#if TBT29_DEBUG_PRINT=1
+		tbt29_debug_print("The lib is not initialized, call tbt29_init() first")
+	#endif
+		exit function
+	end if
+
+	si2c_get(channel) 
+
+	tbt29_delay_msecond(DELAY_IN_65_MS)
+
+	r=tbt29_read_data(TBT29_REG_TA,channel)
+
+	#if TBT29_DEBUG_PRINT=1
+		tbt29_debug_print("Raw temperature:"+hex(r))
+	#endif
+
+	if r and &h1000 then
+		'temperature is negative
+		t_integer=(r and &h0FFF)/16
+		t_fraction=(r and &h000F)/4
+		tbt29_get=1024-((t_integer*4)+t_fraction)
+	else	
+		'temperature is positive
+		t_integer=(r and &h0FFF)/16
+		t_fraction=(r and &h000F)/4
+		tbt29_get=(t_integer*4)+t_fraction
+	end if
+end function
+
+function tbt29_read_data(op as tbt29_regs, byref channel as byte) as word
+	dim upper,lower as byte=0
+
+	upper=0
+	lower=0
+	si2c_get(channel)
+	si2c_start()
+
+	'send address + op
+	si2c_write(TBT29_WRITE_ADDR)
+	si2c_write(op)
+	
+	si2c_start()
+
+	si2c_write(TBT29_READ_ADDR)
+
+	if op=TBT29_REG_RESOL then
+		lower=si2c_read(true)
+	else
+		upper=si2c_read(true)
+		lower=si2c_read(false)
+	end if
+
+	si2c_stop()
+	tbt29_read_data=upper*256+lower
+end function
+
+sub tbt29_write_data(op as tbt29_regs,data as word, channel as byte)
+	dim value as byte
+	si2c_get(channel) 
+	si2c_start()
+
+	si2c_write(TBT29_WRITE_ADDR)
+	si2c_write(op)
+
+	if op=TBT29_REG_RESOL then
+		value=data and &h00FF
+		si2c_write(value)
+	else
+		value=(data and &hFF00)/256
+		si2c_write(value)
+		value=data and &h00FF
+		si2c_write(value)		
+	end if	
+	si2c_stop()
+end sub
+
+sub tbt29_delay_msecond(value as word)
+	dim ax,bx as word
+
+	#if PLATFORM_TYPE_32
+			sys.timercountms=0
+			while sys.timercountms<value
+			wend
+	#else	
+		for ax=0 to value
+			for bx=0 to 10
+			next bx
+		next ax
+	#endif
+
+
+end sub
+
+#if TBT29_DEBUG_PRINT=1
+sub tbt29_debug_print(data as string)
+	sys.debugprint(TBT29_STAMP+data+TBT29_CR_LF)
+end sub
+#endif

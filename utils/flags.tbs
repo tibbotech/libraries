@@ -1,0 +1,74 @@
+'***********************************************************************************************************
+'			FLAGS: STATUS OF DEVICE IS EXPRESSED THROUGH THEM
+'***********************************************************************************************************
+
+include "global.tbh"
+
+public dim x_flags(MAX_NUM_INTERFACES) as string(10) 'dsmanager communication flags
+public dim error_mode as no_yes
+public dim ip_obtained(MAX_NUM_INTERFACES) as no_yes
+
+'==============================================================================
+public function get_x_flags_net(interface as pl_sock_interfaces) as string(10)
+	get_x_flags_net=x_flags(interface)
+end function
+
+
+'=============================================================
+public sub declare_ip_set(interface as pl_sock_interfaces)
+' Sets the ip declared flag, (including in x_flags string).
+	write_x_flag(EN_X_FLAGS_IP,"M",interface)
+	ip_obtained(interface)=YES
+end sub
+
+
+'=============================================================
+public sub declare_ip_obtained(interface as pl_sock_interfaces)
+	write_x_flag(EN_X_FLAGS_IP,"I",interface)
+	ip_obtained(interface)=YES
+end sub
+
+
+'=============================================================
+public sub declare_error_mode
+'Sets error mode flag (including in x_flags string).
+	dim i as byte
+	
+	for i=0 to MAX_NUM_INTERFACES-1
+		write_x_flag(EN_X_FLAGS_ERROR,"E",i)
+	next i
+	error_mode=YES
+end sub
+
+'=============================================================
+public sub write_x_flag(flag_num as en_x_flags,byref new_val as string,interface as pl_sock_interfaces)
+'Modifies a specific string in the x_flags variable. Flag to be modified is specified by flag.
+'New flag value is passed in val.
+
+	dim s1,s2 as string(10)
+		
+	if flag_num<1 then
+		flag_num=1
+	end if
+	
+	if flag_num>10 then
+		flag_num=10
+	end if	
+		
+	'replace the flag with new value
+	s1=left(x_flags(interface),flag_num-1)
+	s2=right(x_flags(interface),len(x_flags(interface))-flag_num)
+	x_flags(interface)=s1+left(new_val,1)+s2
+
+end sub
+
+'=============================================================
+public sub init_x_flags
+	dim i as byte
+	error_mode =NO
+	
+	for i=0 to MAX_NUM_INTERFACES-1
+		x_flags(i)="/N****/**/"
+		ip_obtained(i)=NO
+	next i
+end sub

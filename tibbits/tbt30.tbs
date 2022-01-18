@@ -1,0 +1,212 @@
+'***********************************************************************************************************
+'			Tibbit #30 (humidity and temperature sensor)
+'***********************************************************************************************************
+include "global.tbh"
+
+#if PLATFORM_TYPE_32
+	#define DELAY_50MS (50)
+#else
+	#define DELAY_50MS (150)
+#endif
+
+const TBT30_INIT_SIGNATURE=&h3969
+const TBT30_STAMP="TBT30> "
+const TBT30_CR_LF=chr(13)+chr(10)
+
+const TBT30_WRITE_ADDR=&h4E
+const TBT30_READ_ADDR=&h4F
+
+enum tbt30_status
+	TBT30_STATUS_NORMAL_OPERATION=&h0,
+	TBT30_STAUTS_STALE_DATA=&h1,
+	TBT30_STAUTS_IN_COMMAND_MODE=&h2,
+	TBT30_STAUTS_NOT_USED=&h3
+end enum
+
+declare sub tbt30_delay_msecond(value as word)
+
+#if TBT30_DEBUG_PRINT=1
+	declare sub tbt30_debug_print(data as string)
+#endif
+
+'--------------------------------------------------------------------
+dim i2c_num_tbt30 as byte
+dim tbt30_init_flag as word
+
+'====================================================================
+sub tbt30_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte)
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+
+	
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("++++++++++")
+	#endif
+
+	tbt30_init_flag=TBT30_INIT_SIGNATURE
+	channel=si2c_register(signature, pin_data, pin_clk,use_ssi)
+
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("i2c num: "+str(channel))
+	#endif
+	if channel<4 then
+		ssi.channel=channel
+		ssi.enabled=NO
+		ssi.baudrate=5
+		ssi.clkmap=pin_clk
+		ssi.dimap=pin_data
+		ssi.domap=pin_data
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_2
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.enabled=YES
+	end if
+
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("----------")
+	#endif
+end sub
+
+function tbt30_get_pc(byref humidity as float, byref temperature as float, channel as byte) as ok_ng
+'Returns "real" humidity and temperature data expressed in %PH and degrees C.
+'NOTE: this call may fail, so check the ON/NG status returned by the function.
+	
+	dim temp,hum as word
+	
+	tbt30_get_pc=tbt30_get(hum,temp, channel)
+	
+	humidity=hum
+	humidity=(humidity*100)/16383
+
+	temperature=temp
+	temperature=temperature/16383
+	temperature=temperature*165
+	temperature=temperature-40
+end function
+
+function tbt30_get(byref humidity as word, byref temperature as word, channel as byte)as ok_ng
+'Returns humidity and temperature data expressed as 16-bit unsigned values.
+'See how the conversion into "real" values is done in tbt30_get_pc().
+'NOTE: this call may fail, so check the ON/NG status returned by the function.
+
+	dim status as tbt30_status
+	dim data1,data2,data3,data4,tmp1,hi,lo,temp2 as byte
+	
+	if tbt30_init_flag<>TBT30_INIT_SIGNATURE then
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("The lib is not initialized, call tbt30_init() first")
+	#endif
+		exit function
+	end if
+
+	tbt30_get=OK
+
+	si2c_get(channel)
+
+	'send the measurement request
+	si2c_start()
+	si2c_write(TBT30_WRITE_ADDR)
+	si2c_stop()
+
+	tbt30_delay_msecond(DELAY_50MS)
+
+	'fetch humidity data
+	si2c_start()
+	si2c_write(TBT30_READ_ADDR)
+	data1=si2c_read(true)
+	data2=si2c_read(true)
+	data3=si2c_read(true)
+	data4=si2c_read(false)
+	si2c_stop()
+
+	status=data1 and &h80
+	status=status/128
+	status=(status and &h40)/64
+
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("-status("+str(status)+")-")
+		tbt30_debug_print("     data1:"+str(hex(data1)))
+		tbt30_debug_print("     data2:"+str(hex(data2)))
+		tbt30_debug_print("     data3:"+str(hex(data3)))
+		tbt30_debug_print("     data4:"+str(hex(data4)))
+	#endif
+	select case status
+	case TBT30_STATUS_NORMAL_OPERATION:
+	#if TBT30_DEBUG_PRINT=1
+			tbt30_debug_print("TBT30_STATUS_NORMAL_OPERATION")
+	#endif
+	case TBT30_STAUTS_STALE_DATA:
+	#if TBT30_DEBUG_PRINT=1
+			tbt30_debug_print("TBT30_STATUS_STALE_DATA")
+			tbt30_get=NG
+			exit function
+	#endif
+	case TBT30_STAUTS_IN_COMMAND_MODE:
+	#if TBT30_DEBUG_PRINT=1
+			tbt30_debug_print("TBT30_STATUS_IN_COMMAND_MODE")
+	#endif
+		tbt30_get=NG
+		exit function
+	case TBT30_STAUTS_NOT_USED:
+	#if TBT30_DEBUG_PRINT=1
+			tbt30_debug_print("TBT30_STATUS_NOT_USED")
+	#endif
+		tbt30_get=NG
+		exit function
+	case else:
+	end select
+
+	'humidity:   Data1 [13:6] + Data2 [7:0]
+	'temerature: Data3 [13:6] + Data4 [5:0]
+	tmp1=data1*4
+	humidity=tmp1*64+data2
+	
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("Raw humidity value="+hex(tmp1*64+data2))
+	#endif
+
+	tmp1=data3*4
+	tmp1=tmp1/16
+	hi=data3/64*16
+	hi=hi+tmp1
+
+	tmp1=data3 and &h03
+	tmp1=tmp1*64
+	
+	temp2=data4 and &hC0
+	temp2=temp2/4
+	lo=tmp1+temp2
+
+	tmp1=data4 and &h3C
+	tmp1=tmp1/4
+	lo=lo+tmp1
+
+	temperature=hi*256+lo
+	#if TBT30_DEBUG_PRINT=1
+		tbt30_debug_print("Raw temperature value="+hex(temperature))
+	#endif
+end function
+
+sub tbt30_delay_msecond(value as word)
+	dim ax,bx as word
+	#if PLATFORM_TYPE_32
+			sys.timercountms=0
+			while sys.timercountms<value
+			wend
+	#else
+		for ax=0 to value
+			for bx=0 to 5
+			next bx
+		next ax
+	#endif
+
+end sub
+
+#if TBT30_DEBUG_PRINT=1
+sub tbt30_debug_print(data as string)
+	sys.debugprint(TBT30_STAMP+data+TBT30_CR_LF)
+end sub
+#endif

@@ -1,0 +1,41 @@
+'***********************************************************************************************************
+'			Tibbo Congregate IOT Platform LIBRARY
+'***********************************************************************************************************
+
+
+#ifndef CGG_DEBUG_PRINT
+	#define CGG_DEBUG_PRINT 0
+#endif
+
+#ifndef CGG_MAX_SETTING_NAME_LENGTH
+	#define CGG_MAX_SETTING_NAME_LENGTH 0
+#endif
+
+#ifndef CGG_MAX_SETTINGS
+	#define CGG_MAX_SETTINGS 0
+#endif
+
+#ifndef CGG_DEVICE_PORT
+	#define CGG_DEVICE_PORT 3536
+#endif
+
+#ifndef CGG_DESCRIPTOR_FILE
+    #define CGG_DESCRIPTOR_FILE "cgg.xtxt"
+#endif
+
+const CGG_ATTR_TOPIC = "v1/devices/me/attributes"
+const CGG_RPC_TOPIC = "v1/devices/me/rpc/request/+"
+const CGG_TELEMETRY_TOPIC = "v1/devices/me/telemetry"
+
+declare sub cgg_start(server_address as string, device_token as string, target_interface as pl_sock_interfaces)
+declare sub cgg_soi_connect(server_address as string, device_token as string, target_interface as pl_sock_interfaces, ser_num as byte)
+declare sub cgg_send(name as string, value as string)
+declare sub cgg_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+declare sub cgg_proc_timer()
+declare sub cgg_proc_ser_data()
+declare sub cgg_proc_sock_data()
+declare sub cgg_proc_mqtt_notif(byref topic as string, byref data as string)
+declare sub cgg_proc_attribute_update(byref data as string)
+declare sub cgg_mqtt_ok()
+declare sub cgg_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
+declare sub callback_cgg_attribute_received(byref key as string, byref value as string)

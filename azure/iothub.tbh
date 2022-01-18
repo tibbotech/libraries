@@ -1,0 +1,85 @@
+
+#ifndef IOTHUB_DEBUG_PRINT
+	#define IOTHUB_DEBUG_PRINT 0
+#endif
+
+#ifndef IOTHUB_ITEM_NAME_LEN
+	#define IOTHUB_ITEM_NAME_LEN 10
+#endif
+
+#ifndef IOTHUB_PROPERTY_NUM
+	#define IOTHUB_PROPERTY_NUM 0
+#endif
+
+#ifndef IOTHUB_COMMAND_NUM
+	#define IOTHUB_COMMAND_NUM 0
+#endif
+
+#ifndef IOTHUB_DESCRIPTOR_FILE
+	#define IOTHUB_DESCRIPTOR_FILE "iothub.xtxt"
+#endif
+
+#ifndef IOTHUB_DPS_TLS_CER
+	#define IOTHUB_DPS_TLS_CER "azure.cer"
+#endif
+
+#define MQTT_NOTIFY_SENT 1
+	
+enum en_iothub_command_codes
+	EN_IOTHUB_OK=200,
+	EN_IOTHUB_ACCEPTED=202,
+	EN_IOTHUB_BAD_REQUEST=400,
+	EN_IOTHUB_UNAUTHORIZED=401
+end enum
+
+enum en_iothub_states
+	EN_IOTHUB_NOT_CONNECTED,
+	EN_IOTHUB_DEVICE_LOOKUP,
+	EN_IOTHUB_NOT_PROVISIONED,
+	EN_IOTHUB_PROVISIONING,
+	EN_IOTHUB_CONNECTED
+end enum
+
+type struct_iothub_property
+	name as string(IOTHUB_ITEM_NAME_LEN)
+	stg_name as string(STG_MAX_SETTING_NAME_LEN)
+	writable as no_yes
+	version as word
+end type
+
+type struct_iothub_command
+	name as string(IOTHUB_ITEM_NAME_LEN)
+	addr as word
+	rid as dword
+end type
+
+declare sub iothub_start(byref device_id as string, byref scope_id as string, byref dps_url as string, byref symmetricKey as string, interface as pl_sock_interfaces)
+declare sub iothub_proc_timer()
+declare sub iothub_proc_data()
+declare sub iothub_proc_sock_event()
+declare sub iothub_on_connected()
+declare sub iothub_device_lookup()	 
+declare sub iothub_on_disconnected()
+declare sub iothub_proc_mqtt_msg(byref topic as string, byref data as string)
+declare sub iothub_on_ip_otained()
+declare sub iothub_mqtt_sub_ok()
+declare function iothub_update_json(byref original as string, byref attribute as string, byref value as string) as string
+declare function iothub_get_url() as string
+declare sub iothub_update_telemetry()
+declare sub iothub_command_respond(byref command as string, byref returns as string, result as en_iothub_command_codes)
+declare sub iothub_on_telemetry_sent()
+declare sub iothub_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+declare sub callback_iothub_dps_failed()
+declare sub callback_iothub_command_triggered(byref command as string, byref params as string)
+declare sub iothub_set_datetime(byref dt_string as string)
+declare sub callback_iothub_device_assigned(byref assigned_hub as string)
+declare sub callback_on_telemetry_sent()
+declare sub iot_send_headers()
+declare sub iot_content_arrival(data as string)
+declare sub iothub_open_romfile()
+declare sub iothub_http_request_complete()
+declare sub iot_header_arrival(header_type as string, header_value as string)
+declare iothub_state as en_iothub_states
+declare sub iothub_send_telemetry()
+declare sub iothub_store_telemetry(message_type as string, message_value as string)
+declare sub iothub_send_property(prop_name as string, prop_value as string)

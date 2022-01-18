@@ -1,0 +1,687 @@
+include "global.tbh"
+
+const HTTP_TLS_BUFF_PAGES=40
+
+dim http_start_called as boolean=false
+dim http_methods(6) as string(7) = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH"}
+dim http_request_item as http_request_type
+dim http_timer_count as word = 0
+dim http_chunk_length as dword = 0
+dim http_last_domain as string = ""
+
+sub http_debugprint(byref print_data as string) 
+	
+	#if HTTP_DEBUG_PRINT 
+		sys.debugprint(HTTP_STAMP + left(print_data,HTTP_MAX_DATA_LENGTH) + HTTP_CR_LF)
+	#endif
+
+end sub
+
+sub http_start()
+	
+	if http_start_called=true then		
+		exit sub
+	else
+		http_start_called=true
+	end if	
+	http_request_item.state=FREE
+	http_request_item.socket = sock_get("HTT")
+	
+end sub
+
+sub http_stop()
+
+	if http_start_called=true then		
+		http_request_item.state=FREE
+		sock_release(http_request_item.socket)		
+	end if
+	http_start_called=false
+	
+end sub
+
+sub http_reset_socket()
+	dim i as word
+	sock.num=http_request_item.socket
+	http_request_item.remaining_response_content_length=0
+	http_request_item.state=FREE
+	sock.txclear()
+	sock.rxclear()
+	#if TLS_AVAILABLE
+		sock.tlsdeinit()
+	#endif
+	i=sys.timercount
+	sock.close()
+	while sock.statesimple<>PL_SSTS_CLOSED and sys.timercount-i<3 and sys.timercount>=i
+	wend
+	sock.discard()
+
+end sub
+
+sub http_request_complete()
+
+	http_reset_socket()
+	http_debugprint("Request complete")
+	callback_http_request_complete()
+
+end sub
+
+function http_check_socket_list() as ok_ng
+	
+	http_check_socket_list=NG
+	if http_start_called=true and http_request_item.socket=sock.num and sock.num<>255 then
+		http_check_socket_list=ok
+	end if	
+	
+end function
+
+sub http_send_data(byref data as string)
+	sock.num=http_request_item.socket
+	dim b as byte=len(data)
+	dim buf as string=data
+	if http_request_item.tls=true then
+#if TLS_AVAILABLE
+		while len(buf) > 0
+			b = sock.tlssetdata(data)
+			buf = right(buf,len(buf)-b)
+			sock.send()
+		wend
+#endif
+	else
+		while sock.txfree < len(buf)
+		wend
+		sock.setdata(buf)
+		sock.send()
+	end if
+	http_debugprint("SEND>" + data)
+	
+end sub
+
+function http_get_data(size as byte) as string
+	sock.num=http_request_item.socket
+	if http_request_item.tls=true then
+#if TLS_AVAILABLE
+		http_get_data=sock.tlsgetdata(size)
+#endif
+	else
+		http_get_data=sock.getdata(size)
+	end if
+	
+end function
+
+sub http_to_lower_case(byref input_string as string) 
+	
+	dim b as byte
+	dim current_character as string(1)
+	dim modified_string as string
+	for b=1 to len(input_string)
+		current_character = (mid(input_string,b,1))
+		dim b as byte=asc(current_character)
+		if asc(current_character)>64 and asc(current_character)<91 then
+			current_character=chr(asc(current_character)+32)
+		end if
+		modified_string=modified_string+current_character
+	next b
+	input_string=modified_string
+
+end sub
+
+sub http_remove_leading_whitespace(byref input_string as string)
+
+	if asc(left(input_string,1))=32 then
+		input_string=right(input_string,len(input_string)-1)
+	end if
+	
+end sub
+
+sub http_parse_headers(byref input_string as string)
+	
+	http_to_lower_case(input_string) 
+	http_remove_leading_whitespace(input_string)
+
+end sub
+
+function http_peek_data(size as byte) as string
+	sock.num=http_request_item.socket
+	if http_request_item.tls=true then
+#if TLS_AVAILABLE
+		http_peek_data=sock.tlspeekdata(size)
+#endif
+	else
+		http_peek_data=sock.peekdata(size)
+	end if
+	
+end function
+
+function http_get_chunk_length() as ok_ng
+	http_get_chunk_length = NG
+	dim chunk_length as string
+	dim buffer_data as string = http_peek_data(255)
+	dim timeout as boolean = false
+	dim tmp as string(1)
+	dim index as byte = 1
+	if len(buffer_data) = 0 then
+		exit function
+	end if
+	for index = 1 to len(buffer_data)-1
+		tmp = mid(buffer_data,index,1)
+		if tmp = "\n" then
+			if len(chunk_length) > 0 then
+				http_get_chunk_length = OK
+				http_get_data(index)
+				exit for
+			end if
+		else
+			if tmp <> "\r" then
+				chunk_length=chunk_length+tmp
+			end if
+		end if
+	next index
+	if chunk_length = "" then
+		exit function
+	end if
+	chunk_length="&h"+chunk_length
+	http_request_item.remaining_response_content_length=lval(chunk_length)
+	http_chunk_length = http_request_item.remaining_response_content_length
+	
+end function
+
+sub http_get_headers()
+
+	sock.num=http_request_item.socket
+	http_timer_count=0
+	dim http_reply, next_byte as string
+	while http_request_item.state<>HTTP_HEADERS_PROCESSED 
+		if http_request_item.tls then
+#if TLS_AVAILABLE
+				if sock.tlsrxlen = 0 then
+					exit sub
+				end if
+#endif
+		else 
+			if sock.rxlen = 0 then
+				exit sub
+			end if			
+		end if
+		next_byte=http_get_data(1)
+		if next_byte="\x0a" then
+			if http_request_item.state=REQUEST_SENT then
+				http_reply=left(http_reply,len(http_reply)-1)
+				dim b1 as byte=instr(1,http_reply," ",1)
+				dim b2 as byte=instr(1,http_reply," ",2)
+				http_reply=mid(http_reply,b1+1,b2-b1-1)
+				callback_http_response_code_arrival(http_reply)
+				http_debugprint("Response code:" + http_reply)
+				http_request_item.state=HTTP_RESPONSE_PROCESSED
+				http_reply=""
+			else if http_request_item.state=HTTP_RESPONSE_PROCESSED then
+				dim header_type, header_value as string
+				dim b as byte= instr(1,http_reply,": ",1)
+				if b=0 then
+					callback_http_headers_complete()
+					http_debugprint("Headers Complete")
+					http_request_item.state=HTTP_HEADERS_PROCESSED
+					exit while
+				end if
+				header_type=left(http_reply,b-1)
+				header_value=right(http_reply,len(http_reply)-b-1)
+				header_value=left(header_value,len(header_value)-1)
+				callback_http_header_arrival(header_type,header_value)
+				http_debugprint("Header> " + header_type + "\t\tValue: " + header_value)
+				http_parse_headers(header_type)
+				http_parse_headers(header_value)
+				if header_type="content-length" then
+					http_request_item.remaining_response_content_length=lval(header_value)
+					http_chunk_length = http_request_item.remaining_response_content_length
+				end if
+				if header_type="transfer-encoding" then
+					if header_value="chunked" then
+						http_request_item.chunked=true
+					end if
+				end if
+				http_reply=""
+			end if
+		else
+			http_reply=http_reply+next_byte
+		end if
+	wend	
+	
+	if http_request_item.chunked=true then
+		if http_get_chunk_length()=NG then
+			exit sub
+		end if			
+	end if
+	
+	if http_request_item.remaining_response_content_length=0 then
+		http_request_complete()
+		exit sub
+	end if	
+	
+end sub
+
+sub http_get_content() 
+	
+	http_timer_count=0
+	if http_request_item.chunked=true and http_request_item.remaining_response_content_length=0  then
+		if http_get_chunk_length()=NG then
+			exit sub
+		else 
+			http_debugprint("Chunk complete")
+		end if		
+	end if
+	if http_request_item.remaining_response_content_length=0 then
+		http_request_complete()
+		exit sub
+	end if	
+	dim data as string
+	if http_request_item.remaining_response_content_length>HTTP_MAX_DATA_LENGTH then
+		data=http_get_data(HTTP_MAX_DATA_LENGTH)
+	else
+		data=http_get_data(http_request_item.remaining_response_content_length)
+	end if
+	if len(data) > 0 then
+		http_request_item.remaining_response_content_length=http_request_item.remaining_response_content_length-len(data)
+		callback_http_content_arrival(data)
+		#if HTTP_DEBUG_PRINT 
+		http_debugprint(data)
+		dim bytes_received as dword=http_chunk_length - http_request_item.remaining_response_content_length
+		if http_request_item.chunked=false then
+			http_debugprint(lstr(bytes_received) + " out of " + lstr(http_chunk_length)  + " bytes received\t" + lstr((bytes_received*100)/http_chunk_length) + "%")
+		else
+			http_debugprint(lstr(bytes_received) + " out of " + lstr(http_chunk_length)  + " bytes in current chunk received\t" + lstr((bytes_received*100)/http_chunk_length) + "%")
+		end if	
+		#endif
+		if http_request_item.chunked=false and (http_request_item.remaining_response_content_length=0 or http_request_item.method=HTTP_HEAD) then
+			http_request_complete()
+		end if
+	end if
+	
+end sub
+
+sub http_proc_data()
+
+	if http_start_called=false or http_check_socket_list()=NG then		
+		exit sub
+	end if		
+
+	select case http_request_item.state
+	
+	case REQUEST_SENT:
+		http_get_headers()
+	case HTTP_HEADERS_PROCESSED:
+		http_get_content()
+	end select
+
+end sub
+
+sub http_failed(byref error_message as string)
+
+	http_reset_socket()
+	http_debugprint("Failed reason:" + error_message)
+	callback_http_request_failed(error_message)
+	
+end sub
+
+function http_get_domain_name(url as string) as string
+	
+	dim b as byte
+	if left(url, 7)="http://" then
+		http_get_domain_name=right(url,len(url)-7)
+	else if left(url, 8)="https://" then
+		http_get_domain_name=right(url,len(url)-8)
+	else
+		http_get_domain_name=""
+		exit function
+	end if
+	b=instr(1,http_get_domain_name,"/",1)
+	if b>0 then
+		http_get_domain_name=left(http_get_domain_name,b-1)	
+	end if
+	b=instr(1,http_get_domain_name,":",1)
+	if b>0 then
+		http_get_domain_name=left(http_get_domain_name,b-1)	
+	end if
+	b=instr(1,http_get_domain_name,"?",1)
+	if b>0 then
+		http_get_domain_name=left(http_get_domain_name,b-1)	
+	end if
+	b=instr(1,http_get_domain_name,"#",1)
+	if b>0 then
+		http_get_domain_name=left(http_get_domain_name,b-1)	
+	end if
+	
+		
+end function
+
+sub http_init_request_socket()
+	dim dns_socket as byte=sock.num
+	dim sock_error as boolean = false
+
+	sock.num=http_request_item.socket
+	sock.connectiontout=HTTP_TIMEOUT
+	sock.targetip=http_request_item.ip
+	sock.protocol=PL_SOCK_PROTOCOL_TCP
+	sock.inconmode= PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
+	sock.targetport=http_request_item.port
+	sock.allowedinterfaces = sock.availableinterfaces	
+	sock.targetinterface=http_request_item.interface
+	if sock.txbuffrq(HTTP_TX_BUFF) <> HTTP_TX_BUFF then
+		http_failed("Not enough space in TX buffer")
+		sock_error=true
+	end if
+	if sock.rxbuffrq(HTTP_RX_BUFF) <> HTTP_RX_BUFF then
+		http_failed("Not enough space in RX buffer")
+		sock_error=true
+	end if
+	sys.buffalloc()
+	
+#if TLS_AVAILABLE
+	if http_request_item.domain_name<>http_last_domain then
+		sock.tlsdeinit()
+	end if
+	if http_request_item.tls=true then
+	
+#if PLATFORM_ID<>WM2000
+		sock.tlsbuffrq(HTTP_TLS_BUFF_PAGES)
+		sys.buffalloc()
+#endif
+		if sock.tlsinit(callback_http_open_romfile())<>PL_TLS_SUCCESS then
+			http_failed("Error loading certificate")
+			sock_error=true
+		end if	
+	end if	
+#endif
+
+	sock.rxclear()
+	sock.txclear()
+	if sock_error=false then
+		dim i as word
+		i=sys.timercount
+		sock.close()
+		while sock.statesimple<>PL_SSTS_CLOSED and sys.timercount-i<3 and sys.timercount>=i
+		wend
+		http_last_domain=http_request_item.domain_name
+		sock.connect()
+	end if
+	sock.num=dns_socket
+	
+	
+end sub
+
+sub http_start_request()
+	
+	dim is_ip_address as boolean=true
+	dim b as byte
+	http_request_item.domain_name = http_get_domain_name(http_request_item.url)
+	dim domain_start as byte = instr(1,http_request_item.url,http_request_item.domain_name,1)
+	dim domain_end as byte = domain_start + len(http_request_item.domain_name)
+	if domain_start=0 then
+		http_failed("Malformed URL")
+		exit sub
+	end if
+	for b=domain_start to domain_end-1
+		dim s as string=mid(http_request_item.url,b,1)
+		dim ascii as byte=asc(s)
+		if ascii>=46 and ascii<=57 then
+		else
+			is_ip_address=false
+			exit for
+		end if
+	next b
+	if is_ip_address=true then
+		http_request_item.ip=http_request_item.domain_name
+		http_request_item.state=DNS_COMPLETE
+		http_init_request_socket()
+	else
+		dns_connect(http_request_item.interface, HTTP_DNS_SERVER, 0)
+		dns_query(http_request_item.domain_name)
+		http_request_item.state=DNS_REQUEST_SENT
+	end if
+		
+end sub
+
+sub http_set_port() 
+	dim b as byte=instr(1,http_request_item.url,":",2)
+	dim port as string = ""
+	if b>0 then
+		dim index as byte = b+1
+		dim ascii as byte
+		while index <= len(http_request_item.url)
+			dim s as string=mid(http_request_item.url,index,1)
+			index=index+1
+			ascii=asc(s)
+			if ascii>=48 and ascii<=57 then
+				port = port + s
+			else
+				exit while
+			end if
+		wend
+	end if
+	
+	if left(http_request_item.url, 5)="https" then 
+		http_request_item.tls=true
+		http_request_item.port=443
+	else
+		http_request_item.tls=false
+		http_request_item.port=80
+	end if
+	if port<>"" then
+		http_request_item.port=val(port)
+	end if
+	
+end sub
+
+sub http_proc_timer()
+
+	if http_start_called=false then		
+		exit sub
+	end if
+	if http_request_item.state>DNS_REQUEST_SENT then
+		http_timer_count = http_timer_count + 1
+		if http_timer_count > HTTP_TIMEOUT then
+			http_failed("Timeout")
+		end if
+	end if	
+	
+end sub
+
+function http_get_path(url as string) as string
+
+	dim b as byte=instr(1,url,"/",3)
+	http_get_path=right(url,len(url)-b+1)
+		
+end function
+
+sub http_send_required_data()
+	sock.num=http_request_item.socket
+	http_send_data(http_methods(http_request_item.method) + " " + http_get_path(http_request_item.url))
+	if (http_request_item.method=HTTP_GET or http_request_item.method=HTTP_HEAD) and (http_request_item.data<>"") then
+		http_send_data("?" + http_request_item.data)
+	end if
+	http_send_data(" HTTP/1.1\r\n")
+	http_send_headers("Host", http_request_item.domain_name)
+	if (http_request_item.method<>HTTP_GET and http_request_item.method<>HTTP_HEAD) then
+		http_send_headers("Content-Length",str(http_request_item.remaining_content_length))
+	end if
+end sub
+
+function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, request_length as dword) as byte
+
+	http_start()
+	if http_request_item.state<>FREE then
+		http_reset_socket()
+		http_debugprint("Current HTTP request cancelled, starting new request.")
+	end if
+	http_timer_count = 0
+	http_request_item.data=data
+	http_request_item.url=url
+	http_request_item.method=method
+	http_request_item.remaining_content_length=request_length
+	http_request_item.chunked=false
+	if request_length=0 then
+		http_request_item.long_request=false
+		http_request_item.remaining_content_length=len(data)
+	else
+		http_request_item.long_request=true
+	end if
+	http_request_merged=http_request_item.socket
+	http_request_item.interface=interface	
+	http_request_item.chunked=false
+	if http_request_item.state=FREE then
+		http_set_port()
+#if TLS_AVAILABLE <> 1
+		if http_request_item.tls=true then
+			http_failed("Device does not support TLS")
+			exit function
+		end if
+#endif
+		http_start_request()
+	end if	
+	
+end function
+
+function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
+''The "Content-Type" header is a requirement for most HTTP requests	
+
+	http_request=http_request_merged(method, url, interface, data, 0) 
+	
+end function
+
+function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword) as byte
+'Sends a HTTP request to the specified path on a specified domain name. 
+	
+	http_request_long=http_request_merged(method, url, interface, "", request_length) 
+	
+end function
+
+sub http_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+	
+	if http_request_item.state=DNS_REQUEST_SENT then		
+		if dns_current_domain() = http_request_item.domain_name then
+			if(return_type=EN_DNS_RET_IP) then
+				http_request_item.ip=ddstr(return_string)
+				http_request_item.state=DNS_COMPLETE
+				http_init_request_socket()
+			end if
+		end if
+	end if
+	
+end sub
+
+function http_send_post_data(byref data as string) as word
+	http_timer_count = 0
+	dim sent as string = data
+	if len(sent) > http_request_item.remaining_content_length then
+		sent = left(sent,http_request_item.remaining_content_length)
+	end if
+	http_send_data(sent)
+	http_request_item.remaining_content_length=http_request_item.remaining_content_length-len(sent)
+	http_debugprint("Remaining data length: " + lstr(http_request_item.remaining_content_length))
+	sock.notifysent(255)
+
+end function
+
+function http_encode_url(unencoded_url as string) as string
+ 
+	dim i, j, n as byte
+	dim chr_hex as string
+	for i = 1 to len(unencoded_url)
+		n = asc(mid(unencoded_url,i,1))
+		if n > 127 then
+			http_debugprint("Character out of range")
+		else if (n >= 48 and n <= 57) or (n >= 65 and n <= 90) or (n >= 97 and n <= 122) then
+			http_encode_url = http_encode_url + mid(unencoded_url,i,1)
+		else
+			chr_hex = hex(asc(mid(unencoded_url,i,1)))
+			chr_hex=right(chr_hex,len(chr_hex)-2)
+			for j = 0 to (len(chr_hex)/2)-1
+			    http_encode_url = http_encode_url + "%" + mid(chr_hex ,(2*j) + 1,2)
+			next j
+		end if
+	next
+	
+end function
+
+sub http_dns_failure()
+	if http_request_item.domain_name<>dns_current_domain() then
+		exit sub
+	end if
+	http_failed("DNS failure")
+end sub 
+
+sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
+	
+	if http_start_called=false then		
+		exit sub
+	end if	
+	if http_check_socket_list()=NG then
+		exit sub
+	end if	
+	if newstatesimple<>PL_SSTS_EST then
+		exit sub
+	end if
+	if sock.statesimple=PL_SSTS_CLOSED then
+		if http_request_item.state <=REQUEST_SENT then
+			http_failed("Connection closed")
+			exit sub
+		end if
+	end if
+	if http_request_item.state>=REQUEST_SENT then
+		exit sub
+	end if
+	
+	if http_request_item.tls=true then		
+#if TLS_AVAILABLE
+		if sock.state=PL_SST_EST_AOPENED then
+			dim domain as string = http_request_item.domain_name
+			dim handshake_res as pl_tls_result = sock.tlshandshake(domain)
+			if handshake_res<>PL_TLS_SUCCESS then
+				http_failed("Handshake Error")
+			end if
+		end if
+		if sock.state<>PL_SST_EST_TLS then
+			exit sub
+		end if
+		
+#else
+		http_failed("HTTPS not available")
+		exit sub
+#endif
+	end if
+	if http_request_item.state<=REQUEST_SENT then
+		http_send_required_data()
+		callback_http_send_headers()
+		http_send_data("\r\n")
+		if http_request_item.method<>HTTP_GET and http_request_item.method<>HTTP_HEAD then
+			if http_request_item.long_request=false then
+				http_send_data(http_request_item.data)
+				http_request_item.state=REQUEST_SENT
+			else
+				callback_http_send_post_data(http_request_item.remaining_content_length)
+			end if
+		else
+			http_request_item.state=REQUEST_SENT
+		end if
+	end if
+end sub
+
+sub http_send_headers(header_name as string, header_value as string)
+	
+	http_send_data(header_name + ": " + header_value + "\r\n")
+	
+end sub
+
+
+sub http_on_sock_data_sent()
+
+	if http_check_socket_list()=NG then
+		exit sub
+	end if
+	if http_request_item.remaining_content_length>0 then
+		callback_http_send_post_data(http_request_item.remaining_content_length)
+	else
+		callback_http_post_data_sent_ok()
+		http_request_item.state=REQUEST_SENT
+		http_debugprint("HTTP Post Data Sent")
+	end if
+	
+end sub

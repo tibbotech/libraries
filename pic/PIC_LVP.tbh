@@ -1,0 +1,29 @@
+
+#ifndef PIC_LVP_MAX_DATA_LEN
+	#define PIC_LVP_MAX_DATA_LEN        8192
+#endif
+
+#ifndef PIC_LVP_MAX_EEPROM_LEN
+	#define PIC_LVP_MAX_EEPROM_LEN      256
+#endif
+
+#ifndef PIC_LVP_MAX_CFG_LEN
+	#define PIC_LVP_MAX_CFG_LEN         16
+#endif
+
+#ifndef PIC_LVP_MAX_USER_ID_LEN
+	#define PIC_LVP_MAX_USER_ID_LEN	    4
+#endif
+
+#ifndef PIC_LVP_MAX_TRY_FLASHING
+	#define PIC_LVP_MAX_TRY_FLASHING	4
+#endif
+
+#ifndef PIC_LVP_DEBUG_PRINT
+	#define PIC_LVP_DEBUG_PRINT 1
+#endif
+
+declare sub pic_lvp_start(SCL as byte, SDA as byte, MCLR as byte)
+
+declare function pic_lvp_upload_firmware(byref fwname as string) as boolean
+

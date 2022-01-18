@@ -1,0 +1,83 @@
+#ifndef TIBBIT_43_MAX_NO 
+	#define TIBBIT_43_MAX_NO 4	
+#endif
+
+#ifndef TIBBIT_43_NO_OF_SAMPLES 
+	#define TIBBIT_43_NO_OF_SAMPLES 10
+#endif
+
+#ifndef TIBBIT_43_RX_BUF 
+	#define TIBBIT_43_RX_BUF 32
+#endif
+
+enum TIBBIT43_SAMPLING_MODE
+    SAMPLING_SINGLE,
+    SAMPLING_DIFF
+end enum
+
+enum TIBBIT43_MODE
+    COMMAND_MODE,
+    DATA_MODE
+end enum
+
+enum TIBBIT43_DATA_FORMAT
+	DATA_ASCII,
+	DATA_BIN,
+	DATA_HEX
+end enum
+
+type TIBBIT43_VALUES
+	value(4) as string(10)
+end type
+
+type TIBBIT43_SETTINGS
+	tibbit_initialized as boolean
+	command_mode as boolean
+	sample_rate as integer
+	sample_mode as TIBBIT43_SAMPLING_MODE
+	data_format as TIBBIT43_DATA_FORMAT
+	enable_channels as string
+	samples(TIBBIT_43_NO_OF_SAMPLES) as TIBBIT43_VALUES
+	sample_count as byte
+	channels as string
+	A(6) as byte
+	BP(6) as char
+	BN(6) as char
+end type
+
+enum TIBBIT_43_RESULT
+	RESULT_OK,
+	RESULT_ERROR_SYNTAX,
+	RESULT_ERROR_OUTRANGE,
+	RESULT_ERROR_EXECUTION,
+	RESULT_ERROR_LIBRARY,
+	RESULT_TIBBIT_INVALID
+end enum
+
+const TIBBIT_43_STAMP="TIBBIT_43> "
+const TIBBIT_43_HTTP_CR_LF=chr(13)+chr(10)
+declare TIBBIT43_SETTINGS_LIST as TIBBIT43_SETTINGS(TIBBIT_43_MAX_NO)
+
+declare sub tibbit_43_proc_data()
+declare sub callback_tibbit_43_data_arrival(mode as string(12), port as byte, channel1 as string(10), channel2 as string(10), channel3 as string(10), channel4 as string(10))
+declare sub callback_tibbit_43_sampling_completed(samples as TIBBIT43_VALUES(TIBBIT_43_NO_OF_SAMPLES))
+declare sub tibbit_43_start() 
+
+declare function tibbit_43_init(port as byte) as boolean
+declare function tibbit_43_set_sample_rate(port as byte, rate as integer) as TIBBIT_43_RESULT
+declare function tibbit_43_set_sampling_mode(port as byte, sampmode as TIBBIT43_SAMPLING_MODE) as TIBBIT_43_RESULT
+declare function tibbit_43_set_data_format(port as byte, datamode as TIBBIT43_DATA_FORMAT) as TIBBIT_43_RESULT
+declare function tibbit_43_set_enable_channels(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+declare function tibbit_43_set_A(port as byte, a1 as byte, a2 as byte, a3 as byte, a4 as byte, a5 as byte, a6 as byte) as TIBBIT_43_RESULT
+declare function tibbit_43_set_BP(port as byte, b1 as char, b2 as char, b3 as char, b4 as char, b5 as char, b6 as char) as TIBBIT_43_RESULT
+declare function tibbit_43_set_BN(port as byte, b1 as char, b2 as char, b3 as char, b4 as char, b5 as char, b6 as char) as TIBBIT_43_RESULT
+declare function tibbit_43_reset_settings_to_factory(port as byte) as TIBBIT_43_RESULT
+declare function tibbit_43_store_settings_to_EEPROM(port as byte) as TIBBIT_43_RESULT
+declare function tibbit_43_restore_settings_from_EEPROM(port as byte) as TIBBIT_43_RESULT
+declare function tibbit_43_read_settings_from_EEPROM(port as byte, byref settings as TIBBIT43_SETTINGS) as TIBBIT_43_RESULT
+declare function tibbit_43_read_settings_from_RAM(port as byte, byref settings as TIBBIT43_SETTINGS) as TIBBIT_43_RESULT
+declare function tibbit_43_read_data_ascii(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+declare function tibbit_43_read_data_hex(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+declare function tibbit_43_get_data_ascii(port as byte, channels as string(7)) as string
+declare function tibbit_43_get_data_hex(port as byte, channels as string(7)) as string
+declare function tibbit_43_set_mode(port as byte, mode as TIBBIT43_MODE) as TIBBIT_43_RESULT

@@ -1,0 +1,122 @@
+const PIC_CHIP_ADDR_R=&h07
+const PIC_CHIP_ADDR_W=&h06
+
+const PIC_CMD_R=&h01
+const PIC_CMD_W=&h02
+
+const PIC_PORTA	  =&h000C
+const PIC_PORTC	  =&h000E
+const PIC_PIE1	  =&h0091
+const PIC_OSCCON  =&h0099
+
+const PIC_APFCON0 =&h011D
+const PIC_APFCON1 =&h011E
+const PIC_ANSELA  =&h018C
+const PIC_ANSELC  =&h018E
+const PIC_TRISA   =&h008C
+const PIC_TRISC   =&h008E
+const PIC_LATA	  =&h010C
+const PIC_LATC	  =&h010E
+const PIC_ADCON0  =&h009D
+const PIC_ADCON1  =&h009E
+const PIC_ADRESH  =&h009C
+const PIC_ADRESL  =&h009B
+const PIC_FVRCON =&h0117
+const PIC_CCP1CON =&h0293
+const PIC_CCP2CON =&h029A
+const PIC_CCP3CON =&h0313
+const PIC_CCPR1L  =&h0291
+const PIC_CCPR2L  =&h0298
+const PIC_CCPR3L  =&h0311
+const PIC_CCPTMRS0=&h029E
+const PIC_PR2	  =&h001B
+const PIC_PR4	  =&h0416
+const PIC_PR6	  =&h041D
+const PIC_T2CON	  =&h001C
+const PIC_T4CON	  =&h0417
+const PIC_T6CON	  =&h041E
+
+const PIC_TXREG	  =&h019A
+const PIC_SPBRGL  =&h019B
+const PIC_SPBRGH  =&h019C
+const PIC_RCSTA	  =&h019D
+const PIC_TXSTA	  =&h019E
+const PIC_BAUDCON =&h019F
+
+'#define INTERNAL_OSCILLATOR_FREQ_31KHZ_LF 	 0
+#define INTERNAL_OSCILLATOR_FREQ_31_25KHZ_MF 1
+#define INTERNAL_OSCILLATOR_FREQ_31_25KHZ_HF 2
+#define INTERNAL_OSCILLATOR_FREQ_62_5KHZ_MF	 3
+#define INTERNAL_OSCILLATOR_FREQ_125KHZ_MF	 4
+#define INTERNAL_OSCILLATOR_FREQ_125KHZ_HF	 5
+#define INTERNAL_OSCILLATOR_FREQ_250KHZ_MF	 6
+#define INTERNAL_OSCILLATOR_FREQ_250KHZ_HF	 7
+#define INTERNAL_OSCILLATOR_FREQ_500KHZ_MF	 8
+#define INTERNAL_OSCILLATOR_FREQ_500KHZ_HF	 9
+#define INTERNAL_OSCILLATOR_FREQ_1MHZ_HF	10
+#define INTERNAL_OSCILLATOR_FREQ_2MHZ_HF	11
+#define INTERNAL_OSCILLATOR_FREQ_4MHZ_HF	12
+#define INTERNAL_OSCILLATOR_FREQ_8MHZ_HF	13
+#define INTERNAL_OSCILLATOR_FREQ_16MHZ_HF	14
+#define INTERNAL_OSCILLATOR_FREQ_32MHZ_HF	15
+
+enum pic_adc_enum
+	PIC_ADC0,
+	PIC_ADC1,
+	PIC_ADC2,
+	PIC_ADC3,	
+	PIC_ADC4,	'EM1000_LEV ONLY
+	PIC_ADC5	'EM1000_LEV ONLY
+end enum
+
+enum pic_pin_enum
+	PIC_PIN0,
+	PIC_PIN1,
+	PIC_PIN2,
+	PIC_PIN3,
+	PIC_PIN4,	'EM1000_LEV ONLY
+	PIC_PIN5	'EM1000_LEV ONLY
+end enum
+
+enum pic_pwm_enum
+	PIC_PWM0,
+	PIC_PWM1,
+	PIC_PWM2
+end enum
+
+enum pic_prescaler_enum
+	PIC_PRE_64, '500KHz for CPU clock of 32MHz
+	PIC_PRE_16, '2Mhz  for CPU clock of 32MHz
+	PIC_PRE_4,  '8Mhz  for CPU clock of 32MHz
+	PIC_PRE_1	'32Mhz  for CPU clock of 32MHz
+end enum
+
+enum pic_brate_enum
+	PIC_BRATE_300=1,
+	PIC_BRATE_600=2,
+	PIC_BRATE_1200=4,
+	PIC_BRATE_2400=8,
+	PIC_BRATE_4800=16,
+	PIC_BRATE_9600=32,
+	PIC_BRATE_19200=64,
+	PIC_BRATE_38400=128,
+	PIC_BRATE_57600=192
+end enum
+
+include "super_i2c.tbh"
+
+declare function pic_reg_read(addr as word,length as byte) as string
+'Read the specified number of bytes from consequent PIC memory locations beginning from the specified address.  
+
+declare function pic_reg_write(addr as word, data as string) as ok_ng
+'Write the specified number of bytes into consequent PIC memory locations beginning from the specified address. 
+
+declare sub pic_reset(scl as pl_io_num,sda as pl_io_num,rst as pl_io_num)
+'Calling this sub will hardware-reset the PIC micro.
+
+declare function pic_get_fw_version() as string
+'Call this function to obtain the version string for the firmware currently running on the PIC micro.
+'The version will always be in the NNN Vxx.yy format, where
+'NNN is the firmware name
+'xx -- major release (affecting the corresponding Tibbo BASIC library)
+'yy -- minor release (not affecting the corresponding Tibbo BASIC library)

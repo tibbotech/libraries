@@ -1,0 +1,163 @@
+include "global.tbh"
+
+const CGG_STAMP = "CGG> "
+
+dim cgg_soi_socket as byte = 255
+dim cgg_device_token as string
+dim cgg_ser_num as byte
+dim cgg_soi_should_connect as boolean = true
+dim cgg_connected as boolean = false
+dim cgg_settings(CGG_MAX_SETTINGS) as string(CGG_MAX_SETTING_NAME_LENGTH)
+dim cgg_setting_name as string(CGG_MAX_SETTING_NAME_LENGTH)
+dim cgg_setting_value as string
+
+#if CGG_DEBUG_PRINT
+declare sub cgg_debugprint(byref message as string)
+#endif
+
+sub cgg_start(server_address as string, device_token as string, target_interface as pl_sock_interfaces)
+    cgg_soi_should_connect = false
+    cgg_device_token = device_token
+    dim i as byte
+    #if CGG_DEBUG_PRINT
+		cgg_debugprint("---START---")
+	#endif
+
+    romfile.open(CGG_DESCRIPTOR_FILE)				'this file is a table descriptor file
+	if romfile.size=0 then
+		#if CGG_DEBUG_PRINT
+			cgg_debugprint("ERROR: '"+CGG_DESCRIPTOR_FILE+"' is not in your project or file is empty.")
+		#endif
+		exit sub
+	end if
+    dim index as byte = 1
+    dim end_index as byte = 0
+    dim string_length as byte = 0
+    dim cgg_setting_name as string(CGG_MAX_SETTING_NAME_LENGTH)
+    dim setting_index as byte = 0
+    while index <> 0
+        index = romfile.find(index,">>",1)
+        if index <> 0 then
+            romfile.getdata(2)
+            index = index + 2
+            end_index = romfile.find(index," ",1)
+            string_length = end_index - index
+            cgg_setting_name = romfile.getdata(string_length)
+            index  = index + string_length
+            cgg_settings(setting_index) = cgg_setting_name
+            setting_index = setting_index + 1
+            index = romfile.find(index,"\n",1) + 1
+        end if
+    wend
+end sub
+
+sub cgg_soi_connect(server_address as string, device_token as string, target_interface as pl_sock_interfaces, ser_num as byte)
+    'Sock S1 connection setup
+    '================================================================
+    cgg_ser_num = ser_num
+    cgg_soi_socket=sock_get("CGGSOI")
+    sock.num=cgg_soi_socket
+    sock.protocol=PL_SOCK_PROTOCOL_TCP
+    sock.inconmode=PL_SOCK_INCONMODE_NONE
+    sock.allowedinterfaces="NET,WLN,PPP"
+    sock.txbuffrq(1)
+    sock.rxbuffrq(1)
+    sys.buffalloc()
+    sock.targetinterface=target_interface
+    sock.targetip=server_address
+    sock.targetport=CGG_DEVICE_PORT
+    cgg_soi_should_connect = true
+    cgg_connected = false
+    
+    '-----------------------------------------------------------------
+end sub
+
+sub cgg_proc_timer()
+    if cgg_connected = false and cgg_soi_should_connect = true then
+        cgg_soi_should_connect = false
+        sock.num=cgg_soi_socket
+        sock.connect()
+    end if
+end sub
+
+sub cgg_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+    if sock.num = cgg_soi_socket then
+        if newstatesimple=PL_SSTS_EST then
+            cgg_connected = true
+            cgg_soi_should_connect = false
+            sys.debugprint("connected to SOI server\r\n")
+            sock.setdata(cgg_device_token)
+            sock.send()
+        else if newstatesimple=pl_ssts_closed then
+            sys.debugprint("disconnected from SOI server\r\n")
+            cgg_connected = false
+            cgg_soi_should_connect = true
+        end if
+    end if
+end sub
+
+sub cgg_mqtt_ok()
+    dim i as byte
+    dim value as string = ""
+    mqtt_publish(CGG_ATTR_TOPIC, "{'TIOS':'" + sys.version + "'}",QOS_AT_MOST_ONCE)
+    mqtt_publish(CGG_ATTR_TOPIC, "{'APP':'" + FIRMWARE_VERSION + "'}",QOS_AT_MOST_ONCE)
+    if CGG_MAX_SETTINGS = 0 then
+        exit sub
+    end if
+    for i=0 to CGG_MAX_SETTINGS-1
+        cgg_setting_name = cgg_settings(i)
+        value = stg_get(cgg_setting_name,0)
+        mqtt_publish(CGG_ATTR_TOPIC, "{'"+cgg_setting_name+"':'" + value + "'}",QOS_AT_MOST_ONCE)
+    next i
+end sub
+
+sub cgg_send(name as string, value as string)
+    mqtt_publish(CGG_TELEMETRY_TOPIC,"{'"+name+"':'"+value+"'}",QOS_AT_MOST_ONCE)
+end sub
+
+sub cgg_proc_ser_data()
+    if ser.num=cgg_ser_num AND cgg_connected = true then
+        dim data as string = ser.getdata(255)
+        sock.num = cgg_soi_socket
+        sock.setdata(data)
+        sock.send()
+    end if
+end sub
+
+sub cgg_proc_sock_data()
+    if sock.num = cgg_soi_socket AND cgg_connected = true then
+        dim data as string = sock.getdata(255)
+        ser.num = cgg_ser_num
+        ser.setdata(data)
+        ser.send()
+    end if
+end sub
+
+sub cgg_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
+    mqtt_publish(CGG_ATTR_TOPIC, "{'"+stg_name_or_num+"':'" + stg_value + "'}",QOS_AT_MOST_ONCE)
+end sub
+
+sub cgg_proc_mqtt_notif(byref topic as string, byref data as string)
+    if topic = CGG_ATTR_TOPIC then
+        cgg_proc_attribute_update(data)
+    end if
+    if topic = CGG_RPC_TOPIC then
+        
+    end if
+end sub
+
+sub cgg_proc_attribute_update(byref data as string)
+    dim startIndex as byte = instr(0,data,"\x22",1) + 1
+    dim endIndex as byte = instr(0,data,"\x22",2)
+    dim attr as string = mid(data,startIndex, endIndex - startIndex)
+    startIndex = instr(0,data,"\x22",3) + 1
+    endIndex = instr(0,data,"\x22",4)
+    dim value as string = mid(data,startIndex, endIndex - startIndex)
+    callback_cgg_attribute_received(attr, value)
+end sub
+
+#if CGG_DEBUG_PRINT
+sub cgg_debugprint(byref message as string)
+    sys.debugprint(CGG_STAMP + message)
+end sub
+#endif

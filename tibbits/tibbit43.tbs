@@ -1,0 +1,849 @@
+include "tibbit43.tbh"
+
+' ==============================================================
+' Variables
+#define TIBBIT_43_CMD_CTX					chr(&h02)
+#define TIBBIT_43_CMD_END					chr(&h0d)
+#define TIBBIT_43_ANSWER_OK					"A"
+#define TIBBIT_43_ANSWER_ERROR_SYNTAX		"C"
+#define TIBBIT_43_ANSWER_ERROR_OUTRANGE		"O"
+#define TIBBIT_43_ANSWER_ERROR_EXECUTION	"F"
+
+#define TIBBIT_43_CMD_SET_COMMANDMODE		"C"
+#define TIBBIT_43_CMD_SET_DATAMODE			"D"
+#define TIBBIT_43_CMD_READ_DATA_ASCII		"RA"
+#define TIBBIT_43_CMD_READ_DATA_HEX			"RH"
+#define TIBBIT_43_CMD_GET_VERSION			"V"
+#define	TIBBIT_43_CMD_SET_SAMPLERATE		"SR"
+#define TIBBIT_43_CMD_SET_SAMPLEMODE		"SM"
+#define TIBBIT_43_CMD_SET_ENABLECHANNELS	"SC"
+#define TIBBIT_43_CMD_SET_DATAFORMAT		"SD"
+#define TIBBIT_43_CMD_SET_A					"SA"
+#define TIBBIT_43_CMD_SET_B_POS				"SBP"
+#define TIBBIT_43_CMD_SET_B_NEG				"SBN"
+#define TIBBIT_43_CMD_RESET_TOFACTORY		"SF"
+#define TIBBIT_43_CMD_STORE_SETTINGS		"SE"
+#define TIBBIT_43_CMD_RESTORE_SETTINGS		"FE"
+#define TIBBIT_43_CMD_READ_SETTINGSEEPROM	"GE"
+#define TIBBIT_43_CMD_READ_SETTINGSRAM		"GC"
+#define TIBBIT_43_DEBUG_PRINT     			1
+
+dim tibbit_43_library_initialized as boolean = false
+dim TIBBIT43_SETTINGS_LIST as TIBBIT43_SETTINGS(TIBBIT_43_MAX_NO)
+dim values as TIBBIT43_VALUES
+
+sub tibbit_43_debug_print(byref print_data as string) 
+	
+	#if TIBBIT_43_DEBUG_PRINT 
+		sys.debugprint(TIBBIT_43_STAMP + print_data + TIBBIT_43_HTTP_CR_LF)
+	#endif
+
+end sub
+
+sub tibbit_43_wait(ms as word)
+	
+	dim tmr as dword
+	tmr = sys.timercountms
+	while sys.timercountms - tmr < ms
+	wend
+	
+end sub
+
+sub tibbit_43_serial_init(port as byte)
+
+	if (port < 4) then
+		ser.num = port
+		ser.enabled = NO
+		ser.mode = PL_SER_MODE_UART
+		ser.bits = PL_SER_BB_8
+		ser.parity =  PL_SER_PR_NONE
+		ser.flowcontrol = PL_SER_FC_RTSCTS
+		ser.interface = PL_SER_SI_FULLDUPLEX
+		ser.baudrate = PL_SER_BAUD_230400 ' 230400 bod 
+		ser.esctype=PL_SER_ET_DISABLED
+		ser.interchardelay=0
+		ser.rxbuffrq(TIBBIT_43_RX_BUF)
+		ser.txbuffrq(2)
+		sys.buffalloc()
+		ser.rxclear()
+		ser.txclear()
+	' Set MCLR pin
+		select case port
+		case 0:
+			ser.rtsmap=PL_IO_NUM_0
+			ser.ctsmap=PL_INT_NULL
+			io.num=PL_IO_NUM_16_INT0
+		case 1:
+			ser.rtsmap=PL_IO_NUM_1
+			ser.ctsmap=PL_INT_NULL
+			io.num=PL_IO_NUM_17_INT1
+		case 2:
+			ser.rtsmap=PL_IO_NUM_2
+			ser.ctsmap=PL_INT_NULL
+			io.num=PL_IO_NUM_18_INT2
+		case 3:
+			ser.rtsmap=PL_IO_NUM_3
+			ser.ctsmap=PL_INT_NULL
+			io.num=PL_IO_NUM_19_INT3
+		case else:
+			exit sub
+		end select
+		io.enabled = YES
+		io.state = LOW 			' RESET Tibbit#43 with MCLR pin
+		io.state = HIGH			' Unhold MCLR
+		io.enabled = NO
+		io.num=ser.rtsmap
+		io.enabled = YES
+		io.state = HIGH
+		ser.enabled=YES
+		tibbit_43_wait(200)
+	end if
+	
+end sub
+
+sub tibbit_43_serial_send(port as byte, data as string(64))
+	
+	ser.num = port
+	if ser.enabled = YES then
+		ser.setdata(data)
+		ser.send()
+	end if
+
+end sub
+
+function tibbit_43_serial_getdata_blocking(port as byte) as string
+	
+	ser.num = port
+	dim tmr as dword
+	tmr = sys.timercountms
+	while sys.timercountms - tmr < 1000
+		tibbit_43_serial_getdata_blocking=ser.peekdata(255)
+		dim delimiterpos as byte=instr(1,tibbit_43_serial_getdata_blocking,TIBBIT_43_CMD_END,1)
+ 		if delimiterpos>0 then
+			tibbit_43_serial_getdata_blocking=ser.getdata(delimiterpos)	
+			exit while
+		end if
+	wend	
+	
+end function
+
+sub tibbit_43_init_readings()
+	
+	values.value(0) = ""
+	values.value(1) = ""
+	values.value(2) = ""
+	values.value(3) = ""
+
+end sub
+
+function tibbit_43_check_answer(byref answer as string) as TIBBIT_43_RESULT
+	
+	tibbit_43_check_answer = RESULT_ERROR_LIBRARY
+	
+	if answer = "" or left(answer, 1) <> TIBBIT_43_CMD_CTX or right(answer, 1) <> TIBBIT_43_CMD_END then
+		tibbit_43_check_answer = RESULT_TIBBIT_INVALID
+	else
+		if left(answer, 2) = TIBBIT_43_CMD_CTX + TIBBIT_43_ANSWER_OK and right(answer, 1) = TIBBIT_43_CMD_END then
+			tibbit_43_check_answer = RESULT_OK
+		else
+			if answer = TIBBIT_43_CMD_CTX + TIBBIT_43_ANSWER_ERROR_SYNTAX + TIBBIT_43_CMD_END then
+				tibbit_43_check_answer = RESULT_ERROR_SYNTAX
+			else
+				if answer = TIBBIT_43_CMD_CTX + TIBBIT_43_ANSWER_ERROR_OUTRANGE + TIBBIT_43_CMD_END then
+					tibbit_43_check_answer = RESULT_ERROR_OUTRANGE
+				else
+					if answer = TIBBIT_43_CMD_CTX + TIBBIT_43_ANSWER_ERROR_EXECUTION + TIBBIT_43_CMD_END then
+						tibbit_43_check_answer = RESULT_ERROR_EXECUTION
+					end if
+				end if
+			end if
+		end if
+	end if
+	
+end function
+
+function tibbit_43_parse_bindata(port as byte, data as string) as boolean
+	
+	tibbit_43_parse_bindata=false
+	dim pos, i, length as byte
+	length=len(data)
+	pos = 1
+	for i = 0 to 3
+		values.value(i) = mid(data  , pos, 2)
+		pos = pos + 2
+		if pos > length then
+			tibbit_43_parse_bindata=true
+			dim mode as string
+			if TIBBIT43_SETTINGS_LIST(port).command_mode=true then
+				mode="Command mode"
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+			else
+				mode="Data mode"
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				dim i as byte
+				for i=0 to 3
+					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=values.value(i)
+				next i
+				TIBBIT43_SETTINGS_LIST(port).sample_count=TIBBIT43_SETTINGS_LIST(port).sample_count+1
+				if TIBBIT43_SETTINGS_LIST(port).sample_count>=TIBBIT_43_NO_OF_SAMPLES then
+					TIBBIT43_SETTINGS_LIST(port).sample_count=0
+					tibbit_43_debug_print("Sampling completed. " + str(TIBBIT_43_NO_OF_SAMPLES) + " samples collected")
+					callback_tibbit_43_sampling_completed(TIBBIT43_SETTINGS_LIST(port).samples)
+				end if 
+			end if	
+			exit function
+		end if
+	next i
+
+end function
+
+sub tibbit_43_get_bindata()
+	
+	dim length as byte=len(TIBBIT43_SETTINGS_LIST(ser.num).channels)
+	if ser.rxlen<length then exit sub
+	dim bindata as string=ser.getdata(length)
+	tibbit_43_parse_bindata(ser.num, bindata)
+
+end sub
+
+function tibbit_43_parse_ascii_or_hexdata(port as byte, data as string) as TIBBIT_43_RESULT
+
+	dim pos, delim, length, i as byte
+	tibbit_43_parse_ascii_or_hexdata=RESULT_TIBBIT_INVALID
+	length = len(data)
+	pos = 1
+	for i = 0 to 3
+		delim = instr(pos, data, ",", 1)
+		if delim <> 0 then
+			values.value(i) = mid(data, pos, delim - pos)
+			pos = delim + 1
+			if pos > length then exit function
+		else
+			values.value(i) = mid(data, pos, length - pos + 1)	
+			dim mode as string
+			if TIBBIT43_SETTINGS_LIST(port).command_mode=true then
+				mode="Command mode"
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+			else
+				mode="Data mode"
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				dim i as byte
+				for i=0 to 3
+					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=values.value(i)
+				next i
+				TIBBIT43_SETTINGS_LIST(port).sample_count=TIBBIT43_SETTINGS_LIST(port).sample_count+1
+				if TIBBIT43_SETTINGS_LIST(port).sample_count>=TIBBIT_43_NO_OF_SAMPLES then
+					TIBBIT43_SETTINGS_LIST(port).sample_count=0
+					tibbit_43_debug_print("Sampling completed. " + str(TIBBIT_43_NO_OF_SAMPLES) + " samples collected")
+					callback_tibbit_43_sampling_completed(TIBBIT43_SETTINGS_LIST(port).samples)
+				end if
+			end if
+		
+			tibbit_43_parse_ascii_or_hexdata=RESULT_OK
+			exit function
+		end if
+	next i	
+	
+end function
+
+sub tibbit_43_get_ascii_or_hexdata()
+	
+	dim asciidata as string=ser.peekdata(255)
+	dim delimiterpos as byte=instr(1,asciidata,";",1)
+	if delimiterpos>0 then
+		asciidata=ser.getdata(delimiterpos-1)	
+		ser.getdata(1)
+	else
+		exit sub
+	end if	
+	tibbit_43_parse_ascii_or_hexdata(ser.num, asciidata)
+	
+end sub
+
+function tibbit_43_parse_settings(byref data as string, byref settings as TIBBIT43_SETTINGS) as boolean
+	
+	dim pos, delim, delimIn as byte
+	dim value as string(10)	
+	tibbit_43_parse_settings = true
+	pos = instr(1, data, TIBBIT_43_CMD_SET_SAMPLERATE, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_SAMPLERATE)
+		delim = instr(pos, data, ";", 1)
+		if delim <> 0 then
+			value = mid(data, pos, delim - pos)
+			settings.sample_rate = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+	pos = instr(1, data, TIBBIT_43_CMD_SET_SAMPLEMODE, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_SAMPLEMODE)
+		delim = instr(pos, data, ";", 1)
+		if delim <> 0 then
+			value = mid(data, pos, delim - pos)
+			settings.sample_mode = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+
+	pos = instr(1, data, TIBBIT_43_CMD_SET_DATAFORMAT, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_DATAFORMAT)
+		delim = instr(pos, data, ";", 1)
+		if delim <> 0 then
+			value = mid(data, pos, delim - pos)
+			settings.data_format = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+	pos = instr(1, data, TIBBIT_43_CMD_SET_ENABLECHANNELS, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_ENABLECHANNELS)
+		delim = instr(pos, data, ";", 1)
+		if delim <> 0 then
+			value = mid(data, pos, delim - pos)
+			settings.enable_channels = value
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+	pos = instr(1, data, TIBBIT_43_CMD_SET_A, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_A)
+		delim = instr(pos, data, ";", 1)
+		if delim <> 0 then
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 then
+				value = mid(data, pos, delimIn - pos)
+				settings.A(0) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.A(1) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.A(2) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.A(3) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.A(4) = val(value)
+			end if
+			value = mid(data, delimIn + 1, delim - delimIn - 1)
+			settings.A(5) = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+	pos = instr(1, data, TIBBIT_43_CMD_SET_B_POS, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_B_POS)
+		delim = len(data)
+		if delim <> 0 then
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 then
+				value = mid(data, pos, delimIn - pos)
+				settings.BP(0) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BP(1) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BP(2) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BP(3) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BP(4) = val(value)
+			end if
+			value = mid(data, delimIn + 1, delim - delimIn - 1)
+			settings.BP(5) = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+	pos = instr(1, data, TIBBIT_43_CMD_SET_B_NEG, 1)
+	if pos <> 0 then
+	pos = pos + len(TIBBIT_43_CMD_SET_B_NEG)
+		delim = len(data)
+		if delim <> 0 then
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 then
+				value = mid(data, pos, delimIn - pos)
+				settings.BN(0) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BN(1) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BN(2) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BN(3) = val(value)
+			end if
+			pos = delimIn + 1
+			delimIn = instr(pos, data, ",", 1)
+			if delimIn <> 0 and delimIn < delim then
+				value = mid(data, pos, delimIn - pos)
+				settings.BN(4) = val(value)
+			end if
+			value = mid(data, delimIn + 1, delim - delimIn - 1)
+			settings.BN(5) = val(value)
+		end if
+	else
+		tibbit_43_parse_settings = false
+		exit function
+	end if
+
+end function
+
+sub tibbit_43_start() 
+	
+	dim i,j as byte
+	for i=0 to TIBBIT_43_MAX_NO-1
+		TIBBIT43_SETTINGS_LIST(i).tibbit_initialized = false
+		TIBBIT43_SETTINGS_LIST(i).sample_count = 0
+	next i	
+	tibbit_43_debug_print("---START---")
+		
+end sub
+
+function tibbit_43_init(port as byte) as boolean
+
+	if tibbit_43_library_initialized=false then
+		tibbit_43_start()
+		tibbit_43_library_initialized=true
+	end if
+	dim data as string
+	dim settings as TIBBIT43_SETTINGS
+	tibbit_43_init = false
+	if (port < 4) then
+		tibbit_43_serial_init(port)
+		' Check FW version
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_GET_VERSION + TIBBIT_43_CMD_END)
+		data = tibbit_43_serial_getdata_blocking(port)
+		dim answer as string = left(data,23)
+		if answer = TIBBIT_43_CMD_CTX + TIBBIT_43_ANSWER_OK + "Tibbo Inc. Tibbit#43-" and right(data,1)=TIBBIT_43_CMD_END then
+			TIBBIT43_SETTINGS_LIST(port).tibbit_initialized = true
+			TIBBIT43_SETTINGS_LIST(port).command_mode = true
+		else
+			TIBBIT43_SETTINGS_LIST(port).command_mode = false
+			tibbit_43_debug_print("Tibbit 43 initialization failed")
+			exit function
+		end if
+		' Get current settings
+		if tibbit_43_read_settings_from_RAM(port, settings) then
+			TIBBIT43_SETTINGS_LIST(port).data_format = settings.data_format
+			tibbit_43_init = true
+			tibbit_43_debug_print("Tibbit 43 initialized")
+		end if
+	end if
+	
+end function
+
+function tibbit_43_set_sample_rate(port as byte, rate as integer) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_set_sample_rate = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		if rate > 0 and rate <= 1000 then
+			tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_SAMPLERATE + str(rate) + TIBBIT_43_CMD_END)
+			
+			answer = tibbit_43_serial_getdata_blocking(port)
+			tibbit_43_set_sample_rate = tibbit_43_check_answer(answer)
+			if tibbit_43_set_sample_rate = RESULT_OK then
+				tibbit_43_debug_print("Sample rate set to " + str(rate))
+				exit function
+			end if
+		end if
+	end if
+	tibbit_43_debug_print("Error settings sample rate")
+	
+end function
+
+function tibbit_43_set_sampling_mode(port as byte, sampmode as TIBBIT43_SAMPLING_MODE) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_set_sampling_mode = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		if sampmode >= SAMPLING_SINGLE and sampmode <= SAMPLING_DIFF then
+			tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_SAMPLEMODE + str(sampmode) + TIBBIT_43_CMD_END)
+			
+			answer = tibbit_43_serial_getdata_blocking(port)
+			tibbit_43_set_sampling_mode = tibbit_43_check_answer(answer)
+			if tibbit_43_set_sampling_mode = RESULT_OK then
+				dim sampling_mode_string as string
+				select case sampmode
+				case SAMPLING_SINGLE:
+					sampling_mode_string="single sampling"
+				case SAMPLING_DIFF:
+					sampling_mode_string="differential sampling"
+				end select
+				tibbit_43_debug_print("Sampling mode set to " + sampling_mode_string)
+				exit function
+			end if
+		end if
+	end if
+	tibbit_43_debug_print("Error setting sampling mode")
+	
+end function
+
+function tibbit_43_set_data_format(port as byte, datamode as TIBBIT43_DATA_FORMAT) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_set_data_format = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		if datamode >= DATA_ASCII and datamode <= DATA_HEX then
+			tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_DATAFORMAT + str(datamode) + TIBBIT_43_CMD_END)
+			
+			answer = tibbit_43_serial_getdata_blocking(port)
+			tibbit_43_set_data_format = tibbit_43_check_answer(answer)
+			if tibbit_43_set_data_format = RESULT_OK then
+				TIBBIT43_SETTINGS_LIST(port).data_format = datamode
+				dim data_mode_string as string
+				select case datamode
+				case DATA_ASCII:
+					data_mode_string = "ASCII"
+				case DATA_BIN:
+					data_mode_string = "BIN"
+				case DATA_HEX:
+					data_mode_string = "HEX"
+				end select
+				tibbit_43_debug_print("Data mode set to " + data_mode_string)
+				exit function
+			end if			
+		end if
+	end if
+	tibbit_43_debug_print("Error setting data mode")
+	
+end function
+
+function tibbit_43_set_enable_channels(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_set_enable_channels = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_ENABLECHANNELS + channels + TIBBIT_43_CMD_END)
+		
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_set_enable_channels = tibbit_43_check_answer(answer)
+		if tibbit_43_set_enable_channels = RESULT_OK then
+			dim b as byte
+			TIBBIT43_SETTINGS_LIST(port).channels=""
+			for b=0 to ((len(channels)+1)/2)-1
+				TIBBIT43_SETTINGS_LIST(port).channels=TIBBIT43_SETTINGS_LIST(port).channels+mid(channels,b+b+1,1)
+			next b			
+			tibbit_43_debug_print("Channels " + channels + " enabled")
+			exit function
+		end if
+	end if
+	tibbit_43_debug_print("Error enabling channnels")
+	
+end function
+
+function tibbit_43_reset_settings_to_factory(port as byte) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_reset_settings_to_factory = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_RESET_TOFACTORY + TIBBIT_43_CMD_END)
+		
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_reset_settings_to_factory = tibbit_43_check_answer(answer)
+		if tibbit_43_reset_settings_to_factory = RESULT_OK then
+'			TIBBIT43_SETTINGS_LIST(port).tibbit_initialized=false
+'			TIBBIT43_SETTINGS_LIST(port).command_mode=false 
+'			TIBBIT43_SETTINGS_LIST(port).sample_rate=1
+'			TIBBIT43_SETTINGS_LIST(port).sample_mode=SAMPLING_SINGLE 
+			TIBBIT43_SETTINGS_LIST(port).data_format=DATA_ASCII
+'			TIBBIT43_SETTINGS_LIST(port).data=
+'			TIBBIT43_SETTINGS_LIST(port).enable_channels="1,2,3,4"
+'			TIBBIT43_SETTINGS_LIST(port).number_of_channels=0
+'			TIBBIT43_SETTINGS_LIST(port).A(6)
+'			TIBBIT43_SETTINGS_LIST(port).BP(6) 
+'			TIBBIT43_SETTINGS_LIST(port).BN(6) 		
+			tibbit_43_debug_print("Reset to factory settings")
+			exit function
+		end if
+	end if
+	tibbit_43_debug_print("Error resetting to factory settings")
+	
+end function
+
+function tibbit_43_store_settings_to_EEPROM(port as byte) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_store_settings_to_EEPROM = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_STORE_SETTINGS + TIBBIT_43_CMD_END)
+		
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_store_settings_to_EEPROM = tibbit_43_check_answer(answer)
+		if tibbit_43_store_settings_to_EEPROM = RESULT_OK then
+			tibbit_43_debug_print("Settings stored to EEPROM")
+			exit function
+		end if
+	end if
+	tibbit_43_debug_print("Error storing settings to EEPROM")
+	
+end function
+
+function tibbit_43_restore_settings_from_EEPROM(port as byte) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	tibbit_43_restore_settings_from_EEPROM = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_RESTORE_SETTINGS + TIBBIT_43_CMD_END)
+
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_restore_settings_from_EEPROM = tibbit_43_check_answer(answer)
+		if tibbit_43_restore_settings_from_EEPROM = RESULT_OK then
+			tibbit_43_debug_print("Settings restored from EEPROM")
+			exit function
+		end if
+	end if
+	tibbit_43_debug_print("Error restoring settings from EEPROM")
+	
+end function
+
+function tibbit_43_read_settings_from_EEPROM(port as byte, byref settings as TIBBIT43_SETTINGS) as TIBBIT_43_RESULT
+	
+	dim answer as string
+	tibbit_43_read_settings_from_EEPROM = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_SETTINGSEEPROM + TIBBIT_43_CMD_END)
+
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_read_settings_from_EEPROM = tibbit_43_check_answer(answer)
+		if tibbit_43_read_settings_from_EEPROM = RESULT_OK then
+			if tibbit_43_parse_settings(answer, settings) then
+				tibbit_43_debug_print("Settings read from EEPROM")
+				exit function
+			else
+				tibbit_43_read_settings_from_EEPROM = RESULT_ERROR_LIBRARY 
+			end if
+		end if
+	end if
+	tibbit_43_debug_print("Error reading settings from EEPROM")
+	
+end function
+
+function tibbit_43_read_settings_from_RAM(port as byte, byref settings as TIBBIT43_SETTINGS) as TIBBIT_43_RESULT
+	
+	dim answer as string 
+	tibbit_43_read_settings_from_RAM = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_SETTINGSRAM + TIBBIT_43_CMD_END)
+		
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_read_settings_from_RAM = tibbit_43_check_answer(answer)
+		if tibbit_43_read_settings_from_RAM = RESULT_OK then
+			if tibbit_43_parse_settings(answer, settings) then
+				tibbit_43_debug_print("Settings read from RAM")
+				exit function
+			else
+				tibbit_43_read_settings_from_RAM = RESULT_ERROR_LIBRARY 
+			end if
+		end if
+	end if
+	tibbit_43_debug_print("Error reading settings from RAM")
+	
+end function
+
+function tibbit_43_set_mode(port as byte, mode as TIBBIT43_MODE) as TIBBIT_43_RESULT
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false  then
+		select case mode
+		case COMMAND_MODE:
+			tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_COMMANDMODE + TIBBIT_43_CMD_END)
+			TIBBIT43_SETTINGS_LIST(port).command_mode = true
+			tibbit_43_wait(200)
+			ser.num = port
+			ser.rxclear
+			tibbit_43_debug_print("Set to command mode")
+			tibbit_43_set_mode=true
+		case DATA_MODE:
+			tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_DATAMODE + TIBBIT_43_CMD_END)
+			TIBBIT43_SETTINGS_LIST(port).command_mode = false
+			tibbit_43_debug_print("Set to data mode")
+			tibbit_43_set_mode=true
+		end select
+	else
+		tibbit_43_debug_print("Error setting mode")
+		tibbit_43_set_mode=false
+	end if
+	
+end function
+
+
+
+function tibbit_43_get_data_ascii(port as byte, channels as string(7)) as string
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_DATA_ASCII + channels + TIBBIT_43_CMD_END)
+		dim answer as string(64) 
+		answer = tibbit_43_serial_getdata_blocking(port)
+		if tibbit_43_check_answer(answer) = RESULT_OK then
+			tibbit_43_get_data_ascii = mid(answer, 3, len(answer) - 4)
+		end if
+	end if
+	
+end function
+
+function tibbit_43_read_data_ascii(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+	
+	tibbit_43_read_data_ascii = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_DATA_ASCII + channels + TIBBIT_43_CMD_END)
+		dim answer as string(64) 
+		answer = tibbit_43_serial_getdata_blocking(port)
+		
+		tibbit_43_read_data_ascii = tibbit_43_check_answer(answer)
+		if tibbit_43_read_data_ascii = RESULT_OK then
+			answer = mid(answer, 3, len(answer) - 4)
+			tibbit_43_read_data_ascii = tibbit_43_parse_ascii_or_hexdata(port, answer)
+		end if
+	end if
+	
+end function
+
+function tibbit_43_read_data_hex(port as byte, channels as string(7)) as TIBBIT_43_RESULT
+	
+	tibbit_43_read_data_hex = RESULT_ERROR_LIBRARY
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_DATA_HEX + channels + TIBBIT_43_CMD_END)
+		dim answer as string(64) 
+		answer = tibbit_43_serial_getdata_blocking(port)
+		
+		tibbit_43_read_data_hex = tibbit_43_check_answer(answer)
+		if tibbit_43_read_data_hex = RESULT_OK then
+			answer = mid(answer, 3, len(answer) - 4)
+			tibbit_43_read_data_hex = tibbit_43_parse_ascii_or_hexdata(port, answer)
+		end if
+	end if
+	
+end function
+
+function tibbit_43_get_data_hex(port as byte, channels as string(7)) as string
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_READ_DATA_HEX + channels + TIBBIT_43_CMD_END)
+		dim answer as string(64) 
+		answer = tibbit_43_serial_getdata_blocking(port)
+		if tibbit_43_check_answer(answer)= RESULT_OK then
+			tibbit_43_get_data_hex = mid(answer, 3, len(answer) - 4)
+		end if
+	end if
+	
+end function
+
+
+
+sub tibbit_43_proc_data()
+		
+	if TIBBIT43_SETTINGS_LIST(ser.num).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(ser.num).command_mode = false then
+		tibbit_43_init_readings()
+		select case TIBBIT43_SETTINGS_LIST(ser.num).data_format
+		case DATA_ASCII, DATA_HEX:
+			tibbit_43_get_ascii_or_hexdata()
+		case DATA_BIN:
+			tibbit_43_get_bindata()
+		end select
+	end if
+	
+end sub
+
+function tibbit_43_set_A(port as byte, a1 as byte, a2 as byte, a3 as byte, a4 as byte, a5 as byte, a6 as byte) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	
+	tibbit_43_set_A = RESULT_ERROR_LIBRARY
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+	
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_A + str(a1) + "," + str(a2) + "," + str(a3) + "," + str(a4)  + "," + str(a5)  + "," + str(a6) + TIBBIT_43_CMD_END)
+
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_set_A = tibbit_43_check_answer(answer)
+	end if
+	
+end function
+
+function tibbit_43_set_BP(port as byte, b1 as char, b2 as char, b3 as char, b4 as char, b5 as char, b6 as char) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	
+	tibbit_43_set_BP = RESULT_ERROR_LIBRARY
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+	
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_B_POS + stri(b1) + "," + stri(b2) + "," + stri(b3) + "," + stri(b4) + "," + stri(b5) + "," + stri(b6) + TIBBIT_43_CMD_END)
+
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_set_BP = tibbit_43_check_answer(answer)
+	end if
+	
+end function
+
+function tibbit_43_set_BN(port as byte, b1 as char, b2 as char, b3 as char, b4 as char, b5 as char, b6 as char) as TIBBIT_43_RESULT
+	
+	dim answer as string(7) 
+	
+	tibbit_43_set_BN = RESULT_ERROR_LIBRARY
+	
+	if TIBBIT43_SETTINGS_LIST(port).tibbit_initialized <> false and TIBBIT43_SETTINGS_LIST(port).command_mode = true then
+	
+		tibbit_43_serial_send(port, TIBBIT_43_CMD_CTX + TIBBIT_43_CMD_SET_B_NEG + stri(b1) + "," + stri(b2) + "," + stri(b3) + "," + stri(b4) + "," + stri(b5) + "," + stri(b6) + TIBBIT_43_CMD_END)
+
+		answer = tibbit_43_serial_getdata_blocking(port)
+		tibbit_43_set_BN = tibbit_43_check_answer(answer)
+	end if
+	
+end function

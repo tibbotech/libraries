@@ -1,0 +1,150 @@
+'***********************************************************************************************************
+'			Tibbit #28 (ambient light sensor)
+'***********************************************************************************************************
+include "global.tbh"
+
+#IF PLATFORM_TYPE_32
+	#define DELAY_50MS (5)
+#ELSE
+	#define DELAY_50MS (106)
+#endif
+
+const TBT28_INIT_SIGNATURE=&h5982
+const TBT28_STAMP="TBT28> "
+const TBT28_CR_LF=chr(13)+chr(10)
+
+const TBT28_WRITE_ADDR=&h46		' address code for write
+const TBT28_READ_ADDR=&h47		' address code for read
+
+const TBT28_CMD_POWER_DOWN		=&h00
+const TBT28_CMD_POWER_ON		=&h01
+const TBT28_CMD_AUTO_RESOL_0	=&h10
+const TBT28_CMD_HRESOL_0		=&h12
+const TBT28_CMD_LRESOL_0		=&h13
+
+declare sub tbt28_cmd_send(cmd as byte)
+declare sub tbt28_delay_msecond(value as word)
+
+#if TBT28_DEBUG_PRINT=1
+	declare sub tbt28_debug_print(data as string)
+#endif
+
+dim i2c_num_tbt28 as byte
+dim tbt28_init_flag as word
+
+'====================================================================
+function tbt28_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte)as ok_ng
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+	
+	tbt28_init=OK
+	tbt28_init_flag=TBT28_INIT_SIGNATURE
+
+	#if TBT28_DEBUG_PRINT=1
+		tbt28_debug_print("++++++++++")
+	#endif
+
+	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
+	#if TBT28_DEBUG_PRINT=1
+		tbt28_debug_print("i2c num:"+str(channel))
+	#endif
+	
+	si2c_get(channel)
+
+	if channel<=3 then
+		ssi.channel=channel
+		ssi.enabled=NO
+		ssi.baudrate=1
+		ssi.clkmap=pin_clk
+		ssi.dimap=pin_data
+		ssi.domap=pin_data
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.mode=PL_SSI_MODE_0
+		ssi.enabled=YES
+	else
+		if use_ssi=YES then
+			tbt28_init=NG
+		end if
+	end if
+
+	'Switch sensor to power down mode
+	tbt28_cmd_send(TBT28_CMD_POWER_DOWN)
+
+	'Switch sensor to power on mode
+	tbt28_cmd_send(TBT28_CMD_POWER_ON)
+
+	'Switch sensor to high resolution mode
+	tbt28_cmd_send(TBT28_CMD_HRESOL_0)
+
+	'Wait to complete 1st Auto-resolution mode measurement.(max. 180 ms)
+	tbt28_delay_msecond(DELAY_50MS+DELAY_50MS+DELAY_50MS)
+
+	#if TBT28_DEBUG_PRINT=1
+		tbt28_debug_print("----------")
+	#endif
+end function
+
+function tbt28_get(byref channel as byte) as word
+'Returns a 16-bit number expressing relative ambient light intensity.
+	dim upper,lower as byte
+	
+	tbt28_get=0
+	if tbt28_init_flag<> TBT28_INIT_SIGNATURE then
+	#if TBT28_DEBUG_PRINT=1
+		tbt28_debug_print("The lib is not initialized, call tbt28_init() first")
+	#endif
+		exit function
+	end if
+
+	si2c_get(channel)
+
+	si2c_start()
+	si2c_write(TBT28_READ_ADDR)
+	upper=si2c_read(true)
+	lower=si2c_read(false)
+	si2c_stop()
+
+	#if TBT28_DEBUG_PRINT=1
+		tbt28_debug_print("u:"+hex(upper)+" l:"+hex(lower))
+	#endif
+	tbt28_get=upper*256+lower
+	if tbt28_get=0 then
+		tbt28_cmd_send(TBT28_CMD_POWER_DOWN)
+		tbt28_cmd_send(TBT28_CMD_POWER_ON)
+		tbt28_cmd_send(TBT28_CMD_HRESOL_0)
+		tbt28_delay_msecond(DELAY_50MS+DELAY_50MS+DELAY_50MS)
+	end if
+end function
+
+sub tbt28_cmd_send(cmd as byte)
+	si2c_start()
+	si2c_write(TBT28_WRITE_ADDR)
+	si2c_write(cmd)
+	si2c_stop()
+end sub
+
+sub tbt28_delay_msecond(value as word)
+	dim ax,bx as word
+
+	#if PLATFORM_TYPE_32
+		sys.timercountms=0
+		while sys.timercountms<value
+		wend
+	#else	
+		'older platforms rely on good old delays
+		for ax=0 to value
+			for bx=0 to 5
+			next bx
+		next ax
+	#endif
+end sub
+
+#if TBT28_DEBUG_PRINT=1
+sub tbt28_debug_print(data as string)
+	sys.debugprint(TBT28_STAMP+data+TBT28_CR_LF)
+end sub
+#endif

@@ -1,0 +1,86 @@
+enum modbusProtocol
+	modbus_TCP=0,
+	modbus_RTU=1
+end enum
+
+enum modbusEndianness
+	BIG=0,
+	LITTLE=1
+end enum
+
+type modbus_reqhdr
+	func_code as byte
+	address as word
+	count as word
+end type
+
+type modbus_req
+	addr as byte
+	hdr as modbus_reqhdr
+	crc as word
+end type
+
+' Read Input Registers
+#define MODBUS_ADC_INPUT_REGISTER_HEX 0
+#define MODBUS_ADC_INPUT_REGISTER_FLOAT 100
+#define MODBUS_COUNTER_INPUT_REGISTER 200
+#define MODBUS_BP_LIST_PORT1_INPUT_REGISTER 300
+#define MODBUS_BP_LIST_PORT2_INPUT_REGISTER 450
+#define MODBUS_BP_LIST_PORT3_INPUT_REGISTER 600
+#define MODBUS_BP_LIST_PORT4_INPUT_REGISTER 750
+
+#define MB_RQ_SIZE sizeof(modbus_req)
+#define MODBUS_DAC_HOLDING_REGISTER 0
+#define MODBUS_PWM_PULSE_HOLDING_REGISTER 100
+#define MODBUS_PWM_PERIOD_HOLDING_REGISTER 200
+#ifndef MODBUS_TIMEOUT
+	#define MODBUS_TIMEOUT 1000
+#endif
+#ifndef MODBUS_MAX_REQUESTS
+	#define MODBUS_MAX_REQUESTS 20
+#endif
+
+enum modbusFunc
+	ReadCoilStatus = 1,
+	ReadInputStatus = 2,
+	ReadHoldingRegisters = 3,
+	ReadInputRegisters = 4,
+	WriteSingleCoil = 5,
+	PresetSingleRegister = 6,
+	WriteMultipleCoils = 15,
+	PresetMultipleRegisters = 16
+end enum
+
+type modbus_request_item
+	timestamp as dword
+	device_id as byte
+	request_function as byte
+	data as string(10)
+	start_register as word
+	count as word
+	interface_number as byte
+	protocol as modbusProtocol
+end type
+
+declare modbus_queue_start as char
+declare modbus_queue_end as char
+declare modbus_awaiting_reply as boolean
+declare modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
+declare modbus_recv_buffer as string
+declare modbus_slave_recv_buffer as string
+
+declare function modbus_initialize() as boolean
+declare function modbus_callback_ReadCoilStatus(address as word) as boolean
+declare function modbus_callback_ReadInputStatus(address as word) as boolean
+declare function modbus_callback_WriteSingleCoil(address as word, value as low_high) as boolean
+declare function modbus_callback_ReadHoldingRegister(address as word) as word
+declare function modbus_callback_ReadInputRegister(address as word) as word
+declare function modbus_set_holding_register(address as word, data as string) as boolean
+declare function modbus_read_word(byref bytes as byte(255), start as byte) as word
+declare function modbus_queue_get_count() as byte
+
+declare sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
+declare sub modbus_slave_receive(byref recv_data as string, interface_number as byte, protocol as modbusProtocol)
+declare sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol)
+declare sub modbus_queue_clear()
+declare sub modbus_proc_timer()

@@ -1,0 +1,46 @@
+
+
+#ifndef LCD_GRAPH_MAX_POINTS
+	#define LCD_GRAPH_MAX_POINTS 30
+#endif
+
+#ifndef LCD_GRAPH_DOT_SIZE
+	#define LCD_GRAPH_DOT_SIZE 5
+#endif
+
+#ifndef LCD_GRAPH_BACKCOLOR
+	#define LCD_GRAPH_BACKCOLOR &h0000
+#endif
+
+#ifndef LCD_GRAPH_FORECOLOR
+	#define LCD_GRAPH_FORECOLOR &hffff
+#endif
+
+#ifndef LCD_GRAPH_FILL
+	#define LCD_GRAPH_FILL &h0f00
+#endif
+
+#ifndef LCD_GRAPH_X
+	#define LCD_GRAPH_X 0
+#endif
+
+#ifndef LCD_GRAPH_Y
+	#define LCD_GRAPH_Y 0
+#endif
+
+#ifndef LCD_GRAPH_WIDTH
+	#define LCD_GRAPH_WIDTH lcd.width
+#endif
+
+#ifndef LCD_GRAPH_HEIGHT
+	#define LCD_GRAPH_HEIGHT lcd.height
+#endif
+
+#ifndef LCD_GRAPH_LABELS
+	#define LCD_GRAPH_LABELS 10
+#endif
+
+declare sub lcd_graph_start(min as real, max as real)
+declare sub lcd_graph_add_point(y as real)
+declare sub lcd_graph_proc_timer()
+declare sub lcd_graph_clear()

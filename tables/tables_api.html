@@ -1,0 +1,42 @@
+<?
+include "global.tbh"
+dim params as string=sock.gethttprqstring(255)
+dim table_name as string(TBL_MAX_TABLE_NAME_LEN)
+dim index as byte=instr(0,params," ",1)
+if index>0 then
+	params=left(params,index)
+end if
+
+'get action param
+dim action as string=tbl_web_get_url_params(params,"action")
+dim param as string
+
+select case action
+case "get":
+	tbl_web_get_tables()
+case "rows":
+	table_name=tbl_web_get_url_params(params,"table")
+	dim count as word=val(tbl_web_get_url_params(params,"count"))
+	dim offset as word=val(tbl_web_get_url_params(params,"offset")) + 1
+	tbl_web_get_rows(table_name)
+case "add":
+	table_name=tbl_web_get_url_params(params,"table")
+	dim row as string=tbl_web_get_url_params(params,"row")
+	tbl_web_add_row(table_name,row)
+case "delete":
+	table_name=tbl_web_get_url_params(params,"table")
+	dim row as word=val(tbl_web_get_url_params(params,"row"))
+	tbl_web_delete_row(table_name,row)
+case "edit":
+	table_name=tbl_web_get_url_params(params,"table")
+	dim row as string=tbl_web_get_url_params(params,"row")
+	dim index as word=val(tbl_web_get_url_params(params,"index"))
+	tbl_web_edit_row(table_name,index,row)
+case "get_field_default":
+	table_name=tbl_web_get_url_params(params,"table")
+	dim field_name as string=tbl_web_get_url_params(params,"field_name")
+	tbl_web_get_field_def(table_name,field_name)
+case else:
+	
+end select
+?>

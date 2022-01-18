@@ -1,0 +1,122 @@
+include "global.tbh"
+
+dim lcd_graph_points as real(LCD_GRAPH_MAX_POINTS)
+dim lcd_graph_index as byte = 0
+dim lcd_graph_step as real = 0
+
+dim lcd_graph_min_y as real = -50
+dim lcd_graph_max_y as real = 50
+
+dim lcd_graph_draw_min_y as real = LCD_GRAPH_Y + LCD_GRAPH_HEIGHT
+dim lcd_graph_draw_max_y as real = LCD_GRAPH_Y
+dim lcd_graph_zero as real = 0
+dim lcd_graph_ratio as real
+
+dim lcd_graph_range as word = 0
+dim lcd_graph_label_step as real = 0
+dim lcd_graph_font as dword
+
+sub lcd_graph_start(min as real, max as real)
+	lcd_graph_index = 0
+	lcd_graph_step = LCD_GRAPH_WIDTH / LCD_GRAPH_MAX_POINTS
+	lcd_graph_min_y = min
+	lcd_graph_max_y = max
+	
+	lcd_graph_draw_min_y = LCD_GRAPH_Y + LCD_GRAPH_HEIGHT
+	lcd_graph_draw_max_y = LCD_GRAPH_Y
+	
+	lcd_graph_ratio = (lcd_graph_draw_min_y - lcd_graph_draw_max_y) / (max - min)
+	lcd_graph_zero = lcd_graph_draw_max_y + (max * lcd_graph_ratio)
+	lcd_graph_range = lcd_graph_max_y - lcd_graph_min_y
+	lcd_graph_label_step = lcd_graph_range * lcd_graph_ratio / LCD_GRAPH_LABELS
+	romfile.open(LCD_SMALL_FONT)
+    lcd.setfont(romfile.offset)
+	lcd_graph_font = romfile.offset
+end sub
+
+sub lcd_draw_graph()
+	dim i,j as byte
+	lcd.forecolor=LCD_GRAPH_BACKCOLOR
+    lcd.lock()
+    lcd.fill(LCD_GRAPH_X,LCD_GRAPH_Y,LCD_GRAPH_WIDTH,LCD_GRAPH_HEIGHT)
+    
+	
+	lcd.backcolor=LCD_GRAPH_BACKCOLOR
+	lcd.forecolor=LCD_GRAPH_FORECOLOR
+	dim max as integer = lcd_graph_index - 2
+	if max < 0 then
+		max = 0
+	end if
+	
+	dim x1,y1,x2,y2 as word
+	dim zero as word = lcd_graph_zero
+	dim y11, y22 as real
+	dim slope as real
+	
+	if max > 0 then
+		for i=0 to max
+			x1 = i * lcd_graph_step
+			y1 = lcd_graph_zero - lcd_graph_points(i) * lcd_graph_ratio
+			x2 = (i + 1) * lcd_graph_step
+			y2 = lcd_graph_zero - lcd_graph_points(i + 1)  * lcd_graph_ratio
+			if y1 <= lcd_graph_draw_min_y AND y2 <= lcd_graph_draw_min_y then
+				lcd.forecolor=LCD_GRAPH_FORECOLOR
+				lcd.line(x1, y1, x2, y2)
+				#ifdef LCD_GRAPH_FILL
+				lcd.forecolor = LCD_GRAPH_FILL
+				y11 = y1
+				y22 = y2
+				slope = (y22 - y11) / (x2 - x1)
+				for j=0 to (x2-x1)-1 step 2
+					dim yy as word = slope * j
+					lcd.line(x1 + j, zero, x1 + j, y1 + yy)
+				next j
+				#endif
+			end if
+		next i
+	end if
+	
+	lcd.backcolor=LCD_GRAPH_BACKCOLOR
+	lcd.forecolor=LCD_GRAPH_FORECOLOR
+	lcd.line(LCD_GRAPH_X, zero, LCD_GRAPH_X + LCD_GRAPH_WIDTH, zero)
+	
+	dim label as string
+	lcd.backcolor=&h0000
+    lcd.forecolor=&hFFFF
+	if lcd_graph_font <> romfile.offset then
+		romfile.open(LCD_SMALL_FONT)
+		lcd.setfont(romfile.offset)
+		lcd_graph_font = romfile.offset
+	end if
+	dim label_step as real = lcd_graph_range / LCD_GRAPH_LABELS
+	for i = 0 to LCD_GRAPH_LABELS - 1
+		label = ftostr(label_step * i + lcd_graph_min_y,FTOSTR_MODE_AUTO,3)
+		y1 = lcd_graph_draw_min_y - lcd_graph_label_step * i - 3
+		lcd.print(label, LCD_GRAPH_X, y1)
+	next i
+	
+	lcd.unlock()
+end sub
+
+sub lcd_graph_add_point(y as real)
+	dim i as byte
+	if lcd_graph_index < LCD_GRAPH_MAX_POINTS - 1 then
+		lcd_graph_index = lcd_graph_index + 1
+	else
+		for i=1 to LCD_GRAPH_MAX_POINTS - 1
+			lcd_graph_points(i-1) = lcd_graph_points(i)
+		next i
+	end if
+	lcd_graph_points(lcd_graph_index) = y
+	
+	lcd_draw_graph()
+	
+end sub
+
+sub lcd_graph_clear()
+	lcd_graph_index = 0
+	lcd.forecolor=LCD_GRAPH_BACKCOLOR
+    lcd.lock()
+    lcd.fill(LCD_GRAPH_X,LCD_GRAPH_Y,LCD_GRAPH_WIDTH,LCD_GRAPH_HEIGHT)
+	lcd.unlock()
+end sub

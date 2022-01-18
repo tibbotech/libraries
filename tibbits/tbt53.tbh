@@ -1,0 +1,11 @@
+#ifndef _TBT53_TBH_
+#define _TBT53_TBH_
+
+#IF PLATFORM_ID=TPP2WG2 OR PLATFORM_ID=TPP3WG2 OR PLATFORM_ID=TPP2G2 OR PLATFORM_ID=TPP3G2
+	#define PLATFORM_TYPE_32 1
+#endif
+
+declare function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as ok_ng
+declare function tbt53_get_current(byref ma as real, channel as byte) as ok_ng
+declare sub tbt53_th_release(channel as byte)
+#endif

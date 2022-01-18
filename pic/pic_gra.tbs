@@ -1,0 +1,1871 @@
+'***********************************************************************************************************
+'			Tibbits #16, #17 (3 PWM channels)
+'***********************************************************************************************************
+
+include"global.tbh"
+
+'--------------------------------------------------------------------
+const PIC_INIT_SIGNATURE=&h5092
+const PIC_STAMP="PIC> "
+const PIC_CR_LF=chr(13)+chr(10)
+
+const UARTFLAG = &h7E
+'--------------------------------------------------------------------
+dim pic_init_flag as word
+dim pic_use_ssi as no_yes
+dim pic_tosc as float
+'--------------------------------------------------------------------
+#if PIC_DEBUG_PRINT=1
+	declare sub PIC_debug_print(data as string)
+#endif
+
+declare function evenCheck(data as string)as no_yes
+
+dim pic_func as pic_func_enum(6)
+dim pic_adc_pref as pic_adc_ref_positive_voltage
+dim pic_adc_nref as pic_adc_ref_negative_voltage
+dim pic_adc_fvr as pic_adc_fvr_scale
+dim pic_remember_period as word(3)
+dim pic_ccp_rec as byte(3)
+dim pic_uart_flag as byte
+
+'==============================================================================
+function pic_init(byref signature as string, use_ssi as no_yes, byref fw_str as string, clk_pin as byte, data_pin as byte, rst_pin as byte, int_pin as byte, byref channel as byte)as pic_result_enum
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT16_NJ, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'The use of SSI may also be rejected (TBT16_REJ) if the PIC's clock is at 500KHz. This is because with this low speed PIC micro won't be
+'able to handle I2C comms even with the SSI's slowest baudrate.
+
+	dim s as string
+	dim value as byte
+	#if TBT_CLK_SOURCE<=INTERNAL_OSCILLATOR_FREQ_500KHZ_MF
+		if use_ssi=YES then
+			pic_init=PIC_REJ
+			exit function
+		end if
+	#endif
+
+	'reset co-processor
+	io.num=clk_pin
+	io.enabled=YES
+	io.state=HIGH
+	io.num=data_pin
+	io.enabled=YES
+	io.state=HIGH
+
+	io.num=rst_pin
+	io.enabled=YES
+	io.state=LOW
+	io.state=HIGH
+
+	pic_init=OK
+	pic_init_flag=PIC_INIT_SIGNATURE
+	pic_use_ssi=use_ssi
+	channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
+
+	if channel<4 then
+		ssi.channel=channel
+		ssi.enabled=NO
+		#IF PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG2
+			ssi.baudrate=25
+		#ELIF PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3W
+			ssi.baudrate=100
+		#ENDIF
+
+		ssi.clkmap=clk_pin
+		ssi.dimap=data_pin
+		ssi.domap=data_pin
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_2
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.enabled=YES
+	else
+		if use_ssi=YES then
+			pic_init=NG
+		end if
+	end if
+
+	si2c_get(channel)
+	
+	'7.RXDTSEL 0 = RX/DT function is on RC5
+	'6.SDOSEL  0 = SDO function is on RC2
+	'5.SSSEL   1 = SS function is on RA3
+	'4.(don't care)
+	'3.T1GSEL  1 = T1G function is on RA3
+	'2.TXCKSEL 0 = TX/CK function is on RC4
+	'1.(don't care)
+	'0.(don't care)
+	pic_reg_write(PIC_APFCON0,chr(&h28))
+
+	'7.(don't care)
+	'6.(don't care)
+	'5.(don't care)
+	'4.(don't care)
+	'3.P1D  0 = P1D function is on RC2
+	'2.P1C  0 = P1C function is on RC3
+	'1.P2B  0 = P2B function is on RC2	
+	'0.CCP2 0 = CCP2 function is on RC3
+	pic_reg_write(PIC_APFCON1,chr(&h00))
+
+'	'00 = CCP4 is based off Timer2 in PWM mode
+'	'10 = CCP3 is based off Timer6 in PWM mode
+'	'01 = CCP2 is based off Timer4 in PWM mode
+'	'00 = CCP1 is based off Timer2 in PWM mode
+	'Configure and start Timer2/4/6
+	pic_reg_write(PIC_CCPTMRS0,chr(&h24))
+
+#if PIC_DEBUG_PRINT=1
+	s=pic_reg_read(PIC_APFCON0,1)
+	value=asc(s)
+	pic_debug_print("PIC_APFCON0:"+ hex(value))
+
+	s=pic_reg_read(PIC_APFCON1,1)
+	value=asc(s)
+	pic_debug_print("PIC_APFCON1:"+hex(value))
+
+	s=pic_reg_read(PIC_TRISA,1)
+	value=asc(s)
+	pic_debug_print("PIC_TRISA:"+hex(value))
+
+	s=pic_reg_read(PIC_ANSELA,1)
+	value=asc(s)
+	pic_debug_print("PIC_ANSELA:"+hex(value))
+
+	s=pic_reg_read(PIC_PORTA,1)
+	value=asc(s)
+	pic_debug_print("PIC_PORTA:"+hex(value))
+
+	s=pic_reg_read(PIC_TRISC,1)
+	value=asc(s)
+	pic_debug_print("PIC_TRISC:"+hex(value))
+
+	s=pic_reg_read(PIC_ANSELC,1)
+	value=asc(s)
+	pic_debug_print("PIC_ANSELC:"+hex(value))
+
+	s=pic_reg_read(PIC_PORTC,1)
+	value=asc(s)
+	pic_debug_print("PIC_PORTC:"+hex(value))
+
+	s=pic_reg_read(PIC_CCPTMRS0,1)
+	value=asc(s)
+	pic_debug_print("PIC_CCPTMRS0:"+ hex(value))
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_31KHZ_LF
+	pic_reg_write(PIC_OSCCON,chr(&h02))
+	pic_tosc=31000
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_31_25KHZ_MF
+	pic_reg_write(PIC_OSCCON,chr(&h12))
+	pic_tosc=31250
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_31_25KHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h1A))
+	pic_tosc=31250
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_62_5KHZ_MF
+	pic_reg_write(PIC_OSCCON,chr(&h22))
+	pic_tosc=62500
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_125KHZ_MF
+	pic_reg_write(PIC_OSCCON,chr(&h2A))
+	pic_tosc=125000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_250KHZ_MF
+	pic_reg_write(PIC_OSCCON,chr(&h32))
+	pic_tosc=250000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_500KHZ_MF
+	pic_reg_write(PIC_OSCCON,chr(&h3A))
+	pic_tosc=500000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_125KHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h42))
+	pic_tosc=125000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_250KHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h4A))
+	pic_tosc=250000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_500KHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h52))
+	pic_tosc=500000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_1MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h5A))
+	pic_tosc=1000000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_2MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h32))
+	pic_tosc=2000000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_4MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h3A))
+	pic_tosc=4000000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_8MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h72))
+	pic_tosc=8000000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_16MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&h7A))
+	pic_tosc=16000000
+
+#endif
+
+#if TBT_CLK_SOURCE=INTERNAL_OSCILLATOR_FREQ_32MHZ_HF
+	pic_reg_write(PIC_OSCCON,chr(&hF0))
+	pic_tosc=32000000
+#endif
+
+	pic_func(0)=PIC_FUNC_IO
+	pic_func(1)PIC_FUNC_IO
+	pic_func(2)PIC_FUNC_IO
+	pic_func(3)PIC_FUNC_IO
+
+	pic_adc_pref=PIC_PREF_SOURCE_VDD
+	pic_adc_nref=PIC_NREF_SOURCE_VSS
+	pic_adc_fvr=PIC_ADC_FVR_REF_OFF
+
+	pic_uart_flag=&h00
+
+	'The ADC clock period (TAD) and total ADC conversion time can be minimized when the ADC clock is derived from the
+	'system clock FOSC.
+	pic_reg_write(PIC_ADCON1,chr(&hF0))
+
+	'initialize gpio as default
+	s=pic_reg_read(PIC_LATA,1)
+	value=asc(s) or &h03
+	pic_reg_write(PIC_LATA,chr(value))
+
+	s=pic_reg_read(PIC_TRISA,1)
+	value=asc(s) or &h03
+	pic_reg_write(PIC_TRISA,chr(value))
+
+	s=pic_reg_read(PIC_LATC,1)
+	value=asc(s) or &h03
+	pic_reg_write(PIC_LATC,chr(value))
+	s=pic_reg_read(PIC_TRISC,1)
+	value=asc(s) or &h03
+	pic_reg_write(PIC_TRISC,chr(value))
+
+	dim i as byte=0
+	s=""
+	s=pic_reg_read(&h20,1)
+
+	i=val("&h"+s)
+
+	if i=0 or i>16 then
+		pic_init=PIC_FWNG
+		exit function
+	end if
+
+	fw_str=pic_reg_read(&h21,i)
+	if instr(1,fw_str,EXPECTED_PIC_FIRMWARE_V,1) =0 then
+		pic_init=PIC_FWNG
+	end if
+end function
+
+sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel as byte)
+'Call this sub to define the IO pin function separately for each pin. Note that somes pins do not support all functions:
+'IO -- all pins.
+'ADC -- all pins.
+'PWM -- pins 0 ~ 2. Pin 3 does not support PWM.
+'UART -- pins 0 and 1. Pin 0 is RX, pin 1 is TX. BOTH pins must be configured for UART operation, or neither pin will be in the UART mode.
+	dim s as string
+	dim value as byte
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+	#if PLATFORM_ID=EM1000W or PLATFORM_ID=EM1000
+		if f=PIC_FUNC_UART then
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,EM1000LEV does not support serial function")
+		#endif
+			exit sub
+		end if
+	#endif
+
+	si2c_get(channel)
+
+	if pic_func(num)<>f then
+		if pic_func(num)=PIC_FUNC_PWM then
+			'disable pwm before we change to another function
+			select case num
+			case  PIC_PIN0
+				'RC5 < VIL
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s)
+				pic_reg_write(PIC_LATC,chr(value or &h20))
+
+				s=pic_reg_read(PIC_CCP1CON,1)
+				pic_ccp_rec(num)=asc(s)
+				pic_reg_write(PIC_CCP1CON,chr(0))
+				s=pic_reg_read(PIC_T2CON,1)
+				value=asc(s)and &hFB
+
+				pic_reg_write(PIC_T2CON,chr(value))
+
+			case PIC_PIN1:
+				'RC3 < VIL
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s)
+				pic_reg_write(PIC_LATC,chr(value or &h08))
+
+				s=pic_reg_read(PIC_CCP2CON,1)
+				pic_ccp_rec(num)=asc(s)
+				pic_reg_write(PIC_CCP2CON,chr(0))
+
+				s=pic_reg_read(PIC_T4CON,1)
+				value=asc(s)and &hFB
+				pic_reg_write(PIC_T4CON,chr(value))
+
+			case PIC_PIN2:
+				'RA2 < VIL
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s)
+				pic_reg_write(PIC_LATA,chr(value or &h04))
+
+				s=pic_reg_read(PIC_CCP3CON,1)
+				pic_ccp_rec(num)=asc(s)
+				pic_reg_write(PIC_CCP3CON,chr(0))
+
+				s=pic_reg_read(PIC_T6CON,1)
+				value=asc(s)and &hFB
+				pic_reg_write(PIC_T6CON,chr(value))
+
+			end select
+		end if
+
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+		if pic_func(num)=PIC_FUNC_UART then
+			si2c_get(channel)
+			'Disable uart before we change to another function
+			'SPEN = 0
+			s=pic_reg_read(PIC_RCSTA,1)
+			value=asc(s)
+			value=value and &h7F
+			pic_reg_write(PIC_RCSTA,chr(value))
+			pic_uart_flag=pic_uart_flag and &h7F
+
+			'Disable RCIE
+			s=pic_reg_read(PIC_PIE1,1)
+			value=asc(s)
+			pic_reg_write(PIC_PIE1,chr(value and &hDF))
+		end if
+	#endif
+
+		dim prev_f as pic_func_enum
+		prev_f=pic_func(num)
+		pic_func(num)=f
+
+		select case f
+		case PIC_FUNC_IO:
+			select case num
+			case PIC_PIN0:
+				'set RA4 as input
+				'set RC5 as output high
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s) or &h10
+				pic_reg_write(PIC_LATA,chr(value))
+
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h10
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) or &h10
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h20
+				pic_reg_write(PIC_LATC,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hDF
+
+			#if PLATFORM_ID=EM1000W or PLATFORM_ID=EM1000
+				'set RC4 as input
+				value= asc(s) or &h10
+			#endif
+				pic_reg_write(PIC_TRISC,chr(value))
+
+			case PIC_PIN1:
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				'set RC3 as output high
+				'set RC4 as input
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h18
+				pic_reg_write(PIC_LATC,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hF7
+				value=value or &h10
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) and &hF7
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#else
+				'set RC3 as output high
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h08
+				pic_reg_write(PIC_LATC,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hF7
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) and &hF7
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#endif
+
+			case PIC_PIN2:
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s) or &h04
+				pic_reg_write(PIC_LATA,chr(value))
+
+				'set RA2 as output high
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) and &hFB
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) and &hFB
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			case PIC_PIN3:
+				'set RC2 as output high
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h04
+				pic_reg_write(PIC_LATC,chr(value))
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hFB
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) and &hFB
+				pic_reg_write(PIC_ANSELC,chr(value))
+
+			case PIC_PIN4:
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+					#if PIC_DEBUG_PRINT=1
+						PIC_debug_print("Leave,Tibbits do not support this pin")
+					#endif
+					exit sub
+				#endif
+				'set RA1 as output high
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s) or &h02
+				pic_reg_write(PIC_LATA,chr(value))
+
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) and &hFD
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) and &hFD
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			case PIC_PIN5:
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+					#if PIC_DEBUG_PRINT=1
+						PIC_debug_print("Leave,Tibbits do not support this pin")
+					#endif
+					exit sub
+				#endif
+				'set RA0 as output high
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s) or &h01
+				pic_reg_write(PIC_LATA,chr(value))
+
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) and &hFE
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) and &hFE
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			end select
+
+		case PIC_FUNC_ADC:
+			select case num
+			case PIC_PIN0:
+				'set RC5, RA4 as input  and analog
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h10
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) or &h10
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W
+				value=asc(s) or &h20
+			#else
+				'setRC4 as input
+				value=value or &h30
+			#endif
+				pic_reg_write(PIC_TRISC,chr(value))
+
+			case PIC_PIN1:
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				'set RC3, RC4 as input  and analog
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) or &h18
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) or &h08
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#else
+				'set RC3 as input and analog
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) or &h08
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) or &h08
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#endif
+
+			case PIC_PIN2:
+				'set RA2 as input  and analog
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h04
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) or &h04
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			case PIC_PIN3:
+				'set RC2 as input and analog
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) or &h04
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) or &h04
+				pic_reg_write(PIC_ANSELC,chr(value))
+
+
+			case PIC_PIN4:
+				'set RA1 as input and analog
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+					#if PIC_DEBUG_PRINT=1
+						PIC_debug_print("Leave,Tibbits do not support this pin")
+					#endif
+					exit sub
+				#endif
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h02
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) or &h02
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			case PIC_PIN5:
+				'set RA0 as input and analog
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+					#if PIC_DEBUG_PRINT=1
+						PIC_debug_print("Leave,Tibbits do not support this pin")
+					#endif
+					exit sub
+				#endif
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h01
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) or &h01
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			end select
+			'ADC Enable bit
+			s=pic_reg_read(PIC_ADCON0,1)
+			value=asc(s) or &h1
+			pic_reg_write(PIC_ADCON0,chr(value))
+
+		case PIC_FUNC_PWM:
+			select case num
+			case PIC_PIN0:
+				'RC5 configured as an output
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s)
+				value=value and &hDF
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				'RC5 configured as digital IO
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s)
+				value=value and &hDF
+				pic_reg_write(PIC_ANSELC,chr(value))
+
+				'RA4 configured as input
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h10
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) and &hEF
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			#if PLATFORM_ID=EM1000W or PLATFORM_ID=EM1000
+				'RC4 configured as input
+				s=pic_reg_read(PIC_TRISC,1)
+				value= asc(s) or &h10
+				pic_reg_write(PIC_TRISC,chr(value))
+			#endif
+
+			case PIC_PIN1:
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				'RC3 configured as an output
+				'RC4 configured as input
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s)
+				value=value and &hF7
+				value=value or &h10
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				'RC3 configured as digital IO
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s)
+				value=value and &hF7
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#else
+				'RC3 configured as an output
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s)
+				value=value and &hF7
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				'RC3 configured as digital IO
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s)
+				value=value and &hF7
+				pic_reg_write(PIC_ANSELC,chr(value))
+			#endif
+
+			case PIC_PIN2:
+				'RA2 configured as an output
+				s=pic_reg_read(PIC_TRISA,1)
+				value=asc(s)
+				value=value and &hFB
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				'RA2 configured as digital IO
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s)
+				value=value and &hFB
+				pic_reg_write(PIC_ANSELA,chr(value))
+
+			end select
+
+			if  num=PIC_PIN3 then
+				pic_func(num)=prev_f
+			end if
+	
+		case PIC_FUNC_UART:
+			if num=PIC_PIN0 then
+				'set RC5, RA4 as input
+				s=pic_reg_read(PIC_LATA,1)
+				value=asc(s) or &h10
+				pic_reg_write(PIC_LATA,chr(value))
+
+				s=pic_reg_read(PIC_TRISA,1)
+				value= asc(s) or &h10
+				pic_reg_write(PIC_TRISA,chr(value))
+
+				s=pic_reg_read(PIC_ANSELA,1)
+				value=asc(s) and &hEF
+				pic_reg_write(PIC_ANSELA,chr(value))
+				
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h20
+				pic_reg_write(PIC_LATC,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) or &h20
+				pic_reg_write(PIC_TRISC,chr(value))
+			end if
+			if num=PIC_PIN1 then
+				'set RC3, RC4 as output high
+				s=pic_reg_read(PIC_LATC,1)
+				value=asc(s) or &h18
+				pic_reg_write(PIC_LATC,chr(value))
+
+				s=pic_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hE7
+				pic_reg_write(PIC_TRISC,chr(value))
+
+				s=pic_reg_read(PIC_ANSELC,1)
+				value=asc(s) and &hE7
+				pic_reg_write(PIC_ANSELC,chr(value))
+			end if
+
+			if pic_func(PIC_PIN0)=PIC_FUNC_UART and pic_func(PIC_PIN1)=PIC_FUNC_UART then
+				io.num=int_pin
+				io.enabled=NO
+				'Enable RCIE
+				s=pic_reg_read(PIC_PIE1,1)
+				value=asc(s)
+				pic_reg_write(PIC_PIE1,chr(value or &h20))
+			end if
+
+			if num=PIC_PIN2 or num=PIC_PIN3 then
+				pic_func(num)=prev_f
+			end if
+
+		end select
+	end if
+end sub
+
+sub pic_adc_config( p as pic_adc_ref_positive_voltage,n as pic_adc_ref_negative_voltage,Vfvr as pic_adc_fvr_scale, channel as byte)
+'Configures the input range for all four ADC channels.
+'Note that selecting VCC makes inputs "ratiometric" i.e. dependent on the actual VCC voltage value.
+'2048mV and 4096mV modes are based on the voltage generated by PIC's internal bandgap reference, which
+'generates stable reference voltage that is (almost) not dependant upon the VCC.
+
+	dim value,value2 as byte
+	dim s as string
+	
+	si2c_get(channel)
+
+	s=pic_reg_read(PIC_ADCON1,1)
+	value=asc(s)
+
+	s=pic_reg_read(PIC_FVRCON,1)
+	value2=asc(s)
+
+	select case p
+	case PIC_PREF_SOURCE_VDD:
+		value=value and &hFC
+		pic_adc_fvr=PIC_ADC_FVR_REF_OFF
+		pic_adc_pref=PIC_PREF_SOURCE_VDD
+
+	case PIC_PREF_SOURCE_PIN_4:
+	#if PLATFORM_ID=EM1000W or PLATFORM_ID=EM1000
+		if pic_func(PIC_PIN4)<>PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,PIN4 <> ADC")
+		#endif
+			exit sub
+		end if
+	
+		value=value and &hFC
+		value=value or &h02
+		pic_adc_pref=PIC_PREF_SOURCE_PIN_4
+	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,Tibbits do not support this methods")
+		#endif
+		exit sub
+
+	#endif
+
+	case PIC_PREF_SOURCE_FVR_BUF:
+		value=value or &h03
+		pic_adc_pref=PIC_PREF_SOURCE_FVR_BUF
+		select case Vfvr
+		case PIC_ADC_FVR_REF_OFF:
+			value2=value2 and &hFC
+			pic_adc_fvr=PIC_ADC_FVR_REF_OFF
+
+		case PIC_ADC_FVR_REF_2048mV:
+			value2=value2 and &hFC
+			value2=value2 or &h82
+			pic_adc_fvr=PIC_ADC_FVR_REF_2048mV
+
+		case PIC_ADC_FVR_REF_4096mV:
+			value2=value2 and &hFC
+			value2=value2 or &h83
+			pic_adc_fvr=PIC_ADC_FVR_REF_4096mV
+
+		end select
+
+	end select
+
+	select case n
+	case PIC_NREF_SOURCE_VSS:
+		value=value and &hFB
+		pic_adc_nref=PIC_NREF_SOURCE_VSS
+
+	case PIC_NREF_SOURCE_PIN_5:
+	#if PLATFORM_ID=EM1000W or PLATFORM_ID=EM1000
+		if pic_func(PIC_PIN5)<>PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,PIN5 <> ADC")
+		#endif
+			exit sub
+		end if
+		value=value or &h04
+		pic_adc_nref=PIC_NREF_SOURCE_PIN_5
+	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,Tibbit do not support this methods")
+		#endif
+		exit sub
+	#endif
+
+	end select
+
+	pic_reg_write(PIC_ADCON1,chr(value))
+	pic_reg_write(PIC_FVRCON,chr(value2))
+end sub
+
+function pic_adc_get_mv(ch as pic_adc_enum, channel as byte) as word
+'Performs ADC conversion for the specified channel and returns conversion result expressed in mV.
+'Conversion range is defined using pic_adc_config() call.
+
+	if pic_adc_pref=PIC_PREF_SOURCE_PIN_4 or pic_adc_nref=PIC_NREF_SOURCE_PIN_5 then exit function
+
+	dim dw as dword
+	dw=pic_adc_get(ch, channel)
+	select case pic_adc_pref
+	case PIC_PREF_SOURCE_VDD:
+		pic_adc_get_mv=(dw*488281)/100000
+
+	case PIC_PREF_SOURCE_FVR_BUF
+	select case pic_adc_fvr
+		case PIC_ADC_FVR_REF_OFF
+			pic_adc_get_mv=(dw*488281)/100000
+
+		case PIC_ADC_FVR_REF_2048mV
+			pic_adc_get_mv=(dw*200000)/100000
+
+		case PIC_ADC_FVR_REF_4096mV:
+			pic_adc_get_mv=(dw*400000)/100000
+
+		end select
+	end select
+end function
+
+function pic_adc_get(ch as pic_adc_enum, channel as byte)as word
+'Performs ADC conversion for the specified channel.
+'The range is from 0 (0V) to 1023 (reference), where reference is set with the pic_adc_config() call.
+	
+	dim value,adcl,adch as byte
+	dim s as string
+	#if PIC_DEBUG_PRINT=1
+		dim ss as string
+	#endif
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit function
+	end if
+
+	if pic_func(ch)<>PIC_FUNC_ADC then exit function
+
+	pic_adc_get=0
+	
+	'Analog Channel Select bits
+	select case ch
+	case PIC_ADC0:
+		if pic_func(0)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC0"
+		#endif
+			value=&h0C
+		else
+			exit function
+		end if
+
+	case PIC_ADC1:
+		if pic_func(1)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC1"
+		#endif
+			value=&h1D
+		else
+			exit function
+		end if
+
+	case PIC_ADC2:
+		if pic_func(2)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC2"
+		#endif
+			value=&h09
+		else
+			exit function
+		end if
+
+	case PIC_ADC3:
+		if pic_func(3)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC3"
+		#endif
+			value=&h19
+		else
+			exit function
+		end if
+
+	case PIC_ADC4:
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,Tibbits do not support this methods")
+		#endif
+		exit function
+
+	#endif
+		if pic_func(4)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC4"
+		#endif
+			value=&h05
+		else
+			exit function
+		end if
+
+	case PIC_ADC5
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+		#if PIC_DEBUG_PRINT=1
+			 PIC_debug_print("Leave,Tibbit do not support this methods")
+		#endif
+			exit function
+	#endif
+		if pic_func(5)=PIC_FUNC_ADC then
+		#if PIC_DEBUG_PRINT=1
+			ss="ADC5"
+		#endif
+			value=&h01
+		else
+			exit function
+		end if
+	end select
+
+
+	si2c_get(channel)
+
+	pic_reg_write(PIC_ADCON0,chr(value))
+
+	'start conversion
+	pic_reg_write(PIC_ADCON0,chr(value or 3))
+
+	'is conversion done?
+done_check:
+	s=pic_reg_read(PIC_ADCON0,1)
+	value=val(s)
+	if (value and &h02) = 1 then goto done_check
+
+	s=pic_reg_read(PIC_ADRESH,1)
+	adch=asc(s)
+	s=pic_reg_read(PIC_ADRESL,1)
+	adcl=asc(s)
+
+	'return ad result
+	pic_adc_get=adch*256+adcl	
+end function
+
+sub pic_io_enabled(num as pic_pin_enum, en as no_yes, channel as byte)
+'Configures the specified IO pin to be an input (en=NO) or outpur (en=YES).
+'This will only work for pins running in the IO mode [see pic_config()].
+
+	dim s as string
+	dim value as byte
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(num)<>PIC_FUNC_IO then exit sub
+
+	si2c_get(channel)
+
+	select case num
+	case PIC_PIN0:	'RC5
+		if pic_func(0)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISC,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hDF
+		else
+			value=value or &h20
+		end if
+		pic_reg_write(PIC_TRISC,chr(value))
+
+	case PIC_PIN1:	'RC3
+		if pic_func(1)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISC,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hF7
+		else
+			value=value or &h08
+		end if
+		pic_reg_write(PIC_TRISC,chr(value))
+
+	case PIC_PIN2:	'RA2
+		if pic_func(2)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISA,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hFB
+		else
+			value=value or &h04
+		end if
+		pic_reg_write(PIC_TRISA,chr(value))
+
+	case PIC_PIN3:	'RC2
+		if pic_func(3)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISC,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hFB
+		else
+			value=value or &h04
+		end if
+		pic_reg_write(PIC_TRISC,chr(value))
+
+#if PLATFORM_ID=EM1000W
+	case PIC_PIN4:	'RA1
+		if pic_func(4)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISA,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hFD
+		else
+			value=value or &h02
+		end if
+		pic_reg_write(PIC_TRISA,chr(value))
+
+	case PIC_PIN5:	'RA0
+		if pic_func(5)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_TRISA,1)
+		value=asc(s)
+		if en=ENABLED then
+			value=value and &hFE
+		else
+			value=value or &h01
+		end if
+		pic_reg_write(PIC_TRISA,chr(value))
+
+#endif
+	end select
+end sub
+
+sub pic_io_set(num as pic_pin_enum, state as low_high, channel as byte)
+'Sets the output state of the specified IO pin.
+'This will only work for pins running in the IO mode [see pic_config()] and configured as outputs [see pic_io_enabled()].	
+	
+	dim s as string
+	dim value as byte
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("leave, without initialize")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(num)<>PIC_FUNC_IO then exit sub
+
+	si2c_get(channel)
+
+	select case num
+	case PIC_PIN0:	'RC5
+		if pic_func(0)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATC,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hDF
+		else
+			value=value or &h20
+		end if
+		pic_reg_write(PIC_PORTC,chr(value))
+
+	case PIC_PIN1:	'RC3
+		if pic_func(1)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATC,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hF7
+		else
+			value=value or &h08
+		end if
+		pic_reg_write(PIC_LATC,chr(value))
+
+	case PIC_PIN2:	'RA2
+		if pic_func(2)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATA,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hFB
+		else
+			value=value or &h04
+		end if
+		pic_reg_write(PIC_LATA,chr(value))
+
+	case PIC_PIN3:	'RC2
+		if pic_func(3)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATC,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hFB
+		else
+			value=value or &h04
+		end if
+		pic_reg_write(PIC_LATC,chr(value))
+
+#if PLATFORM_ID=EM1000W
+	case PIC_PIN4:	'RA1
+		if pic_func(4)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATA,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hFD
+		else
+			value=value or &h02
+		end if
+		pic_reg_write(PIC_LATA,chr(value))
+
+	case PIC_PIN5:	'RA0
+		if pic_func(5)<>PIC_FUNC_IO then exit sub
+		s=pic_reg_read(PIC_LATA,1)
+		value=asc(s)
+		if state=LOW then
+			value=value and &hFE
+		else
+			value=value or &h01
+		end if
+		pic_reg_write(PIC_LATA,chr(value))
+#endif
+	end select
+end sub
+
+function pic_io_get(num as pic_pin_enum, channel as byte)as low_high
+'Reads the state of the specified IO pin.
+'This will only work for pins running in the IO mode [see pic_config()].	
+	
+	dim s as string
+	dim value as byte
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("leave, without initialize")
+		#endif
+		exit function
+	end if
+
+	if pic_func(num)<>PIC_FUNC_IO then exit function
+
+	pic_io_get=LOW
+
+	si2c_get(channel)
+
+	select case num
+	case PIC_PIN0:	'RC5
+		if pic_func(0)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTC,1)
+		value=asc(s)
+		if value and &h20 then
+			pic_io_get=HIGH
+		end if
+
+	case PIC_PIN1:	'RC3
+		if pic_func(1)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTC,1)
+		value=asc(s)
+		if value and &h08 then
+			pic_io_get=HIGH
+		end if
+
+	case PIC_PIN2:	'RA2
+		if pic_func(2)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTA,1)
+		value=asc(s)
+		if value and &h04 then
+			pic_io_get=HIGH
+		end if
+
+	case PIC_PIN3:	'RC2
+		if pic_func(3)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTC,1)
+		value=asc(s)
+		if value and &h04 then
+			pic_io_get=HIGH
+		end if
+
+#if PLATFORM_ID=EM1000W
+	case PIC_PIN4:	'RA1
+		if pic_func(4)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTA,1)
+		value=asc(s)
+		if value and &h02 then
+			pic_io_get=HIGH
+		end if
+
+	case PIC_PIN5:	'RA0
+		if pic_func(5)<>PIC_FUNC_IO then exit function
+		s=pic_reg_read(PIC_PORTA,1)
+		value=asc(s)
+		if value and &h01 then
+			pic_io_get=HIGH
+		end if
+
+#endif
+	end select
+end function
+
+sub pic_pwm_config(ch as pic_pwm_enum, pulse_width as word,period as word, prescaler as pic_prescaler_enum, channel as byte)
+'Sets the operation parameters for the selected PWM channel.
+'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()].
+'Pulse_width is defined as the base frequency clock count. Valid range is from 0 to 1023 in steps of 1 (0,1,2,3...).
+'Period is defined as the base frequency clock count. Valid range is from 0 to 1023 in steps of 4 (0,4,8,12...).
+'Prescaler affects the base frequency. Available choices are clock frequency divided by 1, 4, 16, or 64.
+'The clock frequency is set globally for the entire libriry using the TBT_CLK_SOURCE #define.
+'Calling this sub also starts the PWM channel [i.e. you don't need to call pic_pwm_start()].
+	
+	dim value as byte
+	dim tmp as word
+	dim rCCPxN,rCCPRxL,rTxCON,rPRx as byte(3)
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("leave, without initialize")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
+
+	si2c_get(channel)
+
+	select case ch
+	case PIC_PWM0:
+		if pic_func(0)<>PIC_FUNC_PWM then exit sub
+
+	case PIC_PWM1:
+		if pic_func(1)<>PIC_FUNC_PWM then exit sub
+
+	case PIC_PWM2:
+		if pic_func(2)<>PIC_FUNC_PWM then exit sub
+
+	end select
+
+	rCCPxN(ch)=&h0C
+
+	if pulse_width>1023 then pulse_width=1023
+	if period>1023 then period=1023
+	pulse_width=pulse_width-1
+	pic_remember_period(ch)=period
+	period=(period/4)-1
+
+	rPRx(ch)=period
+	rCCPRxL(ch)=pulse_width/4
+
+	'DCxBx value
+	tmp=pulse_width and &h0003
+	value=tmp *16
+	rCCPxN(ch)= rCCPxN(ch) or value
+
+	'set prescaler and enable the timer
+	value=&h00
+	select case prescaler
+	case PIC_PRE_64:
+		value=value or 3
+
+	case PIC_PRE_16:
+		value=value or 2
+
+	case PIC_PRE_4:
+		value=value or 1
+
+	end select
+
+	rTxCON(ch)=value
+	pic_ccp_rec(ch)=rCCPxN(ch)
+
+	select case ch
+	case PIC_PWM0:
+		'Load the PRx register with the PWM period value.
+		pic_reg_write(PIC_PR2,chr(rPRx(ch)))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		pic_reg_write(PIC_CCPR1L,chr(rCCPRxL(ch)))
+		'load DCxBx value and configure CCP1
+		pic_reg_write(PIC_CCP1CON,chr(rCCPxN(ch)))
+		'Set Timer
+		pic_reg_write(PIC_T2CON,chr(rTxCON(ch) or &h04))
+
+	case PIC_PWM1:
+		'Load the PRx register with the PWM period value.
+		pic_reg_write(PIC_PR4,chr(rPRx(ch)))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		pic_reg_write(PIC_CCPR2L,chr(rCCPRxL(ch)))
+		'load DCxBx value and configure CCP2
+		pic_reg_write(PIC_CCP2CON,chr(rCCPxN(ch)))
+		'Set Timer
+		pic_reg_write(PIC_T4CON,chr(rTxCON(ch) or &h04))
+
+	case PIC_PWM2:
+		'Load the PRx register with the PWM period value.
+		pic_reg_write(PIC_PR6,chr(rPRx(ch)))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		pic_reg_write(PIC_CCPR3L,chr(rCCPRxL(ch)))
+		'load DCxBx value and configure CCP3
+		pic_reg_write(PIC_CCP3CON,chr(rCCPxN(ch)))
+		'Set Timer
+		pic_reg_write(PIC_T6CON,chr(rTxCON(ch) or &h04))
+
+	end select
+end sub
+
+sub pic_pwm_start(ch as pic_pwm_enum, channel as byte)
+'Enables PWM output for the specified PWM channel.
+'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()] and which
+'has already been configured with pic_pwm_config().
+	
+	dim s as string
+	dim value as byte
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("leave, without initialize")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
+
+	si2c_get(channel)
+	select case ch
+	case PIC_PWM0:
+		if pic_func(0)<>PIC_FUNC_PWM then exit sub
+
+		pic_reg_write(PIC_CCP1CON,chr(pic_ccp_rec(ch)))
+		'Set Timer
+		s=pic_reg_read(PIC_T2CON,1)
+		value=asc(s) or &h04
+		pic_reg_write(PIC_T2CON,chr(value))
+
+	case PIC_PWM1:
+		if pic_func(1)<>PIC_FUNC_PWM then exit sub
+
+		pic_reg_write(PIC_CCP2CON,chr(pic_ccp_rec(ch)))
+		'Set Timer
+		s=pic_reg_read(PIC_T4CON,1)
+		value=asc(s) or &h04
+		pic_reg_write(PIC_T4CON,chr(value))
+
+	case PIC_PWM2:
+		if pic_func(2)<>PIC_FUNC_PWM then exit sub
+
+		pic_reg_write(PIC_CCP3CON,chr(pic_ccp_rec(ch)))
+		'Set Timer
+		s=pic_reg_read(PIC_T6CON,1)
+		value=asc(s) or &h04
+		pic_reg_write(PIC_T6CON,chr(value))
+
+	end select
+end sub
+
+sub pic_pwm_stop(ch as pic_pwm_enum, channel as byte)
+'Disables PWM output for the specified PWM channel.
+'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()].	
+	
+	dim s as string
+	dim value as byte
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("leave, without initialize")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
+
+	si2c_get(channel)
+
+	select case ch
+	case PIC_PWM0:
+		if pic_func(0)<>PIC_FUNC_PWM then exit sub
+
+		'RC5 < VIL
+		s=pic_reg_read(PIC_LATC,1)
+		value=asc(s)
+		value=value and &hDF
+		pic_reg_write(PIC_LATC,chr(value))
+
+		s=pic_reg_read(PIC_CCP1CON,1)
+		pic_ccp_rec(ch)=asc(s)
+		pic_reg_write(PIC_CCP1CON,chr(0))
+		s=pic_reg_read(PIC_T2CON,1)
+		value=asc(s)and &hFB
+
+		pic_reg_write(PIC_T2CON,chr(value))
+
+	case PIC_PWM1:
+		if pic_func(1)<>PIC_FUNC_PWM then exit sub
+
+		'RC3 < VIL
+		s=pic_reg_read(PIC_PORTC,1)
+		value=asc(s)
+		value=value and &hF7
+		pic_reg_write(PIC_LATC,chr(value))
+
+		s=pic_reg_read(PIC_CCP2CON,1)
+		pic_ccp_rec(ch)=asc(s)
+		pic_reg_write(PIC_CCP2CON,chr(0))
+
+		s=pic_reg_read(PIC_T4CON,1)
+		value=asc(s)and &hFB
+		pic_reg_write(PIC_T4CON,chr(value))
+
+	case PIC_PWM2:
+		if pic_func(2)<>PIC_FUNC_PWM then exit sub
+
+		'RA2 < VIL
+		s=pic_reg_read(PIC_LATA,1)
+		value=asc(s)
+		value=value and &hFB
+		pic_reg_write(PIC_LATA,chr(value))
+
+		s=pic_reg_read(PIC_CCP3CON,1)
+		pic_ccp_rec(ch)=asc(s)
+		pic_reg_write(PIC_CCP3CON,chr(0))
+
+		s=pic_reg_read(PIC_T6CON,1)
+		value=asc(s)and &hFB
+		pic_reg_write(PIC_T6CON,chr(value))
+
+	end select
+end sub
+
+sub pic_pwm_duty(ratio0 as word, ratio1 as word, ratio2 as word, channel as byte)
+'Simultaneously sets the duty cycle ratio for all three PWM channels. The ratio for each channel is expressed in
+'0.1% units.
+'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()] and which
+'have already been configured with pic_pwm_config().
+'Also, the library expects that when this sub is used all three PWM channels are running at the same period.
+
+	dim s as string
+	dim dd as dword
+	dim new_on_duration as word
+	dim mask as byte
+	dim tmp as word
+	dim rCCPRxL as byte(3)
+	dim rCCPxN as byte(3)
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(PIC_PWM0)<>PIC_FUNC_PWM and pic_func(PIC_PWM1)<>PIC_FUNC_PWM and pic_func(PIC_PWM2)<>PIC_FUNC_PWM then
+		exit sub
+	end if
+
+	if ratio0>1000 then
+		ratio0=1000
+	end if
+
+	if ratio1>1000 then
+		ratio1=1000
+	end if	
+
+	if ratio2>1000 then
+		ratio2=1000
+	end if
+	si2c_get(channel)
+	s=pic_reg_read(PIC_CCP1CON,1)
+	rCCPxN(0)=asc(s)
+	s=pic_reg_read(PIC_CCP2CON,1)
+	rCCPxN(1)=asc(s)
+	s=pic_reg_read(PIC_CCP3CON,1)
+	rCCPxN(2)=asc(s)
+
+	if pic_func(0)=PIC_FUNC_PWM then
+		dd=ratio0
+		new_on_duration=(dd*pic_remember_period(0))/1000
+		rCCPRxL(0)=new_on_duration/4
+		tmp=new_on_duration and &h0003
+		mask=tmp *16
+		rCCPxN(0)= rCCPxN(0) and &hCF
+		rCCPxN(0)= rCCPxN(0) or mask	
+		pic_reg_write(PIC_CCPR1L,chr(rCCPRxL(0)))
+		pic_reg_write(PIC_CCP1CON,chr(rCCPxN(0)))
+	end if
+
+	if pic_func(1)=PIC_FUNC_PWM then
+		dd=ratio1
+		new_on_duration=(dd*pic_remember_period(1))/1000
+		rCCPRxL(1)=new_on_duration/4
+		tmp=new_on_duration and &h0003
+		mask=tmp *16
+		rCCPxN(1)= rCCPxN(1) and &hCF
+		rCCPxN(1)= rCCPxN(1) or mask	
+		pic_reg_write(PIC_CCPR2L,chr(rCCPRxL(1)))
+		pic_reg_write(PIC_CCP2CON,chr(rCCPxN(1)))
+	end if
+
+	if pic_func(2)=PIC_FUNC_PWM then
+		dd=ratio2
+		new_on_duration=(dd*pic_remember_period(2))/1000
+		rCCPRxL(2)=new_on_duration/4
+		tmp=new_on_duration and &h0003
+		mask=tmp *16
+		rCCPxN(2)= rCCPxN(2) and &hCF
+		rCCPxN(2)= rCCPxN(2) or mask	
+		pic_reg_write(PIC_CCPR3L,chr(rCCPRxL(2)))
+		pic_reg_write(PIC_CCP3CON,chr(rCCPxN(2)))
+	end if
+end sub
+
+sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enabled as no_yes, channel as byte)
+'Sets the communication parameters for the UART: the baudrate, parity mode, and whether the RX interrupt will be generated
+'on the interface line 3 whenever there is data in the RX buffer. The interrupt is active LOW and, when enabled, stays LOW
+'for as long as there is data available in the 64-byte RX buffer.
+'UART will only work if BOTH pin 0 (UART RX) and pin 1 (UART TX) are configured for the UART mode.
+
+	dim s as string
+	dim tmp,acu as float(3)
+	dim tx,bc,br_l,br_h,value as byte
+	dim base as float
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(0)<>PIC_FUNC_UART or pic_func(1)<>PIC_FUNC_UART then 
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("The lib is not initialized, call pic_init() first")
+	#endif
+		exit sub
+	end if
+
+	si2c_get(channel)
+
+	if pic_uart_flag and &h80 then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("disable rx and tx befor we do the configuration")
+		#endif
+
+		'We must disable the tx and rx before we change the br ,parity mode
+		'SPEN = 0
+		s=pic_reg_read(PIC_RCSTA,1)
+		value=asc(s)
+		value=value and &h7F
+		pic_reg_write(PIC_RCSTA,chr(value))
+
+		'TXEN=0
+		s=pic_reg_read(PIC_TXSTA,1)
+		value=asc(s)
+		pic_reg_write(PIC_TXSTA,chr(value and &hDF))
+		pic_uart_flag=pic_uart_flag and &h7F
+
+		s=pic_reg_read(UARTFLAG,1)
+		value=asc(s) and &hBF
+		value=value or &h80
+		pic_reg_write(UARTFLAG,chr(value and &hBF))
+	end if
+
+	base=300*br
+
+	tmp(0)=(8000000/base)/64-1
+	acu(0)=(tmp(0)-base)/base
+	tmp(1)=(8000000/base)/16-1
+	acu(1)=(tmp(1)-base)/base
+	tmp(2)=(8000000/base)/4-1
+	acu(2)=(tmp(2)-base)/base
+
+	dim x as byte
+	for x=0 to 2
+		if acu(x)<0 then
+			acu(x)=-acu(x)
+		end if
+	next x
+
+	if acu(0)> acu(1) then
+		if acu(1)>acu(2) then
+			'BRG16=0
+			s=pic_reg_read(PIC_BAUDCON,1)
+			bc=asc(s)
+			bc=bc and &hF7
+
+			'BRGH=1
+			s=pic_reg_read(PIC_TXSTA,1)
+			tx=asc(s)
+			tx=tx or &h04
+
+			'SPBR=accu(2)
+			br_l=tmp(2) and &hff
+			br_h=tmp(2)/256
+		else
+			'BRG16=0 
+			s=pic_reg_read(PIC_BAUDCON,1)
+			bc=asc(s)
+			bc=bc and &hF7
+
+			'BRGH=1
+			s=pic_reg_read(PIC_TXSTA,1)
+			tx=asc(s)
+			tx=tx or &h04
+
+			'SPBR=accu(1)
+			br_l=tmp(1) and &hff
+			br_h=tmp(1)/256
+		end if
+	else
+		if acu(0)>acu(2) then
+			'BRG16=0
+			s=pic_reg_read(PIC_BAUDCON,1)
+			bc=asc(s)
+			bc=bc and &hF7
+
+			'BRGH=1
+			s=pic_reg_read(PIC_TXSTA,1)
+			tx=asc(s)
+			tx=tx or &h04
+
+			'SPBR=accu(2)
+			br_l=tmp(2) and &hff
+			br_h=tmp(2)/256
+		else
+			'BRG16=0
+			s=pic_reg_read(PIC_BAUDCON,1)
+			bc=asc(s)
+			bc=bc and &hF7
+
+			'BRGH=0
+			s=pic_reg_read(PIC_TXSTA,1)
+			tx=asc(s)
+			tx=tx and &hFD
+
+			'SPBR=accu(0)
+			br_l=tmp(0) and &hff
+			br_h=tmp(0)/256
+		end if
+	end if
+
+	' Initialize the SPBRGH, SPBRGL register pair and the
+	' BRGH and BRG16 bits.
+	pic_reg_write(PIC_BAUDCON,chr(bc))
+	pic_reg_write(PIC_SPBRGL,chr(br_l))
+	pic_reg_write(PIC_SPBRGH,chr(br_h))
+
+	if par=PIC_PARITY_NONE then
+		tx=tx and &hBF
+	else
+		tx=tx or &h40
+
+		s=pic_reg_read(PIC_RCSTA,1)
+		value=asc(s)
+		pic_reg_write(PIC_RCSTA,chr(value or &h40))
+	end if
+	pic_reg_write(PIC_TXSTA,chr(tx))
+
+	'SPEN = 1,  CREN=1
+	s=pic_reg_read(PIC_RCSTA,1)
+	value=asc(s)
+	pic_reg_write(PIC_RCSTA,chr(value or &h90))
+
+	'Clear the TRISC bit for the RX pin
+	s=pic_reg_read(PIC_TRISC,1)
+	value=asc(s)
+	value=value and &h0F
+	value=value or &h20
+
+	pic_reg_write(PIC_TRISC,chr(value))
+
+	'TXEN=1
+	s=pic_reg_read(PIC_TXSTA,1)
+	value=asc(s)
+	pic_reg_write(PIC_TXSTA,chr(value or &h20))
+
+	pic_uart_flag=pic_uart_flag or &h80
+
+'	s=pic_reg_read(UARTFLAG,1)
+'	value=asc(s)
+'	pic_reg_write(UARTFLAG,chr(value or &h40))
+
+	s=pic_reg_read(PIC_TRISA,1)
+	value=asc(s)
+	if irq_enabled=YES then
+		pic_reg_write(PIC_TRISA,chr(value and &hDF))
+	else
+		pic_reg_write(PIC_TRISA,chr(value or &h20))
+	end if
+
+	pic_uart_flag=pic_uart_flag and &h8F
+	pic_uart_flag=pic_uart_flag or par
+	s=pic_reg_read(UARTFLAG,1)
+	value=asc(s)
+	value=value and &h0F
+	value=value or par 
+	value=value or &h80
+	pic_reg_write(UARTFLAG,chr(value or par))
+end sub
+
+sub pic_ser_setsend(data as string, channel as byte)
+'Sends the string of data out of the serial port. This is a synchronous call: the sub is exited only after all data is sent out.
+'For this sub to work, UART must be preset using pic_ser_config() and both pin 0 (UART RX) and pin 1 (UART TX) must be set to run in the UART mode
+'[see pic_config()].
+
+	const TX_BYTE_COUNT=&h77
+	const TX_BUFF_ADDR=&h120
+	dim s as string
+	
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	if pic_func(0)<>PIC_FUNC_UART or pic_func(1)<>PIC_FUNC_UART then 
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("The lib is not initialized, call pic_init() first")
+	#endif
+		exit sub
+	end if
+
+	if (pic_uart_flag and &h80)=0 then
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("The lib is not initialized, call pic_init() first")
+	#endif
+		exit sub
+	end if
+
+	si2c_get(channel)
+	pic_reg_write(TX_BUFF_ADDR,data)
+	pic_reg_write(TX_BYTE_COUNT,chr(len(data)))
+end sub
+
+function evenCheck(data as string)as no_yes
+	dim value,value2 as byte
+
+	value=asc(data)
+	value2=0
+	
+	while value >0
+		value2 =(value2 + (value and 1)) mod 2
+		value=value/2
+	wend
+	
+	if value2 >0 then
+		evenCheck=NO
+	else
+		evenCheck=YES
+	end if
+end function
+
+function pic_ser_get(channel as byte)as string
+'Reads data from PIC's RX buffer. The buffer is maintained by the GRA firmware and can fit up to 64 bytes.
+'For this sub to work, UART must be preset using pic_ser_config() and both pin 0 (UART RX) and pin 1 (UART TX) must be set to run in the UART mode
+'[see pic_config()].	
+	
+	const RX_BYTE_COUNT=&h76
+	const RX_BUFF=&hA0
+	dim s as string
+	dim value as byte
+
+	pic_ser_get=""
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit function
+	end if
+
+	if pic_func(0)<>PIC_FUNC_UART or pic_func(1)<>PIC_FUNC_UART then 
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("The lib is not initialized, call pic_init() first")
+	#endif
+		exit function
+	end if
+
+	if (pic_uart_flag and &h80)=0 then
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("The lib is not initialized, call pic_init() first")
+	#endif
+		exit function
+	end if
+	dim rec as byte
+	si2c_get(channel)
+
+keep_check:
+	s=pic_reg_read(RX_BYTE_COUNT,1)
+	rec=asc(s)
+
+	s=pic_reg_read(RX_BYTE_COUNT,1)
+	value=asc(s)
+	if rec<> value then goto keep_check
+	pic_reg_write(RX_BYTE_COUNT,chr(0))
+	pic_ser_get=pic_reg_read(RX_BUFF,value)
+end function
+
+function pic_ser_txlen(channel as byte)as byte
+'Returns the number of bytes currently waiting in the TX buffer. The buffer is maintained by the GRA firmware and can fit up to 80 bytes.
+	const TX_BYTE_COUNT=&h77
+	dim s as string
+	si2c_get(channel)
+	s=pic_reg_read(TX_BYTE_COUNT,1)
+	pic_ser_txlen=asc(s)
+end function
+
+function pic_ser_rxlen(channel as byte)as byte
+'Returns the number of bytes currently waiting in the RX buffer. The buffer is maintained by the GRA firmware and can fit up to 80 bytes.
+
+	const RX_BYTE_COUNT=&h76
+	dim s as string
+	si2c_get(channel)
+	s=pic_reg_read(RX_BYTE_COUNT,1)
+	pic_ser_rxlen=asc(s)
+end function
+
+#if PIC_DEBUG_PRINT=1
+sub pic_debug_print(data as string)
+	sys.debugprint(PIC_STAMP+data+PIC_CR_LF)
+end sub
+#endif

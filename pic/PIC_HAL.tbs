@@ -1,0 +1,102 @@
+'***********************************************************************************************************
+'			Generic PIC access via I2C
+'***********************************************************************************************************
+
+include "global.tbh"
+
+'==============================================================================
+function pic_reg_read(addr as word,length as byte)as string
+'Read the specified number of bytes from consequent PIC memory locations beginning from the specified address.
+
+	dim tmp as byte
+	dim data as string=""
+
+	data=""
+	if length=0 then
+		pic_reg_read=""
+		exit function
+	end if
+
+	si2c_start()
+
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_R)
+	
+	tmp=addr / 256
+	si2c_write(tmp)
+	tmp=addr or 256
+	si2c_write(tmp)
+
+	si2c_stop()
+	si2c_start()
+	si2c_write(PIC_CHIP_ADDR_R)
+	for tmp=1 to length-1
+		data=data+chr(si2c_read(true))
+	next tmp
+	data=data+chr(si2c_read(false))
+	pic_reg_read=data
+	si2c_stop()
+end function
+
+function pic_reg_write(addr as word, data as string)as ok_ng
+'Write the specified number of bytes into consequent PIC memory locations beginning from the specified address.
+
+	dim tmp,pos as byte
+	dim buf as string
+
+	pic_reg_write=NG
+	if data="" then exit function
+
+	si2c_start()
+
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_W)
+
+	tmp=addr/256
+	si2c_write(tmp)
+	tmp=addr or 256
+	si2c_write(tmp)
+
+	buf=""
+	for pos=1 to len(data)
+		buf=mid(data,pos,1)
+		si2c_write(asc(buf))
+	next pos
+
+	si2c_stop()
+
+	pic_reg_write=OK
+end function
+
+sub pic_reset(scl as pl_io_num,sda as pl_io_num,rst as pl_io_num)
+'Calling this sub will hardware-reset the PIC micro.	
+	io.num=scl
+	io.enabled=YES
+	io.state=HIGH
+	io.num=sda
+	io.enabled=YES
+	io.state=HIGH
+
+	io.num=rst
+	io.enabled=YES
+	io.state=LOW
+	io.state=HIGH
+end sub
+
+function pic_get_fw_version()as string
+'Call this function to obtain the version string for the firmware currently running on the PIC micro.
+'The version will always be in the NNN Vxx.yy format, where
+'NNN is the firmware name
+'xx -- major release (affecting the corresponding Tibbo BASIC library)
+'yy -- minor release (not affecting the corresponding Tibbo BASIC library)
+	dim s as string=""
+	dim i as byte=0
+
+	pic_get_fw_version=""
+
+	s=pic_reg_read(&h20,1)
+	i= val("&h"+s)
+
+	if i=0 or i>16 then exit function
+	pic_get_fw_version=pic_reg_read(&h21,i)
+end function

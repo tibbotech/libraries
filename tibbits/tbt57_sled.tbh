@@ -1,0 +1,33 @@
+'DEFINES-------------------------------------------------------------
+
+'INCLUDES------------------------------------------------------------
+
+'DECLARATIONS--------------------------------------------------------
+declare function tbt57_sled_init(byref spi_num as byte, pin_cs as byte, pin_clk as byte, pin_mosi as byte, pin_miso as byte)as tbt57_errcheck
+'Call this function to initialize the Tibbit (start the FPGA and load it with the SPI-to-SK6812RGBW protocol converter).
+'The function relies on tbt57_init() - a universal function for initializing the FPGA tibbit.
+'For correct operation, "RGBW_Driver_top_bitmap" file must be added to the project.
+
+declare sub tbt57_sled_data_start(pin_cs as byte, spi_num as byte)
+'Call this function to start a new SPI transaction, thus resetting the FPGA internal buffer pointer.
+'After that, call tbt57_sled_send_byte() and/or tbt57_sled_send_string() to send the LED data into the buffer. FPGA buffer can hold up to 8192 bytes of data.
+'RGBW LEDs have 4 bytes per LED, the order of bytes is G, R, B, W. RGB LEDs have 3 bytes per LED (G, R, B).
+'To finish the upload cycle and display the data call tbt57_sled_end_and_display().
+
+declare sub tbt57_sled_send_byte(dt as byte)
+'Sends one byte into the FPGA's memory buffer. The buffer pointer auto-increments with each byte sent. Buffer capacity is 8192 bytes.
+'tbt57_sled_data_start() must be invoked prior to calling this sub.
+
+declare sub tbt57_sled_send_string(byref s as string)
+'Sends a string of byte values into the FPGA's memory buffer. The buffer pointer auto-increments with each byte sent. Buffer capacity is 8192 bytes.
+'tbt57_sled_data_start() must be invoked prior to calling this sub.
+
+declare sub tbt57_sled_end_and_display(pin_cs as byte)
+'Calling this procedure concludes the SPI transaction (data upload into the FPGA), and instructs the FPGA to send the data to the LED chain.
+'After the data is sent, all LEDs in the chain are strobed to update their states (brightness levels of R, G, B, and W channels).
+'The FPGA is busy while the LED update is in progress. Use tbt57_sled_check_ready() to check if the FPGA is ready for the next SPI transaction.
+
+declare function tbt57_sled_check_ready(pin_miso as byte) as no_yes
+'Returns NO if the FPGA is busy updating LEDs, or YES if the FPGA is idle.
+'This call will only return a meaningful value if invoked outside an SPI transaction, i.e. after calling tbt57_sled_end_and_display().
+'Wait until tbt57_sled_check_ready() returns YES before starting new SPI transaction with tbt57_sled_data_start().

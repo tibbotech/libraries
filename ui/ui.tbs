@@ -1,0 +1,472 @@
+include "global.tbh"
+
+
+dim ib_chr_timer as byte
+dim input_box_mode as en_ib_mode
+dim ib_init as no_yes
+dim chr_init as no_yes	'flag used to decide if add a new character, or replace the current character.
+dim agg_cmd_progress as byte
+dim prev_icon as byte
+
+public function device_settings_sg(setting_name as string(5),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
+	dim w1, w2, w3 as word
+	dim b1, b2, b3, b4 as byte
+	dim s1, s2 as string(64)
+	
+	dim setting_result as en_stg_status_codes
+	
+	device_settings_sg=EN_STG_STATUS_OK
+	
+	if rw=DEVICE_GET then
+		b1=instr(1,setting_name,"@",1)
+		if b1>0 then
+			index=val(right(setting_name,len(setting_name)-b1))
+			setting_name=left(setting_name,b1-1)
+		end if
+		setting_result=stg_sg(setting_name,index,setting_val,EN_STG_GET)
+		if setting_result=EN_STG_STATUS_OK then
+			if chr(stg_stype_get(setting_name))="D" then
+				b1=0
+				do 
+					b2=instr(b1+1,setting_val,chr(46),1)
+					if b2>0 then
+						s1=mid(setting_val,b1+1,b2-b1-1)
+					else
+						s1=right(setting_val,len(setting_val)-b1)
+					end if
+					while len(s1)<3
+						s1="0"+s1
+					wend
+					s2=s2+s1+chr(46)
+					b1=b2
+				loop while b1<>0
+				setting_val=left(s2,len(s2)-1)
+			end if	
+		end if
+		device_settings_sg=setting_result		
+	else
+		b1=instr(1,setting_name,"@",1)
+		if b1>0 then
+			index=val(right(setting_name,len(setting_name)-b1))
+			setting_name=left(setting_name,b1-1)
+		end if		
+		device_settings_sg=stg_sg(setting_name,index,setting_val,EN_STG_SET)
+	end if
+	
+end function
+
+sub lcd_display_button(F1_ADD as word,
+	F2_ADD as word,
+	F3_ADD as word,
+	F4_ADD as word, 			'F#_ADD are the offset address of the icon in the BMP file.
+	byref on_off as string(4),  'on_off string consist with 4 characters (0 or 1), which indicates if the icon is highlighted.  For example if on_off="0100", this means, only icon F2 are highlighted, rest are normal.
+	repaint as no_yes,			'If repaint=yes, then all 4 icons are refreshed, else only the those icons that are previously or now highlighted, are being refreshed.
+	revert as no_yes			'If revert=yes, then switch lcd forecolor and backcolor, meaning those icons which were normal, now are highlighted, and vice versa.
+	)
+'This function prints 4 stored icon images on the LCD, 
+	dim F1_on,F2_on,F3_on,F4_on as no_yes
+	dim x, y, w as word
+	
+	x=18
+	y=SETTING_VAL_Y+SETTING_VAL_H
+	w=83
+	if mid(on_off,1,1)="0" then F1_on=NO else F1_on=YES 
+	if mid(on_off,2,1)="0" then F2_on=NO else F2_on=YES 
+	if mid(on_off,3,1)="0" then F3_on=NO else F3_on=YES 
+	if mid(on_off,4,1)="0" then F4_on=NO else F4_on=YES 
+	
+	if repaint=YES then 
+	romfile.open(ICON_FILE)	
+
+		lcd.forecolor=LCD_FORECOLOR
+		lcd.backcolor=LCD_BACKCOLOR
+	LCD_LOCK	
+		lcd_clear(1,y-1,lcd.width-1,33)
+		lcd.bmp(romfile.offset,x-13,y,F1_ADD,0,40,31)
+		lcd.bmp(romfile.offset,x+w,y,F2_ADD,0,40,31)
+		lcd.bmp(romfile.offset,x+w*2,y,F3_ADD,0,40,31)
+		lcd.bmp(romfile.offset,x+w*3+10,y,F4_ADD,0,40,31)
+	LCD_UNLOCK
+
+	end if
+	romfile.open(ICON_FILE)
+	if revert=NO then
+		lcd.forecolor=LCD_BACKCOLOR
+		lcd.backcolor=LCD_FORECOLOR
+	else
+		lcd.forecolor=LCD_FORECOLOR
+		lcd.backcolor=LCD_BACKCOLOR
+	end if
+
+	LCD_LOCK
+	if F1_on=yes then lcd.bmp(romfile.offset,x-13,y,F1_ADD,0,40,31)
+	if F2_on=yes then lcd.bmp(romfile.offset,x+w,y,F2_ADD,0,40,31)
+	if F3_on=yes then lcd.bmp(romfile.offset,x+w*2,y,F3_ADD,0,40,31)
+	if F4_on=yes then lcd.bmp(romfile.offset,x+w*3+10,y,F4_ADD,0,40,31)
+	LCD_UNLOCK
+	lcd.forecolor=LCD_FORECOLOR
+	lcd.backcolor=LCD_BACKCOLOR
+end sub
+
+'------------------------------------------------------------------------------
+public sub device_ui_menu_command(s as string)
+
+end sub
+
+'------------------------------------------------------------------------------
+sub device_move_cursor(menu_item as menu_display_item,desc_file as string(30))
+	dim setting_val as string
+	dim color1, color2 as word
+	dim i,j as word
+	dim sname as string(8)
+	dim item_data as string
+	dim setting_type as string(1)
+	dim b as byte
+	
+	color1=lcd.forecolor
+	color2=lcd.backcolor
+	romfile.open(desc_file)
+	romfile.pointer=menu_item.display_item_data_addr
+	item_data=romfile.getdata(menu_item.display_item_data_len)
+	i=instr(1,item_data,chr(COMMA),2)
+	j=instr(1,item_data,chr(COMMA),3)	
+	sname=mid(item_data,i+1,j-i-1)
+	if left(item_data,1)<>"S" or sname="" or sname="PW" or sname="WP" then
+		lcd.forecolor=BG_BLUE
+		lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+	else
+'check if cursor moved to a list item, if so, display the item description in the menu discription file
+		i=instr(1,item_data,chr(COMMA),1)
+		j=instr(1,item_data,chr(COMMA),2)
+		setting_type=mid(item_data,i+1,j-i-1)
+		select case setting_type
+		case "L":
+			j=instr(1,item_data,chr(COMMA),3)
+			item_data=mid(item_data,j+1,len(item_data)-j)
+			i=instr(1,item_data,"-",1)
+				
+			if device_settings_sg(sname,0,setting_val,b,DEVICE_GET)=EN_STG_STATUS_OK and setting_val<>"" then
+				if setting_val<>left(item_data,i-1) then
+					setting_val=";"+setting_val+"-"
+					i=instr(1,item_data,setting_val,1)+len(setting_val)-1
+				end if
+				j=instr(i,item_data,";",1)
+				setting_val=mid(item_data,i+1,j-i-1)
+			end if
+		case "I":
+			device_settings_sg(sname,0,setting_val,b,DEVICE_GET)
+		case "T":
+		end select
+		if setting_val <> "" then
+			romfile.open(LCD_STD_FONT)
+			lcd.setfont(romfile.offset)
+			lcd.forecolor=LCD_DISABLE_FORECOLOR
+			lcd.backcolor=BG_BLUE
+			lcd_print_msg(setting_val,SETTING_VAL_X+SCROLL_CURSOR_WIDTH,SETTING_VAL_Y,SETTING_VAL_W-SETTING_VAL_X-SCROLL_CURSOR_WIDTH,SETTING_VAL_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_LEFT,no)
+		else
+			lcd.forecolor=BG_BLUE
+			lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+		end if
+	end if
+	lcd.forecolor=color1
+	lcd.backcolor=color2	
+end sub
+
+'------------------------------------------------------------------------------
+sub device_menu_pre(
+	x_coord as word,	'x coordination
+	y_coord as word,	'y coordination
+	width as word,		'width of the menu in pixel
+	height as word,		'height of the menu in pixel
+	byref menu_states as string(MENU_MAX_LVL),	'allows user to start up the menu inside of selected sub-folders instead of root.  example: if menu_state="23" then the menu will started at 2nd folder of menu lvl 1, 3rd folder of menu lvl 2. if menu_state="" then menu started at root.
+	byref menu_descriptor_file as string(20),		'the descriptor file
+	access_level as byte, 		'access level of the user, only the menu item that is small or equal to access_level will show.
+	timeout as byte				'if no respond from the keypad within the time defined by "timeout", exit the menu and return to the previous screen. If timeout=0, no time out applies
+	)
+
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+	lcd.forecolor=BG_BLUE
+	lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+end sub
+
+'------------------------------------------------------------------------------
+sub device_menu_post(
+	x_coord as word,	'x coordination
+	y_coord as word,	'y coordination
+	width as word,		'width of the menu in pixel
+	height as word,		'height of the menu in pixel
+	byref menu_states as string(MENU_MAX_LVL),	'allows user to start up the menu inside of selected sub-folders instead of root.  example: if menu_state="23" then the menu will started at 2nd folder of menu lvl 1, 3rd folder of menu lvl 2. if menu_state="" then menu started at root.
+	byref menu_descriptor_file as string(20),		'the descriptor file
+	access_level as byte, 		'access level of the user, only the menu item that is small or equal to access_level will show.
+	timeout as byte				'if no respond from the keypad within the time defined by "timeout", exit the menu and return to the previous screen. If timeout=0, no time out applies
+	)
+	lcd_clear(x_coord, y_coord-UM_VER_SPACING/2-SCROLL_BORDER-1, width-SCROLL_BAR_WIDTH-SCROLL_BORDER*2, height+UM_VER_SPACING+SCROLL_BORDER)
+end sub
+
+'------------------------------------------------------------------------------
+sub device_input_box_pre(
+	byref mask_str as string(IB_MAX_LEN),	'uneditable part of the input string
+	byref edit_str as string(IB_MAX_LEN),	'input string
+	char_range as input_box_char_ranges,	'the input range. INPUT_BOX_CHAR_RANGE_09 only allows numeric input, INPUT_BOX_CHAR_RANGE_AZ allows alphabetic, INPUT_BOX_CHAR_RANGE_09AZ allows both numeric and alphabetic input.
+	secret_mode as no_yes,			'if secret_mode=yes, all editable part of the input string will be display on the LCD as "*", this are mostly used for password.
+	insert_mode as no_yes,			'if insert_mode=yes, the new character is insert before the cursor, if insert_mode=no, the character replaces the character at the cursor position.
+	byref initial_pos as byte,			'initial cursor position
+	timeout as byte,				'if no keypad activity for the amount of time defined by timeout, input box is automatically closed and return to previous screen.
+	input_length as byte			'the maximum number of characters
+)
+
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_NUM_XOFFSET,BMP_LEFT_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+	lcd.forecolor=LCD_INPUTBOX_BACKCOLOR
+	lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+	lcd.forecolor=LCD_INPUTBOX_FORECOLOR
+	lcd.backcolor=LCD_INPUTBOX_BACKCOLOR
+	input_box_mode=INPUT_BOX_NUMERIC
+	ib_init=YES
+end sub
+
+'------------------------------------------------------------------------------
+sub device_input_box_post(
+	byref mask_str as string(IB_MAX_LEN),	'uneditable part of the input string
+	byref edit_str as string(IB_MAX_LEN),	'input string
+	char_range as input_box_char_ranges,	'the input range. INPUT_BOX_CHAR_RANGE_09 only allows numeric input, INPUT_BOX_CHAR_RANGE_AZ allows alphabetic, INPUT_BOX_CHAR_RANGE_09AZ allows both numeric and alphabetic input.
+	secret_mode as no_yes,			'if secret_mode=yes, all editable part of the input string will be display on the LCD as "*", this are mostly used for password.
+	insert_mode as no_yes,			'if insert_mode=yes, the new character is insert before the cursor, if insert_mode=no, the character replaces the character at the cursor position.
+	byref initial_pos as byte,			'initial cursor position
+	timeout as byte,				'if no keypad activity for the amount of time defined by timeout, input box is automatically closed and return to previous screen.
+	input_length as byte			'the maximum number of characters
+)
+
+	lcd.forecolor=LCD_FORECOLOR
+	lcd.backcolor=LCD_BACKCOLOR
+
+end sub
+
+'------------------------------------------------------------------------------
+sub device_list_box_pre(
+	x_coord as word,		'x coordination
+	y_coord as word,		'y coordination
+	list_width as word,		'list box width
+	list_height as word,	'list box height
+	byref listbox_data as string,		'values and display strings of all list box items
+	byref listbox_state as string(10),	'the value of selected list box item 
+	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the list box and return to the previous screen. If timeout=0, no time out applies
+	)
+	
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+end sub
+
+'------------------------------------------------------------------------------
+sub device_list_box_post(
+	x_coord as word,		'x coordination
+	y_coord as word,		'y coordination
+	list_width as word,		'list box width
+	list_height as word,	'list box height
+	byref listbox_data as string,		'values and display strings of all list box items
+	byref listbox_state as string(10),	'the value of selected list box item 
+	byref disable_print as no_yes,
+	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the list box and return to the previous screen. If timeout=0, no time out applies
+	)
+	
+end sub
+
+'------------------------------------------------------------------------------
+sub device_msg_box_pre(
+	byref msg as string(160), 			'message to be displayed in the Message Box
+	x as word, 							'x coordination
+	y as word, 							'y coordination
+	w as word, 							'width of the msgbox
+	h as word, 							'height of the msgbox
+	align as pl_lcd_text_alignment, 	'alignment of the text in the msgbox
+	byref keycode_str as string(20),	'this string contains the characters which ASCII is correspond to the keycode of keys on the keypad that msgbox responds to 
+	bolder as no_yes, 					'if the msgbox is wrap with a visible bolder line
+	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the msgbox and return to the previous screen. If timeout=0, no time out applies
+	)
+	
+	dim color as word
+
+	if msg=EXIT_MENU then
+		color=lcd.forecolor
+		lcd.forecolor=BG_BLUE
+		lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+		lcd.forecolor=color
+	end if
+end sub
+
+'------------------------------------------------------------------------------
+public sub device_msg_box_post(
+	byref msg as string(60), 			'message to be displayed in the Message Box
+	x as word, 							'x coordination
+	y as word, 							'y coordination
+	w as word, 							'width of the msgbox
+	h as word, 							'height of the msgbox
+	align as pl_lcd_text_alignment, 	'alignment of the text in the msgbox
+	byref keycode_str as string(20),	'this string contains the characters which ASCII is correspond to the keycode of keys on the keypad that msgbox responds to 
+	bolder as no_yes, 					'if the msgbox is wrap with a visible bolder line
+	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the msgbox and return to the previous screen. If timeout=0, no time out applies
+	)
+	lcd_clear(MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H)
+	lcd_clear(0,SETTING_VAL_Y+SETTING_VAL_H+2,lcd.width,lcd.height-SETTING_VAL_Y-SETTING_VAL_H-2)
+end sub
+
+'------------------------------------------------------------------------------
+public sub device_ib_timer_event(byref current_state as input_box_key_actions,byref key_asc as byte,byref insert_mode as no_yes)
+	if ib_chr_timer=0 then exit sub
+	ib_chr_timer=ib_chr_timer-1
+	if ib_chr_timer=0 then
+		chr_init=YES
+		key_asc=255
+		current_state=INPUT_BOX_POS_FORWARD
+	end if
+end sub
+
+'------------------------------------------------------------------------------
+sub device_ib_interrupt()
+	
+end sub
+
+'------------------------------------------------------------------------------
+sub device_lb_interrupt()
+end sub
+
+'------------------------------------------------------------------------------
+sub device_mb_interrupt()
+end sub
+
+'------------------------------------------------------------------------------
+sub device_menu_interrupt()
+end sub
+
+'------------------------------------------------------------------------------
+sub lcd_clear(x as word, y as word, width as word, height as word)
+	dim color as word
+	color=lcd.forecolor
+	lcd.forecolor=lcd.backcolor
+	lcd.fill(x,y,width,height)
+	lcd.forecolor=color
+end sub
+
+'------------------------------------------------------------------------------
+sub lcd_print_msg(byref msg as string,x as word, y as word, w as word, h as word, al as pl_lcd_text_alignment, bolder as no_yes)
+'This is a popup msgbox, it prints a message on the LCD.
+	lcd.textverticalspacing=MSB_VER_SPACING
+	lcd.texthorizontalspacing=MSB_HOR_SPACING
+	lcd.textalignment=al
+	lcd.printaligned(msg,x,y,w,h)
+	lcd.linewidth=2
+	if bolder=YES then lcd.rectangle(x,y,x+w,y+h)
+end sub
+
+'------------------------------------------------------------------------------
+function device_mb_get_key(mk as en_mb_keys) as string
+	select case mk
+	case MBK_COMMAND_CANCEL: 	device_mb_get_key=chr(KEY_F4)
+	case MBK_YES: 				device_mb_get_key=chr(KEY_F4)
+	case MBK_OK: 				device_mb_get_key=chr(KEY_F4)
+	case MBK_COMMAND_CONFIRM: 	device_mb_get_key=chr(KEY_F1)
+	case MBK_NO: 				device_mb_get_key=chr(KEY_F1)
+	case MBK_F1:				device_mb_get_key=chr(KEY_F1)
+	case MBK_F2:				device_mb_get_key=chr(KEY_F2)
+	case MBK_F4:				device_mb_get_key=chr(KEY_F4)
+	end select
+end function
+
+'------------------------------------------------------------------------------
+sub device_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref current_state as menu_key_actions)
+	select case key_event
+	case PL_KP_EVENT_PRESSED:
+		beep.play("-B**",PL_PAT_CANINT)
+		select case key_code
+		case KEY_F1: 'F1
+			current_state=MENU_KEY_OUT
+		case KEY_F2: 'F2
+			current_state=MENU_KEY_UP
+		case KEY_F3: 'F3
+			current_state=MENU_KEY_DOWN
+		case KEY_F4: 'F4
+			current_state=MENU_KEY_IN
+		case else 
+			current_state=255
+		end select
+	case PL_KP_EVENT_RELEASED:
+	case else
+	end select
+end sub
+
+'------------------------------------------------------------------------------
+sub device_ib_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref current_state as input_box_key_actions, byref key_asc as byte, byref insert_mode as no_yes)
+	select case key_event
+	case PL_KP_EVENT_PRESSED:
+
+		beep.play("-B**",PL_PAT_CANINT)
+
+		select case key_code
+		case KEY_F1: 'F1
+			current_state=INPUT_BOX_CANCEL
+		case KEY_F2: 'F2
+			current_state=INPUT_BOX_CHAR_FORWARD
+		case KEY_F3: 'F3
+			current_state=INPUT_BOX_POS_FORWARD
+		case KEY_F4: 'F4
+			current_state=INPUT_BOX_CONFIRM
+		case else 
+			current_state=INPUT_BOX_NONE
+		end select
+	case PL_KP_EVENT_RELEASED:
+		current_state=INPUT_BOX_NONE
+	end select
+end sub
+
+'------------------------------------------------------------------------------
+sub device_lb_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref current_state as list_box_key_action)
+
+	select case key_event
+	case PL_KP_EVENT_PRESSED:
+		beep.play("-B**",PL_PAT_CANINT)
+
+		select case key_code
+		case KEY_F1: 'F1,C
+			
+			current_state=LIST_BOX_CANCEL
+		case KEY_F2: 'F2
+			
+			current_state=LIST_BOX_CURSOR_UP
+		case KEY_F3: 'F3
+			
+			current_state=LIST_BOX_CURSOR_DOWN
+		case KEY_F4: 'F4,E
+			
+			current_state=LIST_BOX_CONFIRM
+		case else
+			current_state=255
+		end select
+	case PL_KP_EVENT_RELEASED:
+		current_state=255
+	case else
+		current_state=255
+	end select
+end sub
+
+'------------------------------------------------------------------------------
+sub device_mb_key_proc(key_event as pl_kp_event_codes, key_code as byte)
+
+end sub
+
+'------------------------------------------------------------------------------
+sub set_stg_modified()
+
+end sub
+
+'------------------------------------------------------------------------------
+sub reset_keypad()
+
+end sub
+
+'------------------------------------------------------------------------------
+sub entering_menu()
+	lcd.forecolor=LCD_FORECOLOR
+	lcd.backcolor=LCD_BACKCOLOR
+	lcd_clear(0,0,lcd.width,lcd.height)
+	pat.play("RG~",PL_PAT_CANINT)
+	ui_menu(MENU_X,MENU_Y,MENU_W, MENU_H,"",MENU_SCRIPT_FILE,3,LCD_MENU_TOUT)
+	sys.reboot
+end sub
