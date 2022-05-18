@@ -2085,7 +2085,8 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 'API procedure, a selected table is required, extract the field from recorder buffer(tbl_record_string) or puts the field into the recorder buffer.
 
 	dim fld_pos,fld_sz,b1,lsb,msb as byte
-	dim s,temp1,temp2 as string
+	dim temp1,temp2 as string(TBL_MAX_RECORD_SIZE)
+	dim s as string
 	dim w1,w2,w3 as word
 	dim d as dword
 	dim bp1, bp2 as byte
@@ -2836,21 +2837,26 @@ function tbl_check_key_violation(byref key_ptr as word) as no_yes
 	dim skeyfield, sfldval as string(TBL_MAX_FIELD_VALUE_LEN)
 	dim sz, b, daddr_offset, lower_bound as byte
 	dim daddr1,daddr2,dtemp as dword
+	dim fld_pos as byte
 	
 	key_ptr=0
 	skeyfield=""
+	fld_pos=2
 	
 	lower_bound=tbl_info(tbl_info_index).field_num_offset
 	'construct key
 	if tbl_info(tbl_info_index).numkeyf>0 then
 		for i=lower_bound to lower_bound+tbl_info(tbl_info_index).numkeyf-1
 			sz=tbl_get_field_size(i)
-			temp=strgen(sz,chr(val(TBL_NULL)))
-			tbl_field_sg(tbl_field_info(i+tbl_fld_offset).field_name,sfldval,EN_TBL_GET)
 			if tbl_field_info(i+tbl_fld_offset).field_type=`S` then 
+				temp=strgen(sz,chr(val(TBL_NULL)))
+				tbl_field_sg(tbl_field_info(i+tbl_fld_offset).field_name,sfldval,EN_TBL_GET)			
 				b=len(sfldval)
 				sfldval=chr(b)+sfldval
+			else
+				sfldval=mid(tbl_record_string,fld_pos,sz)
 			end if
+			fld_pos=fld_pos+sz
 			if sfldval="" or sfldval=temp then goto tbl_key_violate
 			skeyfield=skeyfield+sfldval
 		next i
