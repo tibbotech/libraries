@@ -27,7 +27,7 @@ const CGG_ATTR_TOPIC = "v1/devices/me/attributes"
 const CGG_RPC_TOPIC = "v1/devices/me/rpc/request/+"
 const CGG_TELEMETRY_TOPIC = "v1/devices/me/telemetry"
 
-declare sub cgg_start(server_address as string, device_token as string, target_interface as pl_sock_interfaces)
+declare sub cgg_start(byref server_address as string, byref device_token as string, byref device_name as string, target_interface as pl_sock_interfaces)
 declare sub cgg_soi_connect(server_address as string, device_token as string, target_interface as pl_sock_interfaces, ser_num as byte)
 declare sub cgg_send(name as string, value as string)
 declare sub cgg_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)

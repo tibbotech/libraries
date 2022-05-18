@@ -15,13 +15,16 @@ dim cgg_setting_value as string
 declare sub cgg_debugprint(byref message as string)
 #endif
 
-sub cgg_start(server_address as string, device_token as string, target_interface as pl_sock_interfaces)
+sub cgg_start(byref server_address as string, byref device_token as string, byref device_name as string, target_interface as pl_sock_interfaces)
     cgg_soi_should_connect = false
     cgg_device_token = device_token
     dim i as byte
     #if CGG_DEBUG_PRINT
 		cgg_debugprint("---START---")
 	#endif
+    if device_token <> "" then
+        mqtt_start(target_interface,server_address,MQTT_DESTINATION_PORT,device_token,"",device_name,MQTT_TLS)
+    end if
 
     romfile.open(CGG_DESCRIPTOR_FILE)				'this file is a table descriptor file
 	if romfile.size=0 then
@@ -138,6 +141,7 @@ sub cgg_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_va
 end sub
 
 sub cgg_proc_mqtt_notif(byref topic as string, byref data as string)
+    sys.debugprint("MQTT NOTIF: " + data + "\r\n")
     if topic = CGG_ATTR_TOPIC then
         cgg_proc_attribute_update(data)
     end if

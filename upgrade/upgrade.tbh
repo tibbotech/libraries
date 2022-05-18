@@ -1,0 +1,101 @@
+#define MAX_NUM_FILE_UPG 12
+#define FW_UPG_BLK_LEN 128
+#define DISK_SIZE 4096
+#if PLATFORM_ID=WM2000 or PLATFORM_ID=TPP3WG3
+	#define FD_SECTOR_SIZE 512
+#else
+	#define FD_SECTOR_SIZE 256
+#endif
+
+declare num_of_files as byte
+declare upload_started as boolean
+declare dns_socket, upgrade_socket as byte
+declare device_name as string
+
+type pl_manifest
+	dev_type as string
+	hw_ver as string
+	tmon_ver as string 
+	wifi_type as string
+	wifi_hw_ver as string
+	wifi_fw_ver as string
+	wifi_mon_ver as string	
+end type
+
+enum PL_FW_UPG_STATE
+    PL_FW_READ_HEADER=0,
+	PL_FW_UPG_READ_FW_TYPE,
+	PL_FW_UPG_READ_LEN,
+	PL_FW_UPG_READ_CHECKSUM,
+	PL_FW_UPG_READ_FW,
+	PL_FW_UPG_COMPLETE,
+	PL_FW_UPG_FAIL,
+	PL_FW_UPG_CANCEL
+end enum 
+
+enum PL_UPG_FW_TYPE
+	TIOS_MON = 0,
+	COMPRESSED_TIOS,
+	UNCOMPRESSED_TIOS,
+	COMPRESSED_APP,
+	UNCOMPRESSED_APP,
+	COMPRESSED_TIOS_APP,
+	UNCOMPRESSED_TIOS_APP,
+	WA2000_MON ,  
+	WA2000_APP,  
+	MANIFEST, 
+	WA3000_MON, 
+	WA3000_APP
+end enum 
+
+enum PL_FW_UPG_SOURCE
+	PL_FW_UPG_BLE=0,
+	PL_FW_UPG_WEB,
+	PL_FW_UPG_SOCK,
+	PL_FW_UPG_SER
+end enum
+
+enum PL_FW_UPG_FAIL_REASON
+	PL_FW_FAIL_NONE=0,
+	PL_FW_FAIL_CANCEL,
+	PL_FW_FAIL_NUMFILES,
+	PL_FW_FAIL_INVALID_FW_TYPE,
+	PL_FW_FAIL_INVALID_FW_LENGTH,
+	PL_FW_FAIL_INVALID_FW_CHECKSUM,
+	PL_FW_FAIL_SOURCE_UNKNOWN,
+	PL_FW__FAIL_INVALID_HARDWARE
+end enum
+
+type pl_upg_state_t
+     state as enum PL_FW_UPG_STATE
+	 source as enum PL_FW_UPG_SOURCE
+	 fw_fail_reason as PL_FW_UPG_FAIL_REASON
+	 fw_totalsize as dword
+	 fw_total_remaining as dword
+	 fw_numfiles as byte
+	 fw_types(MAX_NUM_FILE_UPG) as byte
+	 fw_lengths(MAX_NUM_FILE_UPG) as float
+	 fw_checksums(MAX_NUM_FILE_UPG) as dword	 
+	 fw_currentfile as byte
+	 fw_total_percent as byte	 
+	 fw_percent as byte
+	 fw_remaining as dword	
+	 fw_sector  as word	
+	 fw_page  as word		 
+	 fw_checksum as dword
+	 source_num as byte
+	 fw_receivedfiles as byte
+end type
+
+
+declare current_fw_upg_state as pl_upg_state_t
+declare function device_firmware_upload_update(data as string) as no_yes
+declare function hex_mac(mac as string) as string
+declare function get_fw_upg_state() as pl_upg_state_t
+declare sub on_firmware_update_complete(byref current_fw_upg_state as pl_upg_state_t)	
+declare sub device_firmware_write_tios_app(fw as string) 
+declare sub device_firmware_write_wa2000_mon_app(fw as string)
+declare sub device_firmware_get_fw_block(byref dev_fw_upg_state as pl_upg_state_t )
+declare function device_firmware_read_32_uint() as dword
+declare function get_firmware_index(fwtype as PL_UPG_FW_TYPE) as integer
+declare sub callback_firmware_upgrade_percent_change(byref percentage as byte)

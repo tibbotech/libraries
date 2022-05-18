@@ -164,7 +164,7 @@ sub tbl_web_get_rows(byref table as string)
 	end if
 end sub
 
-sub tbl_web_add_row(byref table as string,byref row as string)
+function tbl_web_add_row(byref table as string,byref row as string) as string
 'field1,field2,field3,etc.
 	dim html_tbl as tbl_type
 	dim field_metadata as tbl_field_type
@@ -173,6 +173,7 @@ sub tbl_web_add_row(byref table as string,byref row as string)
 	dim s as string
 	dim error as string
 	dim stemp as string(16)
+	tbl_web_add_row=""
 
 	tbl_select(table,table)
 	tbl_web_tbl_status=tbl_get_table_info(table,html_tbl)
@@ -216,18 +217,16 @@ verify:
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
-	sock.setdata(error)
-	sock.send()
+	tbl_web_add_row=error
 		
-end sub
+end function
 
-sub tbl_web_get_field_def(byref table_name_or_num as string, byref field_name as string)
-	dim error as string
+function tbl_web_get_field_def(byref table_name_or_num as string, byref field_name as string) as string
+	dim error as string=""
 	dim def_value as string
 	tbl_web_tbl_status=tbl_get_field_def(table_name_or_num, field_name, def_value)
 	if tbl_web_tbl_status=EN_TBL_STATUS_OK then
-		sock.setdata(def_value)
-		sock.send()
+		tbl_web_get_field_def=def_value
 	else
 		select case tbl_web_tbl_status
 		case EN_TBL_STATUS_INVALID: 
@@ -235,15 +234,14 @@ sub tbl_web_get_field_def(byref table_name_or_num as string, byref field_name as
 		case else
 			error=str(tbl_web_tbl_status)
 		end select
-		sock.setdata(error)
-		sock.send()
+		tbl_web_get_field_def=error
 	end if
-end sub
+end function
 
-sub tbl_web_delete_row(byref table as string,row as word)
+function tbl_web_delete_row(byref table as string,row as word) as string
 	dim html_tbl as tbl_type
 	dim ts as struct_tbl_timestamp
-	dim error as string
+	dim error as string=""
 	dim stemp as string(16)
 
 	tbl_select(table,table)
@@ -270,12 +268,11 @@ sub tbl_web_delete_row(byref table as string,row as word)
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
-	sock.setdata(error)
-	sock.send()
+	tbl_web_delete_row=error
 		
-end sub
+end function
 
-sub tbl_web_edit_row(byref table as string,byref index as word,byref row as string)
+function tbl_web_edit_row(byref table as string,byref index as word,byref row as string) as string
 	'field1,field2,field3,etc.
 	dim html_tbl as tbl_type
 	dim field_metadata as tbl_field_type
@@ -284,6 +281,7 @@ sub tbl_web_edit_row(byref table as string,byref index as word,byref row as stri
 	dim s as string
 	dim error as string
 	dim stemp as string(16)
+	tbl_web_edit_row=""
 
 	tbl_select(table,table)
 	tbl_web_tbl_status=tbl_get_table_info(table,html_tbl)
@@ -326,8 +324,6 @@ verify:
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
-	sock.setdata(error)
-	sock.send()
-
-end sub
+	tbl_web_edit_row=error
+end function
 

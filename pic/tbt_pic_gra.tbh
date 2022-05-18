@@ -1,0 +1,200 @@
+const PIC_CHIP_ADDR_R=&h07
+const PIC_CHIP_ADDR_W=&h06
+const PIC_CMD_R=&h01
+const PIC_CMD_W=&h02
+#define  EXPECTED_PIC_FIRMWARE_V "GRA V00"
+
+enum tbt_pic_gra_osc_src
+	INTERNAL_OSCILLATOR_FREQ_31KHZ_LF       =0,
+	INTERNAL_OSCILLATOR_FREQ_31_25KHZ_MF    =1,
+	INTERNAL_OSCILLATOR_FREQ_31_25KHZ_HF    =2,
+	INTERNAL_OSCILLATOR_FREQ_62_5KHZ_MF     = 3,
+	INTERNAL_OSCILLATOR_FREQ_125KHZ_MF	    = 4,
+	INTERNAL_OSCILLATOR_FREQ_125KHZ_HF	    = 5,
+	INTERNAL_OSCILLATOR_FREQ_250KHZ_MF	    = 6,
+	INTERNAL_OSCILLATOR_FREQ_250KHZ_HF	    = 7,
+	INTERNAL_OSCILLATOR_FREQ_500KHZ_MF	    = 8,
+	INTERNAL_OSCILLATOR_FREQ_500KHZ_HF	    = 9,
+	INTERNAL_OSCILLATOR_FREQ_1MHZ_HF	    =10,
+	INTERNAL_OSCILLATOR_FREQ_2MHZ_HF	    =11,
+	INTERNAL_OSCILLATOR_FREQ_4MHZ_HF	    =12,
+	INTERNAL_OSCILLATOR_FREQ_8MHZ_HF	    =13,
+	INTERNAL_OSCILLATOR_FREQ_16MHZ_HF	    =14,
+	INTERNAL_OSCILLATOR_FREQ_32MHZ_HF	    =15
+end enum 
+
+enum tbt_pic_gra_prescaler
+	PIC_PRE_64, '500KHz for CPU clock of 32MHz
+	PIC_PRE_16, '2Mhz  for CPU clock of 32MHz
+	PIC_PRE_4,  '8Mhz  for CPU clock of 32MHz
+	PIC_PRE_1	'32Mhz  for CPU clock of 32MHz
+end enum
+
+enum tbt_pic_gra_regs
+    PIC_PORTA	    =&h000C
+    PIC_PORTC	    =&h000E
+    PIC_PIE1	    =&h0091
+    PIC_OSCCON      =&h0099
+    PIC_APFCON0     =&h011D
+    PIC_APFCON1     =&h011E
+    PIC_ANSELA      =&h018C
+    PIC_ANSELC      =&h018E
+    PIC_TRISA       =&h008C
+    PIC_TRISC       =&h008E
+    PIC_LATA	    =&h010C
+    PIC_LATC	    =&h010E
+    PIC_ADCON0      =&h009D
+    PIC_ADCON1      =&h009E
+    PIC_ADRESH      =&h009C
+    PIC_ADRESL      =&h009B
+    PIC_FVRCON      =&h0117
+    PIC_CCP1CON     =&h0293
+    PIC_CCP2CON     =&h029A
+    PIC_CCP3CON     =&h0313
+    PIC_CCPR1L      =&h0291
+    PIC_CCPR2L      =&h0298
+    PIC_CCPR3L      =&h0311
+    PIC_CCPTMRS0    =&h029E
+    PIC_PR2	        =&h001B
+    PIC_PR4	        =&h0416
+    PIC_PR6	        =&h041D
+    PIC_T2CON	    =&h001C
+    PIC_T4CON	    =&h0417
+    PIC_T6CON	    =&h041E
+    PIC_TXREG	    =&h019A
+    PIC_SPBRGL      =&h019B
+    PIC_SPBRGH      =&h019C
+    PIC_RCSTA	    =&h019D
+    PIC_TXSTA	    =&h019E
+    PIC_BAUDCON     =&h019F
+end enum
+
+
+enum tbt_pic_gra_result
+	PIC_OK,
+	PIC_NG,
+	PIC_REJ,
+	PIC_FWNG
+end enum
+
+enum tbt_pic_gra_pin_enum
+	PIC_PIN0,
+	PIC_PIN1,
+	PIC_PIN2,
+	PIC_PIN3,
+	PIC_PIN4,	'EM1000_LEV ONLY
+	PIC_PIN5	'EM1000_LEV ONLY
+end enum
+
+'I/O pin function choices:
+enum tbt_pic_gra_func_enum
+	PIC_FUNC_NULL,			'No function [default selection]
+	PIC_FUNC_IO,			'A pin is used as a GPIO, this selection is available for all four pins 0-3
+	PIC_FUNC_ADC,			'A pin is used as an ADC input, this selection is available for all four pins 0-3
+	PIC_FUNC_PWM,			'A pin is used as a PWM output, this selection is available for pins 0-2. 
+	PIC_FUNC_UART			'A pin is used for UART (serial) communications, this selection is available only for pins 0 and 1. Moreover,
+							'UART operates ONLY when BOTH pin 0 and pin 1 are configured for UART. If either pin is not in the UART mode
+							'then the other pin won't be in the UART mode as well. Pin 0 always works as the RX line, while pin 1 always
+							'works as the TX line of the UART.
+end enum
+
+enum tbt_pic_gra_adc_enum
+	PIC_ADC0,
+	PIC_ADC1,
+	PIC_ADC2,
+	PIC_ADC3,	
+	PIC_ADC4,	'EM1000_LEV ONLY
+	PIC_ADC5	'EM1000_LEV ONLY
+end enum
+
+
+
+enum tbt_pic_gra_pwm_enum
+	PIC_PWM0,
+	PIC_PWM1,
+	PIC_PWM2
+end enum
+
+
+enum tbt_pic_gra_adc_ref_positive_voltage
+	PIC_PREF_SOURCE_VDD,	'(5V nominal), default selection
+	PIC_PREF_SOURCE_PIN_4,	'For EM1000LEV only
+	PIC_PREF_SOURCE_FVR_BUF	'(Depand on fvr scale)
+end enum
+
+enum tbt_pic_gra_adc_ref_negative_voltage
+	PIC_NREF_SOURCE_VSS,	'Default selection
+	PIC_NREF_SOURCE_PIN_5	'For EM1000LEV only
+end enum
+
+enum tbt_pic_gra_adc_fvr_scale
+	PIC_ADC_FVR_REF_OFF,
+	PIC_ADC_FVR_REF_2048mV,	'0 ~ 2.048V (based on PIC's internal reference)
+	PIC_ADC_FVR_REF_4096mV	'0 ~ 4.096V (based on PIC's internal reference)
+end enum
+
+
+type tbt_pic_gra
+	PIC_CLK_PIN as pl_io_num
+	PIC_DATA_PIN as pl_io_num
+	PIC_RST_PIN as pl_io_num
+	PIC_INT_PIN as pl_io_num
+	TBT_CLK_SOURCE as tbt_pic_gra_osc_src
+    pic_init_flag as word
+	i2c_num_pic as byte
+	pic_tosc as float
+	pic_func as tbt_pic_gra_func_enum(6)
+	pic_adc_pref as tbt_pic_gra_adc_ref_positive_voltage
+	pic_adc_nref as tbt_pic_gra_adc_ref_negative_voltage
+	pic_adc_fvr as tbt_pic_gra_adc_fvr_scale
+	pic_remember_period as word(3)
+	pic_ccp_rec as byte(3)
+	pic_uart_flag as byte
+end type
+'--------------------------------------------------------------------
+const PIC_INIT_SIGNATURE=&h5092
+const PIC_STAMP="PIC> "
+const PIC_CR_LF=chr(13)+chr(10)
+
+declare function tbt_pic_gra_reg_read(addr as word,length as byte) as string
+'Read the specified number of bytes from consequent PIC memory locations beginning from the specified address.  
+
+declare function tbt_pic_gra_reg_write(addr as word, data as string) as ok_ng
+'Write the specified number of bytes into consequent PIC memory locations beginning from the specified address. 
+
+declare sub tbt_pic_gra_reset(scl as pl_io_num,sda as pl_io_num,rst as pl_io_num)
+'Calling this sub will hardware-reset the PIC micro.
+
+declare function tbt_pic_gra_get_fw_version() as string
+'Call this function to obtain the version string for the firmware currently running on the PIC micro.
+'The version will always be in the NNN Vxx.yy format, where
+'NNN is the firmware name
+'xx -- major release (affecting the corresponding Tibbo BASIC library)
+'yy -- minor release (not affecting the corresponding Tibbo BASIC library)
+
+
+declare function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT16_NJ, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'The use of SSI may also be rejected (TBT16_REJ) if the PIC's clock is at 500KHz. This is because with this low speed PIC micro won't be
+'able to handle I2C comms even with the SSI's slowest baudrate.
+
+
+#if TBT_PIC_GRA_DEBUG_PRINT=1
+	declare sub tbt_pic_gra_debug_print(data as string)
+	declare 
+#endif
+
+
+declare sub tbt_pic_gra_config(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pin_enum, f as tbt_pic_gra_func_enum)
+'Call this sub to define the IO pin function separately for each pin. Note that somes pins do not support all functions:
+'IO -- all pins.
+'ADC -- all pins.
+'PWM -- pins 0 ~ 2. Pin 3 does not support PWM.
+'UART -- pins 0 and 1. Pin 0 is RX, pin 1 is TX. BOTH pins must be configured for UART operation, or neither pin will be in the UART mode.
+
+
+declare sub tbt_pic_gra_pwm_config_simple(byref tbt as tbt_pic_gra, ch as tbt_pic_gra_pwm_enum, frequency as real, duty as real)

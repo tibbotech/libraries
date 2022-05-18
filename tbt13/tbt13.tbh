@@ -1,0 +1,27 @@
+enum tbt13_nums
+	ADC_1,
+	ADC_2,
+	ADC_3,
+	ADC_4
+end enum
+
+declare function tbt13_init(signature as string, data_pin as byte, clk_pin as byte, byref tbt_channel as byte, use_ssi as no_yes) as ok_ng
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+
+declare sub tbt13_channel_select(channel as tbt13_nums, tbt_channel as byte)
+'Selects an active ADC channel. Use tbt13_get_prev_mv() or tbt13_get_prev() for actual conversion.
+
+declare function tbt13_get_prev_mv(tbt_channel as byte) as integer
+'Performs ADC conversion for the selected channel and returns PREVIOUS conversion result expressed in mV.
+'Select desired channel using tbt13_channel_select() and remember to DISCARD the first result as
+'it will pertain to the conversion on the previous channel.
+
+declare function tbt13_get_prev(tbt_channel as byte) as word
+'Performs ADC conversion for the selected channel and returns PREVIOUS conversion as an unsigned 10-bit value.
+'The range is from 0 (-10V) to 1023 (+10V).
+'Select desired channel using tbt13_channel_select() and remember to DISCARD the first result as
+'it will pertain to the conversion on the previous channel.	

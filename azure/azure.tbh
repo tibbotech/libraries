@@ -1,0 +1,40 @@
+#ifndef AZURE_DEBUG_PRINT
+	#define AZURE_DEBUG_PRINT 0
+#endif
+
+enum en_azure_command_codes
+	EN_AZURE_OK=200,
+	EN_AZURE_ACCEPTED=202,
+	EN_AZURE_BAD_REQUEST=400,
+	EN_AZURE_UNAUTHORIZED=401
+end enum
+
+enum en_azure_states
+	EN_AZURE_NOT_CONNECTED,
+	EN_AZURE_DEVICE_LOOKUP,
+	EN_AZURE_NOT_PROVISIONED,
+	EN_AZURE_PROVISIONING,
+	EN_AZURE_CONNECTED
+end enum
+
+declare azure_state as en_azure_states
+declare function azure_update_json(byref original as string, byref attribute as string, byref value as string) as string
+declare sub azure_start(byref device_id as string, byref scope_id as string, byref dps_url as string, byref symmetricKey as string, interface as pl_sock_interfaces)
+declare sub azure_proc_timer()
+declare sub azure_on_connected()
+declare sub azure_device_lookup()	 
+declare sub azure_on_disconnected()
+declare sub azure_proc_mqtt_msg(byref topic as string, byref data as string)
+declare sub azure_mqtt_sub_ok()
+declare sub azure_command_respond(byref command as string, byref returns as string, rid as string, result as en_azure_command_codes)
+declare sub azure_on_telemetry_sent()
+declare sub callback_azure_command_triggered(byref command as string, byref param as string, rid as string)
+declare sub azure_set_datetime(byref dt_string as string)
+declare sub callback_azure_device_assigned(byref assigned_hub as string)
+declare sub callback_on_telemetry_sent()
+declare sub iot_send_headers()
+declare sub azure_content_arrival(data as string)
+declare sub azure_http_request_complete()
+declare sub iot_header_arrival(header_type as string, header_value as string)
+declare sub azure_send_telemetry()
+declare sub azure_send_property(prop_name as string, prop_value as string)

@@ -1,0 +1,117 @@
+'***********************************************************************************************************
+'			Common initialization code for Tibbit #57 (FPGA Tibbit)
+'***********************************************************************************************************
+
+include "global.tbh"
+'--------------------------------------------------------------------
+
+function tbt57_init(byref filename as string, byref spi_num as byte, pin_cs as byte, pin_clk as byte, pin_mosi as byte, pin_miso as byte) as tbt57_errcheck
+'Call this function to initialize the Tibbit (using filename file, which must be the correct PGA configuration file).
+'This function will attempt to allocate an SSI channel. If all channels are already occupied then the function will return TBT57_NO_SSI_AVAILABLE.
+'The function returns the allocated channel number via spi_num.
+
+	dim delay as byte
+	dim s as string
+	dim x as byte
+	dim f as word
+	
+	tbt57_init=TBT57_OK
+	
+	spi_num=ssi_get("FP")
+	if spi_num=255 then
+		tbt57_init=TBT57_NO_SSI_AVAILABLE
+		exit function
+	end if
+	
+	ssi.channel=spi_num
+	
+	'SPI CS
+	io.num=pin_cs
+	io.state=HIGH
+	io.enabled=YES
+	
+	
+	'SPI CLK
+	io.num=pin_clk
+	io.state=HIGH
+	io.enabled=YES							'Enable as output
+	
+	'SPI DO (MOSI)
+	io.num=pin_mosi
+	io.state=HIGH
+	io.enabled=YES
+
+
+	'SPI DI (MISO)
+	io.num=pin_miso
+	io.enabled=NO
+
+	'setup SSI channel
+	ssi.mode=PL_SSI_MODE_2
+	ssi.clkmap=pin_clk
+	ssi.dimap=pin_miso
+	ssi.domap=pin_mosi
+	ssi.zmode=PL_SSI_ZMODE_ALWAYS_ENABLED
+	ssi.direction=PL_SSI_DIRECTION_LEFT
+	ssi.baudrate=1
+		
+
+	ssi.enabled=NO
+	io.lineset(pin_clk,LOW) 	'Pepare to rising edge generation
+	io.lineset(pin_clk,HIGH)	'CRESETn is now low
+	
+	for delay = 0 to 10
+	next delay
+	
+	io.lineset(pin_cs,LOW)
+	
+	for delay = 0 to 100 '<----- Reset delay. Adjust to 200 ns or more
+	next delay
+	
+	io.lineset(pin_clk,LOW) 	'Pepare to rising edge generation
+	io.lineset(pin_clk,HIGH)	'CRESETn is now high and FPGA is going to clear internal configuration memory
+	
+	for delay = 0 to 100 '<----- Adjust to 800 us or more
+	next delay
+	
+	'Upload the run-time binary into the FPGA
+	ssi.enabled=YES
+	romfile.open(filename)
+	if romfile.size=0 then
+		tbt57_init=TBT57_FILE_NOT_ATTACHED
+		exit function
+	end if
+	s=romfile.getdata(255)
+	x=len(s)
+	while x>0
+		ssi.str(s,PL_SSI_ACK_OFF)
+		s=romfile.getdata(255)
+		x=len(s)
+	wend
+	
+	ssi.enabled=NO
+	for delay = 0 to 50 		'Send 50 dummy bits
+		io.lineset(pin_clk,LOW)
+		io.lineset(pin_clk,HIGH)
+	next delay
+	
+	ssi.mode=PL_SSI_MODE_0
+	ssi.enabled=YES
+	io.lineset(pin_cs,HIGH) 	'Switch MISO to cDONE
+	if io.lineget(pin_miso)=LOW then 	 	'If 1 - configuration correct, if 0 - ERROR
+		tbt57_init=TBT57_INIT_FAILURE
+		exit function
+	end if
+	
+	'a small delay is necessary for the FPGA to start running
+	#if PLATFORM_TYPE_32
+			sys.timercountms=0
+			while sys.timercountms<500
+			wend
+	#else	
+		'older platforms rely on good old delays
+		for f=0 to 20000
+		next f
+	#endif
+
+end function

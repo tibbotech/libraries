@@ -1,0 +1,7 @@
+
+
+enum pic_pwm_enum
+	PIC_PWM0,
+	PIC_PWM1,
+	PIC_PWM2
+end enum

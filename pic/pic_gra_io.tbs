@@ -1,0 +1,11 @@
+
+enum pic_pin_enum
+	PIC_PIN0,
+	PIC_PIN1,
+	PIC_PIN2,
+	PIC_PIN3,
+	PIC_PIN4,	'EM1000_LEV ONLY
+	PIC_PIN5	'EM1000_LEV ONLY
+end enum
+
+

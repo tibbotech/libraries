@@ -1,0 +1,157 @@
+'***********************************************************************************************************
+'			Tibbit #13 (4-channel ADC)
+'***********************************************************************************************************
+
+include "global.tbh"
+
+const TBT13_INIT_SIGNATURE=&h9D6B
+const TBT13_STAMP="TBT13> "
+const TBT13_CR_LF=chr(13)+chr(10)
+
+const TBT13_WRITE_ADDR=&h10
+const TBT13_READ_ADDR=&h11
+
+#if TBT13_DEBUG_PRINT=1
+	declare sub adc_debug_print(data as string)
+#endif
+
+dim tbt13_init_flag as word
+
+'==================================================================================================
+function tbt13_init(signature as string, data_pin as byte, clk_pin as byte, byref tbt_channel as byte, use_ssi as no_yes) as ok_ng
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+
+	tbt13_init=OK
+	tbt13_init_flag=TBT13_INIT_SIGNATURE
+
+	#if TBT13_DEBUG_PRINT=1
+		adc_debug_print("++++++++++")
+	#endif
+	
+	tbt_channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
+	#if TBT13_DEBUG_PRINT=1
+		adc_debug_print("i2c num:"+str(tbt_channel))
+	#endif
+	if tbt_channel<4 then
+		ssi.channel=tbt_channel
+		ssi.enabled=NO
+		#IF PLATFORM_ID=TPP2WG2 OR PLATFORM_ID=TPP3WG2
+			ssi.baudrate=3
+		#ELIF PLATFORM_ID=TPP2W OR PLATFORM_ID=TPP3W
+			ssi.baudrate=1
+		#ENDIF
+		ssi.clkmap=clk_pin
+		ssi.dimap=data_pin
+		ssi.domap=data_pin
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_0
+		ssi.enabled=YES
+		io.num=clk_pin
+		io.state=HIGH
+		io.num=data_pin
+		io.state=HIGH
+	else
+		if use_ssi=YES then
+			tbt13_init=NG
+		end if
+	end if
+
+	#if TBT13_DEBUG_PRINT=1
+		adc_debug_print("----------")
+	#endif
+end function
+
+sub tbt13_channel_select(channel as tbt13_nums, tbt_channel as byte)
+'Selects an active ADC channel. Use tbt13_get_prev_mv() or tbt13_get_prev() for actual conversion.
+
+	if tbt13_init_flag<>TBT13_INIT_SIGNATURE then
+	#if TBT13_DEBUG_PRINT=1
+		adc_debug_print("The lib is not initialized, call tbt13_init() first")
+	#endif
+		exit sub
+	end if
+
+	dim ch as byte
+	
+	select case channel
+	case ADC_1:
+		ch=&h88
+
+	case ADC_2:
+		ch=&h98
+
+	case ADC_3:
+		ch=&hA8
+
+	case ADC_4:
+		ch=&hB8
+
+	end select
+
+	si2c_get(tbt_channel)
+	si2c_start()
+	si2c_write(TBT13_WRITE_ADDR)
+	si2c_write(ch)
+	si2c_start()
+end sub
+
+function tbt13_get_prev_mv(tbt_channel as byte) as integer
+'Performs ADC conversion for the selected channel and returns PREVIOUS conversion result expressed in mV.
+'Select desired channel using tbt13_channel_select() and remember to DISCARD the first result as
+'it will pertain to the conversion on the previous channel.
+	
+	dim dw as long
+	
+	dw=tbt13_get_prev(tbt_channel)
+	
+	#if ADC_RESOLUTION=ADC_RES_LOW
+		tbt13_get_prev_mv=(dw*01953125-1000000000)/100000
+	#elif ADC_RESOLUTION=ADC_RES_MID
+		tbt13_get_prev_mv=(dw*00976562-1000000000)/100000
+	#else
+		tbt13_get_prev_mv=(dw*00488281-1000000000)/100000
+	#endif
+end function
+
+function tbt13_get_prev(tbt_channel as byte) as word
+'Performs ADC conversion for the selected channel and returns PREVIOUS conversion as an unsigned 10-bit value.
+'The range is from 0 (-10V) to 1023 (+10V).
+'Select desired channel using tbt13_channel_select() and remember to DISCARD the first result as
+'it will pertain to the conversion on the previous channel.	
+	
+	dim byte_hi, byte_lo as byte
+
+	if tbt13_init_flag<>TBT13_INIT_SIGNATURE then
+	#if TBT13_DEBUG_PRINT=1
+		adc_debug_print("The lib is not initialized, call tbt13_init() first")
+	#endif
+		exit function
+	end if
+
+	si2c_get(tbt_channel)
+	si2c_start()
+	si2c_write(TBT13_READ_ADDR)
+	byte_hi=si2c_read(true)
+	byte_lo=si2c_read(true)
+	si2c_stop()
+	
+	#if ADC_RESOLUTION=ADC_RES_LOW
+		tbt13_get_prev=byte_lo/64 +byte_hi*4 '10 bit
+	#elif ADC_RESOLUTION=ADC_RES_MID
+		tbt13_get_prev=byte_lo/32 +byte_hi*8 '11 bit
+	#else
+		tbt13_get_prev=byte_lo/16 +byte_hi*16'12 bit
+	#endif
+end function
+
+#if TBT13_DEBUG_PRINT=1
+sub adc_debug_print(data as string)
+
+	sys.debugprint(TBT13_STAMP+data+TBT13_CR_LF)
+end sub
+#endif

@@ -1,0 +1,36 @@
+#ifndef TBT40_CLK_PIN
+	#define TBT40_CLK_PIN PL_IO_NULL
+#endif
+
+#ifndef TBT40_DATA_PIN
+	#define TBT40_DATA_PIN PL_IO_NULL
+#endif
+
+enum tbt40_errcheck
+	TBT40_OK,
+	TBT40_SELFTEST_FAILED,
+	TBT40_NO_SSI_AVAILABLE
+end enum
+
+declare function tbt40_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as tbt40_errcheck
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT40_NO_SSI_AVAILABLE, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'Other error code (TBT40_SELFTEST_FAILED) indicates failure.
+
+declare sub tbt40_set_ohm(impedance as dword, range as dword, save_to_eeprom as no_yes, channel as byte)
+'Sets the digital potentiometer to the "impedance" value expressed in Ohms.This value will be rounded to the nearest LOWER potentiometer step and
+'limited by the maximum value range achievable on the current IC. The range argument must correctly specify the maximum IC range in Ohms (i.e. set it to
+'10000 for 10K IC). You can set the range to the ACTUAL value measured on your IC sample. This will allow for a more precise impedance programming.
+'Note that the impedance argument specifies the impedance between I/O lines 3 and 4 of this Tibbit. The impedance between
+'terminals 2 and 3 will be in reverse, i.e. 10K - impedance for the 10K IC. Save_to_eeprom argument specifies whether the new impedance value will
+'be saved into the EEPROM (and thus persist even after the IC is power-cycled).
+
+declare sub tbt40_set(level as word,save_to_eeprom as no_yes, channel as byte)
+'Sets the digital potentiometer to the level (step) in the 0-256 range (there are 257 steps in total). Each step is equal to 1/257th of the IC's range
+'(5K, 10K, 50K, or 100K depending on the IC type). Step=0 indicates a near-zero impedance between the I/O lines 3 and 4 of this Tibbit.
+'At the same time, the impedance between I/O lines 2 and 3 will be at maximum.
+'Save_to_eeprom argument specifies whether the new impedance value will be saved into the EEPROM (and thus persist even after the IC is power-cycled).
+

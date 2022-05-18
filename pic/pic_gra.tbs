@@ -69,11 +69,7 @@ function pic_init(byref signature as string, use_ssi as no_yes, byref fw_str as 
 	if channel<4 then
 		ssi.channel=channel
 		ssi.enabled=NO
-		#IF PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG2
-			ssi.baudrate=25
-		#ELIF PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3W
-			ssi.baudrate=100
-		#ENDIF
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 
 		ssi.clkmap=clk_pin
 		ssi.dimap=data_pin
@@ -1251,6 +1247,38 @@ function pic_io_get(num as pic_pin_enum, channel as byte)as low_high
 	end select
 end function
 
+sub pic_pwm_output(ch as pic_pwm_enum, frequency as float, duty_cycle as byte, channel as byte)
+	dim prescaler as byte = 1
+	dim period as float
+	dim pulse_width as float
+	while prescaler <= 64
+		
+		period = (pic_tosc * prescaler) / frequency
+		if period < 1024 then
+			pulse_width = duty_cycle / 100.0 * period
+			dim final_prescaler as pic_prescaler_enum=PIC_PRE_1
+			select case prescaler
+			case 1:
+				final_prescaler=PIC_PRE_1
+			case 4:
+				final_prescaler=PIC_PRE_4
+			case 16:
+				final_prescaler=PIC_PRE_16
+			case else:
+				final_prescaler=PIC_PRE_64
+			end select
+			pic_pwm_config(ch, pulse_width, period, final_prescaler, channel)
+			exit sub
+			
+		end if
+		
+		prescaler = prescaler * 4
+	wend
+	#if PIC_DEBUG_PRINT=1
+		pic_debug_print("no suitable prescaler found")
+	#endif
+end sub
+
 sub pic_pwm_config(ch as pic_pwm_enum, pulse_width as word,period as word, prescaler as pic_prescaler_enum, channel as byte)
 'Sets the operation parameters for the selected PWM channel.
 'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()].
@@ -1474,6 +1502,61 @@ sub pic_pwm_stop(ch as pic_pwm_enum, channel as byte)
 		pic_reg_write(PIC_T6CON,chr(value))
 
 	end select
+end sub
+
+sub pic_pwm_duty_set(ratio as word, pwm_channel as byte, channel as byte)
+	dim s as string
+	dim dd as dword
+	dim new_on_duration as word
+	dim mask as byte
+	dim tmp as word
+	dim rCCPRxL as byte(3)
+	dim rCCPxN as byte(3)
+	dim PIC_CCPxCON as word=0
+	dim PIC_CCPRxL as word=0
+
+	if pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if PIC_DEBUG_PRINT=1
+			pic_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	select case pwm_channel
+	case PIC_PWM0:
+		PIC_CCPxCON=PIC_CCP1CON
+		PIC_CCPRxL=PIC_CCPR1L
+	case PIC_PWM1:
+		PIC_CCPxCON=PIC_CCP2CON
+		PIC_CCPRxL=PIC_CCPR2L
+	case PIC_PWM2:
+		PIC_CCPxCON=PIC_CCP3CON
+		PIC_CCPRxL=PIC_CCPR3L
+	end select
+
+	if pic_func(pwm_channel)<>PIC_FUNC_PWM then 
+		exit sub
+	end if
+
+	if ratio>1000 then
+		ratio=1000
+	end if
+
+	si2c_get(channel)
+	s=pic_reg_read(PIC_CCPXCON,1)
+	rCCPxN(pwm_channel)=asc(s)
+
+	if pic_func(pwm_channel)=PIC_FUNC_PWM then
+		dd=ratio
+		new_on_duration=(dd*pic_remember_period(0))/1000
+		rCCPRxL(0)=new_on_duration/4
+		tmp=new_on_duration and &h0003
+		mask=tmp *16
+		rCCPxN(0)= rCCPxN(0) and &hCF
+		rCCPxN(0)= rCCPxN(0) or mask	
+		pic_reg_write(PIC_CCPRxL,chr(rCCPRxL(0)))
+		pic_reg_write(PIC_CCPxCON,chr(rCCPxN(0)))
+	end if
 end sub
 
 sub pic_pwm_duty(ratio0 as word, ratio1 as word, ratio2 as word, channel as byte)

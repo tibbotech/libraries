@@ -1,0 +1,6 @@
+#IF PLATFORM_ID=TPP2WG2 OR PLATFORM_ID=TPP3WG2
+	#define PLATFORM_TYPE_32 1
+#endif
+
+declare function tbt28_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte)as ok_ng
+declare function tbt28_get(byref channel as byte) as word

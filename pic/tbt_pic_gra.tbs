@@ -1,0 +1,784 @@
+include "global.tbh"
+
+ 
+'==============================================================================
+function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT16_NJ, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+'The use of SSI may also be rejected (TBT16_REJ) if the PIC's clock is at 500KHz. This is because with this low speed PIC micro won't be
+'able to handle I2C comms even with the SSI's slowest baudrate.
+	dim s as string
+	dim value as byte
+	
+	if tbt.TBT_CLK_SOURCE<=INTERNAL_OSCILLATOR_FREQ_500KHZ_MF then 
+		if use_ssi=YES then
+			tbt_pic_gra_init=PIC_REJ
+			exit function
+		end if
+	end if
+
+	'reset co-processor
+	io.num=tbt.PIC_CLK_PIN
+	io.enabled=YES
+	io.state=HIGH
+	io.num=tbt.PIC_DATA_PIN
+	io.enabled=YES
+	io.state=HIGH
+
+	io.num=tbt.PIC_RST_PIN
+	io.enabled=YES
+	io.state=LOW
+	' dim rstdelay as dword = sys.timercountms + 30
+	' while rstdelay >sys.timercountms
+		
+	' wend
+	io.state=HIGH
+	' rstdelay = sys.timercountms + 200
+	' while rstdelay >sys.timercountms
+		
+	' wend
+	tbt_pic_gra_init=OK
+	tbt.pic_init_flag=PIC_INIT_SIGNATURE
+	tbt.i2c_num_pic=si2c_register("PIC",tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
+
+	if tbt.i2c_num_pic<4 then
+		ssi.channel=tbt.i2c_num_pic
+		ssi.enabled=NO
+		ssi.baudrate= PL_SSI_BAUD_100kHz
+		ssi.clkmap=tbt.PIC_CLK_PIN
+		ssi.dimap=tbt.PIC_DATA_PIN
+		ssi.domap=tbt.PIC_DATA_PIN
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_2
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.enabled=YES
+	else
+		if use_ssi=YES then
+			tbt_pic_gra_init=NG
+		end if
+	end if
+
+	si2c_get(tbt.i2c_num_pic)
+	
+	'7.RXDTSEL 0 = RX/DT function is on RC5
+	'6.SDOSEL  0 = SDO function is on RC2
+	'5.SSSEL   1 = SS function is on RA3
+	'4.(don't care)
+	'3.T1GSEL  1 = T1G function is on RA3
+	'2.TXCKSEL 0 = TX/CK function is on RC4
+	'1.(don't care)
+	'0.(don't care)
+	tbt_pic_gra_reg_write(PIC_APFCON0,chr(&h28))
+
+	'7.(don't care)
+	'6.(don't care)
+	'5.(don't care)
+	'4.(don't care)
+	'3.P1D  0 = P1D function is on RC2
+	'2.P1C  0 = P1C function is on RC3
+	'1.P2B  0 = P2B function is on RC2	
+	'0.CCP2 0 = CCP2 function is on RC3
+	tbt_pic_gra_reg_write(PIC_APFCON1,chr(&h00))
+
+'	'00 = CCP4 is based off Timer2 in PWM mode
+'	'10 = CCP3 is based off Timer6 in PWM mode
+'	'01 = CCP2 is based off Timer4 in PWM mode
+'	'00 = CCP1 is based off Timer2 in PWM mode
+	'Configure and start Timer2/4/6
+	tbt_pic_gra_reg_write(PIC_CCPTMRS0,chr(&h24))
+
+#if TBT_PIC_GRA_DEBUG_PRINT=1
+	tbt_pic_gra_print_regs()
+#endif
+ 
+	select case tbt.TBT_CLK_SOURCE
+		case INTERNAL_OSCILLATOR_FREQ_31KHZ_LF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h02))
+			tbt.pic_tosc=1.0/31000
+		case INTERNAL_OSCILLATOR_FREQ_31_25KHZ_MF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h12))
+			tbt.pic_tosc=1.0/31250
+
+		case INTERNAL_OSCILLATOR_FREQ_31_25KHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h1A))
+			tbt.pic_tosc=1.0/31250
+
+		case INTERNAL_OSCILLATOR_FREQ_62_5KHZ_MF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h22))
+			tbt.pic_tosc=1.0/62500
+
+		case INTERNAL_OSCILLATOR_FREQ_125KHZ_MF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h2A))
+			tbt.pic_tosc=1.0/125000
+
+		case INTERNAL_OSCILLATOR_FREQ_250KHZ_MF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h32))
+			tbt.pic_tosc=1.0/250000
+
+		case INTERNAL_OSCILLATOR_FREQ_500KHZ_MF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h3A))
+			tbt.pic_tosc=1.0/500000
+
+		case INTERNAL_OSCILLATOR_FREQ_125KHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h42))
+			tbt.pic_tosc=1.0/125000
+
+		case INTERNAL_OSCILLATOR_FREQ_250KHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h4A))
+			tbt.pic_tosc=1.0/250000
+
+		case INTERNAL_OSCILLATOR_FREQ_500KHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h52))
+			tbt.pic_tosc=1.0/500000
+
+		case INTERNAL_OSCILLATOR_FREQ_1MHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h5A))
+			tbt.pic_tosc=1.0/1000000
+
+		case INTERNAL_OSCILLATOR_FREQ_2MHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h32))
+			tbt.pic_tosc=1.0/2000000
+			
+		case INTERNAL_OSCILLATOR_FREQ_4MHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h3A))
+			tbt.pic_tosc=1.0/4000000
+
+		case INTERNAL_OSCILLATOR_FREQ_8MHZ_HF
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h72))
+			tbt.pic_tosc=1.0/8000000
+
+		case INTERNAL_OSCILLATOR_FREQ_16MHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&h7A))
+			tbt.pic_tosc=1.0/16000000
+
+		case INTERNAL_OSCILLATOR_FREQ_32MHZ_HF:
+			tbt_pic_gra_reg_write(PIC_OSCCON,chr(&hF0))
+			tbt.pic_tosc=1.0/32000000	
+		case else 
+			tbt_pic_gra_init = NG
+			exit function
+	end select
+	
+	' rstdelay = sys.timercountms + 10
+	' while rstdelay >sys.timercountms
+		
+	' wend
+
+	tbt.pic_func(0)=PIC_FUNC_IO
+	tbt.pic_func(1)=PIC_FUNC_IO
+	tbt.pic_func(2)=PIC_FUNC_IO
+	tbt.pic_func(3)=PIC_FUNC_IO
+
+	tbt.pic_adc_pref=PIC_PREF_SOURCE_VDD
+	tbt.pic_adc_nref=PIC_NREF_SOURCE_VSS
+	tbt.pic_adc_fvr=PIC_ADC_FVR_REF_OFF
+
+	tbt.pic_uart_flag=&h00
+
+	'The ADC clock period (TAD) and total ADC conversion time can be minimized when the ADC clock is derived from the
+	'system clock FOSC.
+	tbt_pic_gra_reg_write(PIC_ADCON1,chr(&hF0))
+
+	'initialize gpio as default
+	s=tbt_pic_gra_reg_read(PIC_LATA,1)
+	value=asc(s) or &h03
+	tbt_pic_gra_reg_write(PIC_LATA,chr(value))
+
+	s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+	value=asc(s) or &h03
+	tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+	s=tbt_pic_gra_reg_read(PIC_LATC,1)
+	value=asc(s) or &h03
+	tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+	
+	s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+	value=asc(s) or &h03
+	tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+	dim i as byte=0
+	s=""
+	s=tbt_pic_gra_reg_read(&h20,1)
+
+	i=val("&h"+s)
+
+	if i=0 or i>16 then
+		tbt_pic_gra_init=PIC_FWNG
+		exit function
+	end if
+
+	fw_str=tbt_pic_gra_reg_read(&h21,i)
+	if instr(1,fw_str,EXPECTED_PIC_FIRMWARE_V,1) =0 then
+		tbt_pic_gra_init=PIC_FWNG
+	end if
+end function
+
+
+
+
+'==============================================================================
+function tbt_pic_gra_reg_read(addr as word,length as byte)as string
+'Read the specified number of bytes from consequent PIC memory locations beginning from the specified address.
+
+	dim tmp as byte
+	dim data as string=""
+
+	data=""
+	if length=0 then
+		tbt_pic_gra_reg_read=""
+		exit function
+	end if
+
+	si2c_start()
+
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_R)
+	
+	tmp=addr / 256
+	si2c_write(tmp)
+	tmp=addr or 256
+	si2c_write(tmp)
+
+	si2c_stop()
+	si2c_start()
+	si2c_write(PIC_CHIP_ADDR_R)
+	for tmp=1 to length-1
+		data=data+chr(si2c_read(true))
+	next tmp
+	data=data+chr(si2c_read(false))
+	tbt_pic_gra_reg_read=data
+	si2c_stop()
+end function
+
+
+
+'==============================================================================
+function tbt_pic_gra_reg_write(addr as word, data as string)as ok_ng
+'Write the specified number of bytes into consequent PIC memory locations beginning from the specified address.
+
+	dim tmp,pos as byte
+	dim buf as string
+
+	tbt_pic_gra_reg_write=NG
+	if data="" then exit function
+
+	si2c_start()
+
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_W)
+
+	tmp=addr/256
+	si2c_write(tmp)
+	tmp=addr or 256
+	si2c_write(tmp)
+
+	buf=""
+	for pos=1 to len(data)
+		buf=mid(data,pos,1)
+		si2c_write(asc(buf))
+	next pos
+
+	si2c_stop()
+
+	tbt_pic_gra_reg_write=OK
+end function
+
+#if TBT_PIC_GRA_DEBUG_PRINT=1
+
+sub tbt_pic_gra_print_regs()
+
+	dim s as string
+	dim value as byte
+	
+	s=tbt_pic_gra_reg_read(PIC_APFCON0,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_APFCON0:"+ hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_APFCON1,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_APFCON1:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_TRISA:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_ANSELA:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_PORTA,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_PORTA:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_TRISC:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_ANSELC:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_PORTC,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_PORTC:"+hex(value))
+
+	s=tbt_pic_gra_reg_read(PIC_CCPTMRS0,1)
+	value=asc(s)
+	tbt_pic_gra_debug_print("PIC_CCPTMRS0:"+ hex(value))
+end sub 
+
+#endif 
+
+sub tbt_pic_gra_disable_pwm(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pwm_enum)
+	dim s as string
+	dim value as byte
+	select case num
+		case  PIC_PIN0
+			'RC5 < VIL
+			s=tbt_pic_gra_reg_read(PIC_LATC,1)
+			value=asc(s)
+			tbt_pic_gra_reg_write(PIC_LATC,chr(value or &h20))
+
+			s=tbt_pic_gra_reg_read(PIC_CCP1CON,1)
+			tbt.pic_ccp_rec(num)=asc(s)
+			tbt_pic_gra_reg_write(PIC_CCP1CON,chr(0))
+			s=tbt_pic_gra_reg_read(PIC_T2CON,1)
+			value=asc(s)and &hFB
+
+			tbt_pic_gra_reg_write(PIC_T2CON,chr(value))
+
+		case PIC_PIN1:
+			'RC3 < VIL
+			s=tbt_pic_gra_reg_read(PIC_LATC,1)
+			value=asc(s)
+			tbt_pic_gra_reg_write(PIC_LATC,chr(value or &h08))
+
+			s=tbt_pic_gra_reg_read(PIC_CCP2CON,1)
+			tbt.pic_ccp_rec(num)=asc(s)
+			tbt_pic_gra_reg_write(PIC_CCP2CON,chr(0))
+
+			s=tbt_pic_gra_reg_read(PIC_T4CON,1)
+			value=asc(s)and &hFB
+			tbt_pic_gra_reg_write(PIC_T4CON,chr(value))
+
+		case PIC_PIN2:
+			'RA2 < VIL
+			s=tbt_pic_gra_reg_read(PIC_LATA,1)
+			value=asc(s)
+			tbt_pic_gra_reg_write(PIC_LATA,chr(value or &h04))
+
+			s=tbt_pic_gra_reg_read(PIC_CCP3CON,1)
+			tbt.pic_ccp_rec(num)=asc(s)
+			tbt_pic_gra_reg_write(PIC_CCP3CON,chr(0))
+
+			s=tbt_pic_gra_reg_read(PIC_T6CON,1)
+			value=asc(s)and &hFB
+			tbt_pic_gra_reg_write(PIC_T6CON,chr(value))
+
+	end select
+end sub
+
+
+sub tbt_pic_gra_disable_uart(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pwm_enum)
+	dim s as string
+	dim value as byte
+	if tbt.pic_func(num)=PIC_FUNC_UART then
+		'Disable uart before we change to another function
+		'SPEN = 0
+		s=tbt_pic_gra_reg_read(PIC_RCSTA,1)
+		value=asc(s)
+		value=value and &h7F
+		tbt_pic_gra_reg_write(PIC_RCSTA,chr(value))
+		tbt.pic_uart_flag=tbt.pic_uart_flag and &h7F
+
+		'Disable RCIE
+		s=tbt_pic_gra_reg_read(PIC_PIE1,1)
+		value=asc(s)
+		tbt_pic_gra_reg_write(PIC_PIE1,chr(value and &hDF))
+	end if
+	
+end sub
+
+
+sub tbt_pic_gra_config_io(num as tbt_pic_gra_pin_enum)
+	
+	dim s as string
+	dim value as byte
+	select case num
+		case PIC_PIN0:
+			'set RA4 as input
+			'set RC5 as output high
+			s=tbt_pic_gra_reg_read(PIC_LATA,1)
+			value=asc(s) or &h10
+			tbt_pic_gra_reg_write(PIC_LATA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+			value= asc(s) or &h10
+			tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+			value=asc(s) or &h10
+			tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_LATC,1)
+			value=asc(s) or &h20
+			tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			value=asc(s) and &hDF
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+		case PIC_PIN1:
+			'set RC3 as output high
+			'set RC4 as input
+			s=tbt_pic_gra_reg_read(PIC_LATC,1)
+			value=asc(s) or &h18
+			tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			value=asc(s) and &hF7
+			value=value or &h10
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+			value=asc(s) and &hF7
+			tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+
+		case PIC_PIN2:
+			s=tbt_pic_gra_reg_read(PIC_LATA,1)
+			value=asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_LATA,chr(value))
+
+			'set RA2 as output high
+			s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+			value= asc(s) and &hFB
+			tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+			value=asc(s) and &hFB
+			tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+		case PIC_PIN3:
+			'set RC2 as output high
+			s=tbt_pic_gra_reg_read(PIC_LATC,1)
+			value=asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			value=asc(s) and &hFB
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+			value=asc(s) and &hFB
+			tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+
+	end select
+end sub 
+
+sub tbt_pic_gra_config_adc(num as tbt_pic_gra_pin_enum)
+	
+	dim s as string
+	dim value as byte
+	select case num
+		case PIC_PIN0:
+			'set RC5, RA4 as input  and analog
+			s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+			value= asc(s) or &h10
+			tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+			value=asc(s) or &h10
+			tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			'setRC4 as input
+			value=value or &h30
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+		case PIC_PIN1:
+			'set RC3, RC4 as input  and analog
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			value=asc(s) or &h18
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+			value=asc(s) or &h08
+			tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+
+		case PIC_PIN2:
+			'set RA2 as input  and analog
+			s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+			value= asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+			value=asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+		case PIC_PIN3:
+			'set RC2 as input and analog
+			s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+			value=asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+			s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+			value=asc(s) or &h04
+			tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+	end select
+	'ADC Enable bit
+	s=tbt_pic_gra_reg_read(PIC_ADCON0,1)
+	value=asc(s) or &h1
+	tbt_pic_gra_reg_write(PIC_ADCON0,chr(value))
+end sub 
+
+
+sub tbt_pic_gra_config_pwm(num as tbt_pic_gra_pin_enum)
+	
+	dim s as string
+	dim value as byte
+	
+	select case num
+	case PIC_PIN0:
+		'RC5 configured as an output
+		s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+		value=asc(s)
+		value=value and &hDF
+		tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+		'RC5 configured as digital IO
+		s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+		value=asc(s)
+		value=value and &hDF
+		tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+
+		'RA4 configured as input
+		s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+		value= asc(s) or &h10
+		tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+		s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+		value=asc(s) and &hEF
+		tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+	case PIC_PIN1:
+
+		'RC3 configured as an output
+		'RC4 configured as input
+		s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+		value=asc(s)
+		value=value and &hF7
+		value=value or &h10
+		tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+		'RC3 configured as digital IO
+		s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+		value=asc(s)
+		value=value and &hF7
+		tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+
+	case PIC_PIN2:
+		'RA2 configured as an output
+		s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+		value=asc(s)
+		value=value and &hFB
+		tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+		'RA2 configured as digital IO
+		s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+		value=asc(s)
+		value=value and &hFB
+		tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+
+	end select
+
+end sub 
+
+sub tbt_pic_gra_config_uart(num as tbt_pic_gra_pin_enum)
+
+	dim s as string
+	dim value as byte
+	if num=PIC_PIN0 then
+		'set RC5, RA4 as input
+		s=tbt_pic_gra_reg_read(PIC_LATA,1)
+		value=asc(s) or &h10
+		tbt_pic_gra_reg_write(PIC_LATA,chr(value))
+
+		s=tbt_pic_gra_reg_read(PIC_TRISA,1)
+		value= asc(s) or &h10
+		tbt_pic_gra_reg_write(PIC_TRISA,chr(value))
+
+		s=tbt_pic_gra_reg_read(PIC_ANSELA,1)
+		value=asc(s) and &hEF
+		tbt_pic_gra_reg_write(PIC_ANSELA,chr(value))
+		
+		s=tbt_pic_gra_reg_read(PIC_LATC,1)
+		value=asc(s) or &h20
+		tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+
+		s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+		value=asc(s) or &h20
+		tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+	end if
+			if num=PIC_PIN1 then
+				'set RC3, RC4 as output high
+				s=tbt_pic_gra_reg_read(PIC_LATC,1)
+				value=asc(s) or &h18
+				tbt_pic_gra_reg_write(PIC_LATC,chr(value))
+
+				s=tbt_pic_gra_reg_read(PIC_TRISC,1)
+				value=asc(s) and &hE7
+				tbt_pic_gra_reg_write(PIC_TRISC,chr(value))
+
+				s=tbt_pic_gra_reg_read(PIC_ANSELC,1)
+				value=asc(s) and &hE7
+				tbt_pic_gra_reg_write(PIC_ANSELC,chr(value))
+			end if
+
+
+end sub
+
+sub tbt_pic_gra_config(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pin_enum, f as tbt_pic_gra_func_enum)
+'Call this sub to define the IO pin function separately for each pin. Note that somes pins do not support all functions:
+'IO -- all pins.
+'ADC -- all pins.
+'PWM -- pins 0 ~ 2. Pin 3 does not support PWM.
+'UART -- pins 0 and 1. Pin 0 is RX, pin 1 is TX. BOTH pins must be configured for UART operation, or neither pin will be in the UART mode.
+	dim s as string
+	dim value as byte
+	if tbt.pic_init_flag<>PIC_INIT_SIGNATURE then
+		#if TBT_PIC_GRA_DEBUG_PRINT=1
+			tbt_pic_gra_debug_print("The lib is not initialized, call pic_init() first")
+		#endif
+		exit sub
+	end if
+
+	si2c_get(tbt.i2c_num_pic)
+
+	if tbt.pic_func(num)<>f then
+		if tbt.pic_func(num)=PIC_FUNC_PWM then
+			'disable pwm before we change to another function
+			tbt_pic_gra_disable_pwm(tbt, num)
+		end if
+		tbt_pic_gra_disable_uart(tbt, num )	
+
+		dim prev_f as tbt_pic_gra_func_enum
+		prev_f=tbt.pic_func(num)
+		tbt.pic_func(num)=f
+
+		select case f
+		case PIC_FUNC_IO:
+			tbt_pic_gra_config_io(num)
+
+		case PIC_FUNC_ADC:
+			tbt_pic_gra_config_adc(num)
+
+		case PIC_FUNC_PWM:
+			if num = PIC_PIN3	then
+				tbt.pic_func(num)=prev_f
+			else 
+				tbt_pic_gra_config_pwm(num)
+			end if 
+	
+		case PIC_FUNC_UART:
+			if num=PIC_PIN2 or num=PIC_PIN3 then
+				tbt.pic_func(num)=prev_f
+			else 
+				tbt_pic_gra_config_uart(num)	
+				if tbt.pic_func(PIC_PIN0)=PIC_FUNC_UART and tbt.pic_func(PIC_PIN1)=PIC_FUNC_UART then
+					io.num=tbt.PIC_INT_PIN
+					io.enabled=NO
+					'Enable RCIE
+					s=tbt_pic_gra_reg_read(PIC_PIE1,1)
+					value=asc(s)
+					tbt_pic_gra_reg_write(PIC_PIE1,chr(value or &h20))
+				end if
+			end if
+
+		end select
+	end if
+end sub
+
+
+
+
+sub tbt_pic_gra_pwm_config_simple(byref tbt as tbt_pic_gra, ch as tbt_pic_gra_pwm_enum, frequency as real, duty as real)
+	
+	dim prescaler as byte = 1 
+	dim prx as float = (1.0/(4*tbt.pic_tosc*prescaler*frequency))-1
+	dim rPRx as byte = 0
+	dim rTxCON as byte = 0
+	dim rCCPRxL as byte = 0
+	dim rCCPxN as byte = 0
+ 	dim dcr as float = 0
+	select case ch
+	case PIC_PWM0:
+		if tbt.pic_func(0)<>PIC_FUNC_PWM then exit sub
+	case PIC_PWM1:
+		if  tbt.pic_func(1)<>PIC_FUNC_PWM then exit sub
+	case PIC_PWM2:
+		if  tbt.pic_func(2)<>PIC_FUNC_PWM then exit sub
+	end select
+	
+	while prx > 255 and prescaler <=64
+		prescaler = prescaler * 4
+		rTxCON = rTxCON + 1
+		prx = 1/(4*tbt.pic_tosc*prescaler*frequency)-1 
+	wend
+		
+	if (prx > 255 or prx < 0)  then
+		'callback_illegal_pwm_config(ch)
+		 exit sub
+	end if
+	
+	rPRx = prx
+	if rPRx < prx then
+		rPRx = rPRx + 1
+	end if
+ 
+	dcr = (duty * 4 * (prx+1))/100.0
+	dim ccprxl as word = dcr 
+	if ccprxl < dcr  then
+		ccprxl=ccprxl+1
+	end if
+	
+	rCCPRxL = (ccprxl shr 2)
+	rCCPxN =   &h0C  or  ((ccprxl and &h03) shl 4)
+	
+	
+	 
+	select case ch
+	
+	case PIC_PWM0:
+		
+		'Load the PRx register with the PWM period value.
+		tbt_pic_gra_reg_write(PIC_PR2,chr(rPRx))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		tbt_pic_gra_reg_write(PIC_CCPR1L,chr(rCCPRxL))
+		'load DCxBx value and configure CCP1
+		tbt_pic_gra_reg_write(PIC_CCP1CON,chr(rCCPxN))
+		'Set Timer
+		tbt_pic_gra_reg_write(PIC_T2CON,chr(rTxCON or &h04))
+
+	case PIC_PWM1:
+		'Load the PRx register with the PWM period value.
+		tbt_pic_gra_reg_write(PIC_PR4,chr(rPRx))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		tbt_pic_gra_reg_write(PIC_CCPR2L,chr(rCCPRxL))
+		'load DCxBx value and configure CCP2
+		tbt_pic_gra_reg_write(PIC_CCP2CON,chr(rCCPxN))
+		'Set Timer
+		tbt_pic_gra_reg_write(PIC_T4CON,chr(rTxCON or &h04))
+
+	case PIC_PWM2:
+		'Load the PRx register with the PWM period value.
+		tbt_pic_gra_reg_write(PIC_PR6,chr(rPRx))
+		'Load the CCPRxL register and the DCxBx bits of the CCPxCON register, with the PWM duty cycle value.
+		tbt_pic_gra_reg_write(PIC_CCPR3L,chr(rCCPRxL))
+		'load DCxBx value and configure CCP3
+		tbt_pic_gra_reg_write(PIC_CCP3CON,chr(rCCPxN))
+		'Set Timer
+		tbt_pic_gra_reg_write(PIC_T6CON,chr(rTxCON or &h04))
+	end select
+end sub

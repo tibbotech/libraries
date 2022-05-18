@@ -1,0 +1,137 @@
+'***********************************************************************************************************
+'			Tibbit #14 (4-channel DAC)
+'***********************************************************************************************************
+
+include "global.tbh"
+
+const TBT14_INIT_SIGNATURE=&h86FA
+const TBT14_STAMP="TBT14> "
+const TBT14_CR_LF=chr(13)+chr(10)
+const TBT14_WRITE_ADDR=&hC0
+
+#if TBT14_DEBUG_PRINT=1
+	declare sub tbt14_debug_print(data as string)
+#endif
+
+dim tbt14_init_flag as word
+
+'==================================================================================================
+function tbt14_init(signature as string, data_pin as byte, clk_pin as byte, load_pin as byte, busy_pin as byte, byref tbt_channel as byte, use_ssi as no_yes) as ok_ng
+'Call this function to initialize the Tibbit.
+'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
+'go for direct I/O manipulation a.k.a. bit-banging (NO).
+'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
+'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
+	
+	tbt14_init=OK
+	tbt14_init_flag=TBT14_INIT_SIGNATURE
+
+	#if TBT14_DEBUG_PRINT=1
+		tbt14_debug_print("++++++++++")
+	#endif
+
+	tbt_channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
+
+	#if TBT14_DEBUG_PRINT=1
+		tbt14_debug_print("i2c num:"+str(tbt_channel))
+	#endif
+
+	if tbt_channel <4 then
+		ssi.channel=tbt_channel
+		ssi.enabled=NO
+		ssi.baudrate=1
+		ssi.clkmap=clk_pin
+		ssi.dimap=data_pin
+		ssi.domap=data_pin
+		ssi.zmode=PL_SSI_ZMODE_ALWAYS_ENABLED
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.mode=PL_SSI_MODE_0
+		ssi.enabled=YES
+		io.num=clk_pin
+		io.state=HIGH
+	else
+		if use_ssi=YES then
+			tbt14_init=NG
+		end if
+	end if
+
+	'set DAC control pin
+	io.num=load_pin
+	io.enabled=YES
+	io.lineset(load_pin,HIGH)
+	'set RDY-BSY monitor pin
+	io.num=busy_pin
+	io.enabled=NO
+
+	dim n as dac_nums
+	for n=DAC_1 to DAC_4
+		tbt14_set_mv(n,0, load_pin, busy_pin, tbt_channel)
+	next n
+#if TBT14_DEBUG_PRINT=1
+	tbt14_debug_print("----------")
+#endif
+end function
+
+sub tbt14_set_mv(n as dac_nums, mv as integer, load_pin as byte, busy_pin as byte, tbt_channel as byte)
+'Sets the outputs of one DAC channel to output voltage expressed in mV.
+	
+	dim i as word
+	dim dw as long=mv
+	dw=dw*100000
+	dw=dw+1000000000
+	i=dw/488281
+	tbt14_set(n,i, load_pin, busy_pin, tbt_channel)
+end sub
+
+sub tbt14_set(n as dac_nums,v as word, load_pin as byte, busy_pin as byte, tbt_channel as byte)
+'Programs a 12-bit value into one DAC channel.
+'The range is from 0 (-10V) to 4095 (+10V).
+
+	dim tmp,tmp0,tmp1 as byte
+
+	if tbt14_init_flag<>TBT14_INIT_SIGNATURE then
+	#if TBT14_DEBUG_PRINT=1
+		tbt14_debug_print("The lib is not initialized, call tbt14_init() first")
+	#endif
+		exit sub
+	end if
+
+
+	#if TBT14_DEBUG_PRINT=1
+		tbt14_debug_print(hex(n)+"/"+hex(v))
+	#endif
+
+	si2c_get(tbt_channel)
+
+	io.num=busy_pin
+	while io.state=LOW
+	wend
+
+	'The Fast Write command is used to update the input DAC register
+	'The EEPROM data is not affected by this command.
+	tmp=&h40+(n mod 4)*2
+
+	'To fill the DAC Input Register of Selected Channel
+	tmp0=&h90+v/256
+	tmp1=v and &h00FF
+
+	io.lineset(load_pin,LOW)
+	si2c_start()
+	si2c_write(TBT14_WRITE_ADDR)
+	si2c_write(tmp)
+	si2c_write(tmp0)
+	si2c_write(tmp1)
+	si2c_stop()
+	io.lineset(load_pin,HIGH)
+
+	io.num=busy_pin
+	while io.state=LOW
+	wend
+end sub
+
+#if TBT14_DEBUG_PRINT=1
+sub tbt14_debug_print(data as string)
+
+	sys.debugprint(TBT14_STAMP+data+TBT14_CR_LF)
+end sub
+#endif

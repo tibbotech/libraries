@@ -1,0 +1,8 @@
+enum pic_adc_enum
+	PIC_ADC0,
+	PIC_ADC1,
+	PIC_ADC2,
+	PIC_ADC3,	
+	PIC_ADC4,	'EM1000_LEV ONLY
+	PIC_ADC5	'EM1000_LEV ONLY
+end enum

@@ -24,6 +24,10 @@
 	#define LUIS_BT_TX_BUF_SIZE 5
 #endif
 
+#ifndef LUIS_HTML_FILE
+	#define LUIS_HTML_FILE "luis.html"
+#endif
+
 'Status codes
 enum en_luis_status_codes
 	EN_LUIS_STATUS_OK,			'Operation completed successfully
@@ -72,5 +76,9 @@ declare sub callback_luis_bt_disabled()
 declare sub callback_luis_buzz_command()
 'Callback procedure, indicates that the buzz ("B") command was received from the host.<br/>
 'Procedure body has to be created elsewhere in the project (externally with respect to the library).
+
+declare function callback_luis_read(byref name as string, byref value as string) as boolean
+
+declare function callback_luis_write(byref name as string, byref value as string) as boolean
 
 declare function luis_proc_cmd(byref cmd_str as string) as string

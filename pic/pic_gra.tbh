@@ -132,6 +132,8 @@ declare sub pic_pwm_stop(ch as pic_pwm_enum, channel as byte)
 'Disables PWM output for the specified PWM channel.
 'This will only work for channels whose corresponding pins are running in the PWM mode [see pic_config()].
 
+declare sub pic_pwm_output(ch as pic_pwm_enum, frequency as float, duty_cycle as byte, channel as byte)
+
 declare sub pic_pwm_duty(ratio0 as word, ratio1 as word, ratio2 as word, channel as byte)
 'Simultaneously sets the duty cycle ratio for all three PWM channels. The ratio for each channel is expressed in
 '0.1% units.
@@ -139,6 +141,8 @@ declare sub pic_pwm_duty(ratio0 as word, ratio1 as word, ratio2 as word, channel
 'have already been configured with pic_pwm_config().
 'Also, the library expects that when this sub is used all three PWM channels are running at the same period.
 
+declare sub pic_pwm_duty_set(ratio as word, pwm_channel as byte, channel as byte)
+'Sets the duty cycle ratio for one PWM channel
 
 '---------- UART ---------
 declare sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enabled as no_yes, channel as byte)

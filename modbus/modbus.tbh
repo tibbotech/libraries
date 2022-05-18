@@ -39,6 +39,9 @@ end type
 #ifndef MODBUS_MAX_REQUESTS
 	#define MODBUS_MAX_REQUESTS 20
 #endif
+#ifndef MODBUS_DEBUG_PRINT
+	#define MODBUS_DEBUG_PRINT 0
+#endif
 
 enum modbusFunc
 	ReadCoilStatus = 1,
@@ -72,7 +75,7 @@ declare modbus_slave_recv_buffer as string
 declare function modbus_initialize() as boolean
 declare function modbus_callback_ReadCoilStatus(address as word) as boolean
 declare function modbus_callback_ReadInputStatus(address as word) as boolean
-declare function modbus_callback_WriteSingleCoil(address as word, value as low_high) as boolean
+declare function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte 
 declare function modbus_callback_ReadHoldingRegister(address as word) as word
 declare function modbus_callback_ReadInputRegister(address as word) as word
 declare function modbus_set_holding_register(address as word, data as string) as boolean
