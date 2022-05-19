@@ -187,3 +187,26 @@ sub datetime_type_convert(
 		datetime_time_to_str(ts_str,time_daycount,time_mincount,time_second_byte)
 	end select
 end sub
+
+function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
+    datetime_str_to_timestamp=0
+    dim param_str as string=datestr
+    dim days as word=0
+    dim mins as word=0
+    dim secs as byte=0
+    select case format
+        case "YYYYMMDD":
+            param_str=param_str+"000000"
+        case "YYYYMMDDhhmm":
+            param_str=param_str+"00"
+        case "YYYYMMDDhhmmss":
+            param_str=param_str
+        case "hhmmss":
+            param_str="20000101"+param_str
+        case "hhmm":
+            param_str="20000101"+param_str+"00"
+    end select
+
+    datetime_type_convert(param_str,days,mins,secs,STR_TO_TIME)
+    datetime_str_to_timestamp=datetime_to_timestamp(days,mins,secs)
+end function

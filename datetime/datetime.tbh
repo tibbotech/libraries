@@ -20,6 +20,7 @@ declare datetime_format_err as ok_ng
 
 declare function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
 declare function datetime_current_timestamp() as dword
+declare function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
 declare sub datetime_from_timestamp(timestamp as dword, byref days as word, byref mins as word, byref secs as byte)
 declare sub datetime_type_convert(byref ts_str as string(14),byref time_daycount as word,byref time_mincount as word,byref bSec as byte, convert_dir as datetime_convert_dir)
 declare sub datetime_string_format(byref result as string(14), 
