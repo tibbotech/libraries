@@ -31,15 +31,15 @@ function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_
 	io.num=tbt.PIC_RST_PIN
 	io.enabled=YES
 	io.state=LOW
-	' dim rstdelay as dword = sys.timercountms + 30
-	' while rstdelay >sys.timercountms
+	dim rstdelay as dword = sys.timercountms + 30
+	while rstdelay >sys.timercountms
 		
-	' wend
+	wend
 	io.state=HIGH
-	' rstdelay = sys.timercountms + 200
-	' while rstdelay >sys.timercountms
+	rstdelay = sys.timercountms + 200
+	while rstdelay >sys.timercountms
 		
-	' wend
+	wend
 	tbt_pic_gra_init=OK
 	tbt.pic_init_flag=PIC_INIT_SIGNATURE
 	tbt.i2c_num_pic=si2c_register("PIC",tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
@@ -162,10 +162,10 @@ function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_
 			exit function
 	end select
 	
-	' rstdelay = sys.timercountms + 10
-	' while rstdelay >sys.timercountms
+	rstdelay = sys.timercountms + 10
+	while rstdelay >sys.timercountms
 		
-	' wend
+	wend
 
 	tbt.pic_func(0)=PIC_FUNC_IO
 	tbt.pic_func(1)=PIC_FUNC_IO
