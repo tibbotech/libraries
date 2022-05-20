@@ -18,11 +18,11 @@ declare datetime_convert_err as ok_ng
 declare datetime_format_err as ok_ng
 
 type crontab
-	minute as byte
-	hour as byte
-	day as byte 'day of month
-	month as byte
-	day_of_week as byte
+	minute as string(10)
+	hour as string(10)
+	day as string(10) 'day of month
+	month as string(10)
+	day_of_week as string(10)
 	next_timestamp as dword
 end type
 
