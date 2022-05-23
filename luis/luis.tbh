@@ -28,6 +28,10 @@
 	#define LUIS_HTML_FILE "luis.html"
 #endif
 
+#ifndef LUIS_BT_ENABLED
+	#define LUIS_BT_ENABLED 1
+#endif
+
 'Status codes
 enum en_luis_status_codes
 	EN_LUIS_STATUS_OK,			'Operation completed successfully

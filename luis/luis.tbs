@@ -33,7 +33,7 @@ dim luis_html_placeholder_start as dword
 dim luis_html_placeholder_end as dword
 dim luis_html_read_pointer as dword
 dim luis_html_send_state as en_luis_html_send_states
-dim luis_chunk_size as dword
+dim luis_chunk_size as dword=255
 
 '================================================================================
 function luis_start(byref bt_name as string) as en_luis_status_codes
@@ -47,6 +47,7 @@ function luis_start(byref bt_name as string) as en_luis_status_codes
 		luis_debugprint("---START---")
 	#endif
 	
+	#if LUIS_BT_ENABLED
 	if wln.enabled = NO then
 		#if PLATFORM_ID <> WM2000
 			wln_init()
@@ -76,6 +77,7 @@ function luis_start(byref bt_name as string) as en_luis_status_codes
 	end if
 	
 	luis_chunk_size=bt.txfree
+	#endif
 	
 	romfile.open(LUIS_HTML_FILE)
 	if romfile.pointer32<>1 then
