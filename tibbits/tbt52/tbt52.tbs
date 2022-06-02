@@ -589,8 +589,8 @@ end sub
 sub tbt52_delay_msecond(value as word)
 	dim ax,bx as word
 	#if PLATFORM_TYPE_32
-		sys.timercountms=0
-		while sys.timercountms<value
+		dim target as dword=sys.timercountms + value
+		while sys.timercountms<target
 		wend
 	#else
 		for ax=0 to value

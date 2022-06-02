@@ -105,9 +105,9 @@ function tbt57_init(byref filename as string, byref spi_num as byte, pin_cs as b
 	
 	'a small delay is necessary for the FPGA to start running
 	#if PLATFORM_TYPE_32
-			sys.timercountms=0
-			while sys.timercountms<500
-			wend
+		dim target as dword=sys.timercountms + 500
+		while sys.timercountms<target
+		wend
 	#else	
 		'older platforms rely on good old delays
 		for f=0 to 20000
