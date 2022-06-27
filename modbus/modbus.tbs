@@ -340,6 +340,9 @@ sub modbus_master_send_next()
 	if modbus_request_queue(modbus_queue_start).protocol=modbus_TCP then
 		prev_num=sock.num
 		sock.num=modbus_request_queue(modbus_queue_start).interface_number
+		if sock.statesimple <> PL_SSTS_EST then
+			exit sub
+		end if
 		sock.setdata(data)
 		sock.send()
 		sock.num=prev_num
