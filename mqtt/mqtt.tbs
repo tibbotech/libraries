@@ -412,20 +412,21 @@ end sub
 
 
 sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_sock_state_simple)
-	
+	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
+		exit sub
+	end if
 	if sock.num<>mqtt_sock_num then 
 		exit sub 
 	end if 
 	
+	if newstatesimple=PL_SSTS_CLOSED then
+		mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+		mqtt_connection_counter=MQTT_RECONNECT_TIME*2
+		#if MQTT_DEBUG_PRINT=1
+		mqtt_debug_print("Lost server connection.")
+		#endif
+	end if
 	select case newstate
-	case PL_SST_CLOSED, PL_SST_CL_PCLOSED,PL_SST_CL_PRESET_EST:
-		if mqtt_state<>EN_MQTT_STATES_IDLE then
-			mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
-			mqtt_connection_counter=MQTT_RECONNECT_TIME*2
-			#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("Lost server connection.")
-			#endif
-		end if
 	case PL_SST_EST_AOPENED:
 		if mqtt_encrypted=false then
 			mqtt_send_login()
@@ -686,6 +687,18 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 
 end sub
 
+sub mqtt_stop()
+	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
+		exit sub
+	end if
+	mqtt_init_flag=0
+	#if MQTT_DEBUG_PRINT=1
+		mqtt_debug_print("---STOP---")
+	#endif
+	mqtt_state=EN_MQTT_STATES_IDLE
+	sock.close()
+end sub
+
 #if MQTT_LARGE_PACKETS
 	
 sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as dword)
@@ -749,7 +762,7 @@ sub mqtt_continue_publish(byref data as string)
 		mqtt_packet_length=0
 		exit sub
 	end if
-	mqtt_send_data(data)	
+	mqtt_send_data(data)
 
 end sub
 
