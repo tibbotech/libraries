@@ -696,7 +696,7 @@ sub mqtt_stop()
 		mqtt_debug_print("---STOP---")
 	#endif
 	mqtt_state=EN_MQTT_STATES_IDLE
-	sock.close()
+	sock_release(mqtt_sock_num)
 end sub
 
 #if MQTT_LARGE_PACKETS
