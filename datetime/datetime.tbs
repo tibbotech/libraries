@@ -238,10 +238,15 @@ function datetime_next_cron(next_cron as crontab) as dword
 		c_weekday=weekday(days)
 
 		if next_cron.month <> 255 AND next_cron.month <> c_month then
-			 tmp=daycount(year(days),c_month,date(days))
-			 timestamp=timestamp + (24*60*60*tmp)
-			 timestamp=timestamp - (24*60*60*date(days)) - (60*mins)
-			 skip = true
+			dim diff as dword
+			if next_cron.month > c_month then
+				diff = daycount(year(days),next_cron.month,1) - daycount(year(days),c_month,date(days))
+			else 
+				diff = daycount(year(days),12,31) - daycount(year(days),c_month,date(days))
+			end if
+			timestamp = timestamp + (diff * 24 * 60 * 60)
+			timestamp = timestamp + (86400 - (60*60*c_hour) - (60*c_mins))
+			skip = true
 		end if
 		
 		if next_cron.day <> 255 AND next_cron.day <> c_date AND skip = false then
