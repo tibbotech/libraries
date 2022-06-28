@@ -53,7 +53,7 @@ function tbt57_init(byref filename as string, byref spi_num as byte, pin_cs as b
 	ssi.domap=pin_mosi
 	ssi.zmode=PL_SSI_ZMODE_ALWAYS_ENABLED
 	ssi.direction=PL_SSI_DIRECTION_LEFT
-	ssi.baudrate=1
+	ssi.baudrate=PL_SSI_BAUD_100kHz
 		
 
 	ssi.enabled=NO

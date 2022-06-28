@@ -39,7 +39,7 @@ function tbt14_init(signature as string, data_pin as byte, clk_pin as byte, load
 	if tbt_channel <4 then
 		ssi.channel=tbt_channel
 		ssi.enabled=NO
-		ssi.baudrate=1
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.clkmap=clk_pin
 		ssi.dimap=data_pin
 		ssi.domap=data_pin

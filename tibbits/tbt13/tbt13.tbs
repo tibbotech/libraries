@@ -39,11 +39,7 @@ function tbt13_init(signature as string, data_pin as byte, clk_pin as byte, byre
 	if tbt_channel<4 then
 		ssi.channel=tbt_channel
 		ssi.enabled=NO
-		#IF PLATFORM_ID=TPP2WG2 OR PLATFORM_ID=TPP3WG2
-			ssi.baudrate=3
-		#ELIF PLATFORM_ID=TPP2W OR PLATFORM_ID=TPP3W
-			ssi.baudrate=1
-		#ENDIF
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.clkmap=clk_pin
 		ssi.dimap=data_pin
 		ssi.domap=data_pin

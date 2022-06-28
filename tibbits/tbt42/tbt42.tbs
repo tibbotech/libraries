@@ -92,7 +92,7 @@ function tbt42_init(use_ssi as no_yes,pin_cs as byte,pin_clk as byte,pin_mosi as
 		ssi.domap=pin_mosi
 		ssi.zmode=PL_SSI_ZMODE_ALWAYS_ENABLED
 		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.baudrate=1
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.enabled=YES
 	else
 		if use_ssi=YES then

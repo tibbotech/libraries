@@ -38,11 +38,7 @@ function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 	if channel < 4 then
 		ssi.channel = channel
 		ssi.enabled = NO
-		#IF PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2G2 or PLATFORM_ID=TPP3G2
-			ssi.baudrate = 20
-		#ELIF PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3W
-			ssi.baudrate = 1
-		#ENDIF
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.clkmap = pin_clk
 		ssi.dimap = pin_data
 		ssi.domap = pin_data

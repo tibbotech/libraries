@@ -49,7 +49,7 @@ function tbt35_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	if channel<4 then
 		ssi.channel=channel
 		ssi.enabled=NO
-		ssi.baudrate=25
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.clkmap=pin_clk
 		ssi.dimap=pin_data
 		ssi.domap=pin_data

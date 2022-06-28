@@ -53,7 +53,7 @@ function tbt40_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 	if channel <4 then
 		ssi.channel=channel
 		ssi.enabled=NO
-		ssi.baudrate=1
+		ssi.baudrate=PL_SSI_BAUD_100kHz
 		ssi.clkmap=pin_clk
 		ssi.dimap=pin_data
 		ssi.domap=pin_data
