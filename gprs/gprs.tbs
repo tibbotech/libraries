@@ -215,7 +215,7 @@ public function gprs_start(byref at_dt_command_param as string, byref apn as str
 	sys.buffalloc
 	
 	ser.txclear
-	ser.baudrate = ser.div9600/(38400/9600)
+	ser.baudrate = PL_SER_BAUD_38400
 	ser.flowcontrol=ENABLED
 	ser.rtsmap=GPRS_SER_PORT_RTSMAP
 	ser.ctsmap=GPRS_SER_PORT_CTSMAP

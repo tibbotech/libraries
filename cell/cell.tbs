@@ -1235,7 +1235,7 @@ end sub
 		
         ser.interface = PL_SER_SI_FULLDUPLEX
         ser.flowcontrol = PL_SER_FC_DISABLED
-        ser.baudrate = ser.div9600	'9600 baud
+        ser.baudrate = PL_SER_BAUD_9600	'9600 baud
         ser.esctype = PL_SER_ET_DISABLED
         ser.interchardelay = 0
         ser.txbuffrq(1)
@@ -1262,7 +1262,7 @@ sub cell__init_ser()
     ser.rxclear	'clear rx-buffer
 	
     ser.txclear	'clear tx-buffer    
-	ser.baudrate = ser.div9600/(CELL__SER_PORT_BAUDRATE/9600)	'set baudrate to 115200
+	ser.baudrate = PL_SER_BAUD_115200	'set baudrate to 115200
     ser.flowcontrol = PL_SER_FC_DISABLED	'disable flow-control
     ser.rtsmap = CELL__RTS_LINENUM	'set RTS line (which is the same as the Serial Port number)
     ser.ctsmap = CELL__CTS_LINENUM	'set CTS line (which is the same as the Serial Port number)
