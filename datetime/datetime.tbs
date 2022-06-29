@@ -223,6 +223,11 @@ function datetime_next_cron(next_cron as crontab) as dword
 	dim c_mins as word
 	dim c_weekday as byte
 	dim tmp as dword=0
+
+	if next_cron.month="" OR next_cron.day="" OR next_cron.hour="" OR next_cron.minute="" OR next_cron.day_of_week="" then
+		datetime_next_cron=4294967295
+		exit function
+	end if
 	
 	timestamp = timestamp + 60
 	dim ended as boolean = false
