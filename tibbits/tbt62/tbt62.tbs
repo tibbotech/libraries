@@ -1,0 +1,846 @@
+include "global.tbh"
+
+const TBT62_INIT_SIGNATURE=&h4454
+const TBT62_CR_LF = chr(13) + chr(10)
+const TBT62_DEBUG_STAMP = "TBT62> "
+
+#if TBT62_DEBUG_PRINT
+declare sub tbt62_debug_print(print_data as string)
+#endif
+
+dim tbt62_init_flag as word
+dim tbt62_busy_pin(16) as byte
+dim tbt62_reset_pin(16) as byte
+dim tbt62_use(16) as NO_YES
+dim tbt62_channel(16) as EN_TBT62_CHANNEL
+dim tbt62_mode(16, 2) as EN_TBT62_MODE
+dim tbt62_Specific as EN_TBT62_UNITS
+
+declare function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
+declare function CRC8(pcBlock as string, len as byte) as byte
+
+function convertCtoF(tempC as real)	as real
+	
+	convertCtoF = (tempC * 9) / 5 + 32
+
+end function
+
+function tbt62_check_library(tbt_channel as byte) as boolean
+	
+	if tbt62_init_flag <> TBT62_INIT_SIGNATURE then
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("The lib is not initialized, call tbt62_init() first")
+	#endif
+		tbt62_check_library = false
+		exit function
+	end if
+	
+	if (tbt62_use(tbt_channel) = NO) then
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Channel not use")
+	#endif
+		tbt62_check_library = false
+		exit function
+	end if
+	
+	tbt62_check_library = true
+	
+end function
+
+function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, reset_pin as byte, busy_pin as byte, units as EN_TBT62_UNITS, byref tbt_channel as byte, use_ssi as no_yes) as EN_TBT62_INIT_RESULT
+	dim i as byte
+	
+	if (tbt62_init_flag <> TBT62_INIT_SIGNATURE) then
+		for i = 0 to 15
+			tbt62_busy_pin(i) = 255
+			tbt62_reset_pin(i) = 255
+			tbt62_use(i) = NO
+			tbt62_channel(i) = TBT62_CHANNEL_1
+			tbt62_mode(i, TBT62_CHANNEL_1) = TBT62_ONE_WIRE
+			tbt62_mode(i, TBT62_CHANNEL_2) = TBT62_ONE_WIRE
+		next i
+	end if
+	
+	tbt62_init = OK
+	tbt62_init_flag = TBT62_INIT_SIGNATURE
+
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Init start...")
+	#endif
+	
+	tbt_channel = si2c_register(signature, data_pin, clk_pin, use_ssi)
+	
+	if tbt_channel = 255 then 
+		tbt62_init = TBT62_INIT_ERROR_SI2C_NO_EMPTY_CHANNEL
+		exit function
+	end if
+	
+	tbt62_reset_pin(tbt_channel) = reset_pin
+	tbt62_busy_pin(tbt_channel) = busy_pin
+	tbt62_use(tbt_channel) = YES
+	
+	tbt62_Specific = units
+	
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("i2c num:" + str(tbt_channel))
+	#endif
+	
+	if tbt_channel < 4 then
+		ssi.channel = tbt_channel
+		ssi.enabled = NO
+		ssi.baudrate = TBT62_SSI_BAUDRATE
+		ssi.clkmap = clk_pin
+		ssi.dimap = data_pin
+		ssi.domap = data_pin
+		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.direction = PL_SSI_DIRECTION_LEFT
+		ssi.mode = PL_SSI_MODE_0
+		ssi.enabled = YES
+		
+		io.num = clk_pin
+		io.state = HIGH
+		io.num = data_pin
+		io.state = HIGH
+	'else
+	'	if use_ssi = YES then
+	'		tbt62_init = NG
+	'	end if
+	end if
+
+	' Init and self-diagnostic TIBBIT
+	tbt62_init = tbt62_checkTibbit(tbt_channel)
+	
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Init end")
+	#endif
+
+end function
+
+sub tbt62_send_string(data as string)
+
+	dim i as byte
+	
+	for i = 1 to len(data)
+		si2c_write(asc(mid(data, i, 1)))
+	next i
+	
+end sub
+
+function tbt62_send_command(command as byte, tbt_channel as byte) as boolean
+	
+	tbt62_send_command = false
+	if not tbt62_check_library(tbt_channel) then exit function
+	
+	if (command AND &hF0) = TBT62_CMD_SELECTCHANNEL then
+		tbt62_channel(tbt_channel) = command AND &h01
+	end if
+	
+	if (command AND &hF0) = TBT62_CMD_SET_MODE then
+		tbt62_mode(tbt_channel, tbt62_channel(tbt_channel)) = command AND &h01
+	end if
+	
+	si2c_get(tbt_channel)
+	
+	si2c_start()		'I2C START
+	
+	tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(command))	' Send Command
+
+	si2c_stop()		'I2C STOP
+
+	tbt62_send_command = true
+
+end function
+
+function tbt62_send_data(command as byte, rom as string(8), data as string(16), tbt_channel as byte) as boolean
+
+	tbt62_send_data = false
+	if not tbt62_check_library(tbt_channel) then exit function
+	
+	if len(data) > 0 and len(data) < 17 then
+		si2c_get(tbt_channel)
+		
+		si2c_start()		'I2C START
+		
+		' Send
+		tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(command + len(data) - 1) + rom + data)		' Send Command
+		
+		si2c_stop()		'I2C STOP
+
+		tbt62_send_data = true
+		
+	else
+		tbt62_send_data = false
+	end if
+
+end function
+
+function tbt62_read_data(byref data as string, data_len as byte, tbt_channel as byte) as boolean
+	
+	dim i as byte
+	dim tmp as string
+	
+	tbt62_read_data = false
+	if not tbt62_check_library(tbt_channel) then exit function
+	
+	tbt62_read_data = true
+	tmp = ""
+
+	if data_len = 0 then exit function
+	
+	si2c_get(tbt_channel)
+	
+	si2c_start()		'I2C START
+
+	' Send address for read register
+	tbt62_send_string(chr(TBT62_REGISTER_DATA_ADDRESS))		' Send Command
+	i = 1
+	do
+		if i < data_len then
+			tmp = tmp + chr(si2c_read(true))
+		else
+			tmp = tmp + chr(si2c_read(false))
+		end if
+		i = i + 1
+	loop until i > data_len
+	
+	data = tmp
+	
+	si2c_stop()		'I2C START
+
+	tbt62_read_data = true
+
+end function
+
+function tbt62_check_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+
+	if tbt62_mode(tbt_channel, channel) = mode then
+		tbt62_check_mode = true
+	else
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Wrong mode!")
+		#endif
+		
+		tbt62_check_mode = false
+	end if
+	
+end function
+
+function tbt62_check_channel(channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+
+	tbt62_check_channel = false
+	
+	if tbt62_channel(tbt_channel) = channel then
+		tbt62_check_channel = true
+	else
+		' Need change channel
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Select channel: " + str(channel + 1))
+		#endif
+		if not tbt62_send_command(TBT62_CMD_SELECTCHANNEL + channel, tbt_channel) then
+			#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("send command fault!")
+			#endif
+			exit function
+		end if
+		
+		tbt62_channel(tbt_channel) = channel
+		
+		tbt62_check_channel = true
+		
+	end if
+
+end function
+
+function tbt62_checkBUSY(tbt_channel as byte) as boolean
+	
+	tbt62_checkBUSY = false
+	if not tbt62_check_library(tbt_channel) then exit function
+	
+	io.num = tbt62_busy_pin(tbt_channel)	' Get BUSY pin
+	if io.state = LOW then
+		' BUSY
+		tbt62_checkBUSY = false
+	else
+		tbt62_checkBUSY = true
+	end if
+	
+end function
+
+sub tbt62_delayMS(delay_ms as dword)
+
+	dim tmr as dword
+	
+	tmr = sys.timercountms + delay_ms
+	while tmr > sys.timercountms 
+	wend
+
+end sub
+
+function tbt62_get_power_fault(tbt_channel as byte) as byte
+	
+	dim result as string(2)
+	
+	tbt62_get_power_fault = 255
+	
+	if not tbt62_send_command(TBT62_CMD_CHECK OR tbt62_POWER_FAULT, tbt_channel) then
+		exit function
+	end if
+	
+	' Read results of power fault
+	if not tbt62_read_data(result, 2, tbt_channel) then
+		exit function
+	end if
+	
+	tbt62_get_power_fault = asc(mid(result, 2, 1))
+
+end function
+
+function tbt62_vcc_control(state as EN_TBT62_VCC_CONTROL, tbt_channel as byte) as boolean
+
+	tbt62_vcc_control = false
+	' Control VCC
+	if not tbt62_send_command(TBT62_CMD_VCC_CONTROL OR state, tbt_channel) then
+		exit function
+	end if
+	
+	tbt62_vcc_control = true
+	
+end function
+
+function tbt62_get_voltage(channel as EN_TBT62_CHECK_CHANNEL, tbt_channel as byte) as real
+	
+	dim voltage as string(2)
+	dim voltr as real
+	
+	select case channel
+	case TBT62_VOLTAGE_VCC:
+		if not tbt62_send_command(TBT62_CMD_CHECK OR tbt62_VOLTAGE_VCC, tbt_channel) then
+			tbt62_get_voltage = -1000
+			exit function
+		end if
+		
+	case TBT62_VOLTAGE_3V3:
+		if not tbt62_send_command(TBT62_CMD_CHECK OR tbt62_VOLTAGE_3V3, tbt_channel) then
+			tbt62_get_voltage = -1000
+			exit function
+		end if
+
+	case TBT62_POWER_FAULT:
+		tbt62_get_voltage = 0
+	end select
+	
+	if not tbt62_read_data(voltage, 2, tbt_channel) then
+		tbt62_get_voltage = -1000
+		exit function
+	end if
+
+	voltr = asc(mid(voltage, 1, 1)) * 256 + asc(mid(voltage,2,1))
+	
+	tbt62_get_voltage = (voltr * 0.001) * 2
+	
+end function
+
+function tbt62_get_VCC_voltage(tbt_channel as byte) as real
+	
+	tbt62_get_VCC_voltage = tbt62_get_voltage(TBT62_VOLTAGE_VCC, tbt_channel)
+	
+end function
+
+function tbt62_get_3V3_voltage(tbt_channel as byte) as real
+	
+	tbt62_get_3V3_voltage = tbt62_get_voltage(TBT62_VOLTAGE_3V3, tbt_channel)
+	
+end function
+
+function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
+
+	dim version as string(6)
+	dim i as byte
+	
+	tbt62_checkTibbit = TBT62_INIT_OK
+
+	io.num = tbt62_reset_pin(tbt_channel)	' Get RST pin
+	io.state = LOW
+	io.enabled = YES
+
+	io.num = tbt62_busy_pin(tbt_channel)	' Get BUSY pin
+	io.state = HIGH
+	io.enabled = NO
+
+	io.num = tbt62_reset_pin(tbt_channel)	' Get RST pin
+	io.state = HIGH
+	io.enabled = YES
+
+	' delay 100 ms for RESET in PIC uPC
+	tbt62_delayMS(100)
+	
+	si2c_get(tbt_channel)
+	
+	si2c_start()		'I2C START
+	
+	' Send
+	tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(TBT62_CMD_GETVERSION))		' Send Command for Get Version
+	
+	' Read data from PIC
+	' Send START
+	si2c_start()
+	
+	' Send Address
+	tbt62_send_string(chr(TBT62_REGISTER_DATA_ADDRESS))		' Send data register address
+	' Read version
+	version = ""
+	for i = 1 to 5
+		version = version + chr(si2c_read(true))
+	next i
+	version = version + chr(si2c_read(false))
+
+	' Send STOP
+	si2c_stop()
+
+	if version <> "TBT" + chr(&h62) + chr(&h00) + chr(&h01) then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_NO_VALID_VERSION
+		exit function
+	end if
+	
+	' Check 3.3 voltage
+	dim voltage as real
+	
+	voltage = tbt62_get_voltage(TBT62_VOLTAGE_3V3, tbt_channel)
+	if voltage < 3.0 OR voltage > 3.6 then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_3V3
+		exit function
+	end if
+	
+	'Check VCC voltage
+	' VCC on
+	if not tbt62_vcc_control(TBT62_VCC_ON, tbt_channel) then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
+		exit function
+	end if
+	
+	' Get МСС
+	voltage = tbt62_get_voltage(TBT62_VOLTAGE_VCC, tbt_channel)
+	if voltage < 4.5 OR voltage > 5.5 then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
+		exit function
+	end if
+	
+	' Check Power Fault
+	i = tbt62_get_power_fault(tbt_channel)
+	if i = 255 or i = 0 then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_POWER_FAULT_CHECK
+		exit function
+	end if
+
+	' VCC off
+	if not tbt62_vcc_control(TBT62_VCC_ON, tbt_channel) then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
+		exit function
+	end if
+
+	' Check Power Fault
+	i = tbt62_get_power_fault(tbt_channel)
+	if i = 255 or i = 0 then
+		tbt62_checkTibbit = TBT62_INIT_ERROR_POWER_FAULT_CHECK
+		exit function
+	end if
+
+	tbt62_checkTibbit = TBT62_INIT_OK
+	
+end function
+
+function tbt62_ID_Hex(SensorID as string(8)) as string(16)
+	
+	dim id as string(4)
+	dim i as byte
+	
+	tbt62_ID_Hex = ""
+	for i = 1 to 8
+		id = hex(asc(mid(SensorID, i, 1)))
+		if len(id) = 4 then
+			tbt62_ID_Hex = tbt62_ID_Hex + right(id, 2)
+		else
+			tbt62_ID_Hex = tbt62_ID_Hex + "0" + right(id, 1)
+		end if
+	
+	next i
+
+end function
+
+function tbt62_ow_get_temp_separate(byref temperature as real, sensorID as string(8), phase as EN_TBT62_ONEWIRE_GET_TEMP, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+	
+	dim tmr as dword
+	dim sType as byte
+	dim raw as word
+	dim temp as integer
+	dim i as byte
+
+	tbt62_ow_get_temp_separate = TBT62_FAULT_TIBBIT
+	
+	if not tbt62_check_library(tbt_channel) then exit function
+	if len(sensorID) < 8 then exit function
+	
+	if not tbt62_check_mode(TBT62_ONE_WIRE, channel, tbt_channel) then
+		' Wrong mode
+		exit function
+	end if
+	
+	if not tbt62_check_channel(channel, tbt_channel) then
+		' Error change channel
+		exit function
+	end if
+	
+	' Check sensor type
+	sType = asc(sensorID)
+	if sType <> TBT62_SENSOR_TYPE_TEMPERATURE then	' 0x28 - temp sensor
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Not temperature sensor type!")
+		#endif
+		exit function
+	end if
+	
+	select case phase
+	case TBT62_ONEWIRE_GET_TEMP_SAMPLE_START:
+		' Send Measure command with BUSY
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Send MEASURE command...")
+		#endif
+		if not tbt62_send_data(TBT62_CMD_SEND_DATA_WITH_BUSY, sensorID, chr(TBT62_CMD_TEMPERATURE_MEAS), tbt_channel) then
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Send MEASURE command fault!")
+		#endif
+			exit function
+		end if
+		
+		' Wait BUSY
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Waiting BUSY...")
+		#endif
+		tmr = sys.timercountms
+		while (tbt62_checkBusy(tbt_channel) = false)
+			if sys.timercountms - tmr >= TBT62_BUSY_WAIT_MAX_TIME then
+			#if TBT62_DEBUG_PRINT = 1
+				tbt62_debug_print("Timeout for wait BUSY!")
+			#endif
+				exit function
+			end if
+		wend
+		
+		temperature = 0
+		tbt62_ow_get_temp_separate = TBT62_NO_FAULT
+		
+	case TBT62_ONEWIRE_GET_TEMP_READ_DATA:
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Send SCRATCHPAD command...")
+		#endif
+		if not tbt62_send_data(TBT62_CMD_SEND_DATA, sensorID, chr(TBT62_CMD_READSCRATCHPAD), tbt_channel) then
+			#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Send SCRATCHPAD command fault!")
+			#endif
+			exit function
+		end if
+		
+		' Wait BUSY
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Waiting BUSY...")
+		#endif
+		tmr = sys.timercountms
+		while (tbt62_checkBusy(tbt_channel) = false)
+			if sys.timercountms - tmr >= TBT62_BUSY_WAIT_MAX_TIME then
+			#if TBT62_DEBUG_PRINT = 1
+				tbt62_debug_print("Timeout for wait BUSY!")
+			#endif
+				exit function
+			end if
+		wend
+			
+		' ready to send Read command to Sensor
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Send READDATA command...")
+		#endif
+		if not tbt62_send_command(TBT62_CMD_READ_DATA + 8, tbt_channel) then
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Send READDATA command fault!")
+		#endif
+			exit function
+		end if
+
+		' Wait BUSY
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Waiting BUSY...")
+		#endif
+		tmr = sys.timercountms
+		while (tbt62_checkBusy(tbt_channel) = false)
+			if sys.timercountms - tmr >= TBT62_BUSY_WAIT_MAX_TIME then
+			#if TBT62_DEBUG_PRINT = 1
+				tbt62_debug_print("Timeout for wait BUSY!")
+			#endif
+				exit function
+			end if
+		wend
+			
+		' ready to Read data from Sensor
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Read data...")
+		#endif
+		dim sensdata as string(9)
+		if not tbt62_read_data(sensdata, 9, tbt_channel) then
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Send read data command fault!")
+		#endif
+			exit function
+		end if
+
+		' Check FF
+		if sensdata = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" then
+			tbt62_ow_get_temp_separate = TBT62_FAULT_NO_SENSOR
+			temperature = 0
+			exit function
+		end if
+		
+		' Check CRC8
+		if CRC8(sensdata, 8) <> asc(mid(sensdata, 9, 1)) then
+			tbt62_ow_get_temp_separate = TBT62_FAULT_CONTROLSUM
+			temperature = 0
+			exit function
+		end if
+
+		raw = asc(mid(sensdata, 1, 1)) + asc(mid(sensdata, 2, 1)) * 256
+		if raw and &h800 then
+			' Minus
+			temp = - ((not raw) + 1) * 100 / 16
+		else
+			' Plus
+			temp = raw * 100 / 16
+		end if
+
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Temperature RAW: " + stri(temp))
+		#endif
+		
+		temperature = temp
+		temperature = temperature / 100
+		
+		if tbt62_Specific = TBT62_IMPERIAL_UNITS then
+			temperature = convertCtoF(temperature)
+		end if
+		
+		tbt62_ow_get_temp_separate = TBT62_NO_FAULT
+
+	end select
+
+end function
+
+function tbt62_ow_get_temperature(byref temperature as real, sensorID as string(8), channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+
+	dim tmr as dword
+	dim temp as real
+	dim res as EN_TBT62_FAULT
+	
+	tbt62_ow_get_temperature = tbt62_ow_get_temp_separate(temp, sensorID, TBT62_ONEWIRE_GET_TEMP_SAMPLE_START, channel, tbt_channel)
+	if tbt62_ow_get_temperature <> TBT62_NO_FAULT then
+		exit function
+	end if
+	
+	' Delay for temperature measurement 
+	tmr = sys.timercountms
+	while sys.timercountms - tmr < 750		' 750mS for measure operation 
+	wend
+
+	tbt62_ow_get_temperature = tbt62_ow_get_temp_separate(temperature, sensorID, TBT62_ONEWIRE_GET_TEMP_READ_DATA, channel, tbt_channel)
+
+end function
+
+function tbt62_set_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+	
+	tbt62_set_mode = false
+	
+	if not tbt62_check_library(tbt_channel) then exit function
+
+	if not tbt62_check_channel(channel, tbt_channel) then
+		' Error change channel
+		exit function
+	end if
+	
+	if tbt62_mode(tbt_channel, channel) = mode then
+		tbt62_set_mode = true
+		exit function
+	end if
+	
+	#if TBT62_DEBUG_PRINT = 1
+	tbt62_debug_print("Set mode...")
+	#endif
+	if not tbt62_send_command(TBT62_CMD_SET_MODE + mode, tbt_channel) then
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("send command fault!")
+		#endif
+		tbt62_set_mode = false
+		exit function
+	else
+		#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("success")
+		#endif
+	end if
+
+	tbt62_mode(tbt_channel, channel) = mode
+	
+	tbt62_set_mode = true
+	
+end function
+
+function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+
+	dim sensdata as string(5)
+	dim cs as byte
+	dim i as byte
+	dim res as real
+	dim tmr as dword
+	
+	tbt62_sw_get_temp_hum = TBT62_FAULT_TIBBIT
+	
+	if not tbt62_check_library(tbt_channel) then exit function
+
+	if not tbt62_check_mode(TBT62_SINGLE_WIRE, channel, tbt_channel) then
+		' Wrong mode
+		exit function
+	end if
+	
+	if not tbt62_check_channel(channel, tbt_channel) then
+		' Error change channel
+		exit function
+	end if
+	
+	' ready to Read data from Sensor
+	#if TBT62_DEBUG_PRINT = 1
+	tbt62_debug_print("Single Wire read data...")
+	#endif
+
+	if not tbt62_send_command(TBT62_CMD_READ_DATA + 4, tbt_channel) then
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Send Read data command fault!")
+	#endif
+		exit function
+	end if
+
+	' Wait BUSY
+	#if TBT62_DEBUG_PRINT = 1
+	tbt62_debug_print("Waiting BUSY...")
+	#endif
+	tmr = sys.timercountms
+	while (tbt62_checkBusy(tbt_channel) = false)
+		if sys.timercountms - tmr >= TBT62_BUSY_WAIT_MAX_TIME then
+		#if TBT62_DEBUG_PRINT = 1
+			tbt62_debug_print("Timeout for wait BUSY!")
+		#endif
+			exit function
+		end if
+	wend
+		
+	if not tbt62_read_data(sensdata, 5, tbt_channel) then
+	#if TBT62_DEBUG_PRINT = 1
+		tbt62_debug_print("Read data fault!")
+	#endif
+		exit function
+	end if
+	
+	' Check FF
+	if sensdata = "\xFF\xFF\xFF\xFF\xFF" then
+		tbt62_sw_get_temp_hum = TBT62_FAULT_NO_SENSOR
+		temperature = 0
+		exit function
+	end if
+	
+	' Check parity bits
+	cs = 0
+	for i = 1 to 4
+		cs = cs + asc(mid(sensdata, i, 1))
+	next i
+	if cs <> asc(mid(sensdata, 5, 1)) then	' Wrong parity bits
+		tbt62_sw_get_temp_hum = TBT62_FAULT_CONTROLSUM
+		exit function
+	end if
+	
+	'Parity bits is OK
+	select case sensor
+	case DHT11:
+		' Calc temp
+		i = asc(mid(sensdata, 3, 1))
+		cs = asc(mid(sensdata, 4, 1))
+		if i and &h80 then
+			' Minus
+			res = -(i and &h7F)
+		else
+			' Plus
+			res = i
+		end if
+		temperature = cs
+		temperature = (temperature / 10) + res
+		
+		' Calc hum
+		i = asc(mid(sensdata, 1, 1))
+		cs = asc(mid(sensdata, 2, 1))
+		humidity = cs
+		humidity = (humidity / 10) + i
+
+	case DHT22:
+		' Calc temp
+		i = asc(mid(sensdata, 3, 1))
+		cs = asc(mid(sensdata, 4, 1))
+		if i and &h80 then
+			' Minus
+			res = -(((i and &h7F) * 256) + cs)
+		else
+			' Plus
+			res = ((i * 256) + cs)
+		end if
+		temperature = res / 10
+		
+		' Calc hum
+		i = asc(mid(sensdata, 1, 1))
+		cs = asc(mid(sensdata, 2, 1))
+		res = (i * 256) + cs
+		humidity = res / 10
+
+	end select
+	
+	if tbt62_Specific = TBT62_IMPERIAL_UNITS then
+		temperature = convertCtoF(temperature)
+	end if
+	
+	tbt62_sw_get_temp_hum = TBT62_NO_FAULT
+	
+end function
+
+#if TBT62_DEBUG_PRINT
+sub tbt62_debug_print(print_data as string)
+	sys.debugprint(TBT62_DEBUG_STAMP + print_data + tbt62_CR_LF)
+end sub
+#endif
+
+function CRC8(pcBlock as string, len as byte) as byte
+    dim crc as byte
+    dim i as byte
+	dim j as byte
+
+	j = 1
+	crc = 0
+	
+    while len > 0
+        crc = crc XOR asc(mid(pcBlock, j, 1))
+
+        for i = 1 to 8
+			if (crc AND &h01) = 0 then
+				crc = crc SHR 1
+			else
+				crc = (crc SHR 1) XOR &h8C
+			end if
+		next i
+		
+		j = j  + 1
+		len = len - 1
+		
+    wend
+
+	CRC8 = crc
+
+end function

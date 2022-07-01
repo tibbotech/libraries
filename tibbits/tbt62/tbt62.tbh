@@ -1,0 +1,96 @@
+' I2C #62 address
+#define TBT62_REGISTER_COMMAND_ADDRESS	128
+#define TBT62_REGISTER_DATA_ADDRESS		129
+
+' I2C Commands list
+#define TBT62_CMD_SELECTCHANNEL			128
+#define TBT62_CMD_RESET					144
+#define TBT62_CMD_SEARCHFIRST			160
+#define TBT62_CMD_SEARCHNEXT			161
+#define TBT62_CMD_READ_DATA				176
+#define TBT62_CMD_SEND_DATA				192
+#define TBT62_CMD_SEND_DATA_WITH_BUSY	208
+#define TBT62_CMD_GETVERSION			240
+#define TBT62_CMD_CHECK					16
+#define TBT62_CMD_VCC_CONTROL			32
+#define TBT62_CMD_SET_MODE				48
+
+enum EN_TBT62_UNITS
+	TBT62_METRIC_UNITS,
+	TBT62_IMPERIAL_UNITS
+end enum
+
+enum EN_TBT62_MODE
+	TBT62_ONE_WIRE,
+	TBT62_SINGLE_WIRE
+end enum
+
+enum EN_TBT62_CHECK_CHANNEL
+	TBT62_VOLTAGE_VCC,
+	TBT62_VOLTAGE_3V3,
+	TBT62_POWER_FAULT
+end enum
+
+enum EN_TBT62_VCC_CONTROL
+	TBT62_VCC_OFF,
+	TBT62_VCC_ON
+end enum
+
+enum EN_TBT62_CHANNEL
+	TBT62_CHANNEL_1,
+	TBT62_CHANNEL_2
+end enum
+
+enum EN_TEMP_HUM_SENSOR_TYPE
+	DHT11,
+	DHT22
+end enum
+
+enum EN_TBT62_INIT_RESULT
+	TBT62_INIT_OK,
+	TBT62_INIT_ERROR_SI2C_NO_EMPTY_CHANNEL,
+	TBT62_INIT_ERROR_NO_VALID_VERSION,
+	TBT62_INIT_ERROR_FAULT_CHECK_3V3,
+	TBT62_INIT_ERROR_FAULT_CHECK_VCC,
+	TBT62_INIT_ERROR_POWER_FAULT_CHECK
+end enum
+
+enum EN_TBT62_FAULT
+	TBT62_NO_FAULT,
+	TBT62_FAULT_TIBBIT,
+	TBT62_FAULT_CONTROLSUM,
+	TBT62_FAULT_NO_SENSOR
+end enum
+
+enum EN_TBT62_ONEWIRE_GET_TEMP
+	TBT62_ONEWIRE_GET_TEMP_SAMPLE_START,
+	TBT62_ONEWIRE_GET_TEMP_READ_DATA
+end enum
+
+#define TBT62_CMD_MATCH_ROM				&h55
+#define TBT62_CMD_TEMPERATURE_MEAS		&h44
+#define TBT62_CMD_READSCRATCHPAD		&hBE
+
+#define TBT62_SENSOR_TYPE_TEMPERATURE	&h28
+
+#define TBT62_SSI_BAUDRATE 				PL_SSI_BAUD_400kHz
+
+#define TBT62_BUSY_WAIT_MAX_TIME		1000	' 1000mS
+
+declare function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, reset_pin as byte, busy_pin as byte, units as EN_TBT62_UNITS, byref tbt_channel as byte, use_ssi as no_yes) as EN_TBT62_INIT_RESULT
+declare function tbt62_send_command(command as byte, tbt_channel as byte) as boolean
+declare function tbt62_send_data(command as byte, rom as string(8), data as string(16), tbt_channel as byte) as boolean
+declare function tbt62_read_data(byref data as string, data_len as byte, tbt_channel as byte) as boolean
+declare function tbt62_check_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+declare function tbt62_check_channel(channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+declare function tbt62_get_VCC_voltage(tbt_channel as byte) as real
+declare function tbt62_get_3V3_voltage(tbt_channel as byte) as real
+declare function tbt62_get_power_fault(tbt_channel as byte) as byte
+declare function tbt62_vcc_control(state as EN_TBT62_VCC_CONTROL, tbt_channel as byte) as boolean
+declare function tbt62_get_voltage(channel as EN_TBT62_CHECK_CHANNEL, tbt_channel as byte) as real
+declare function tbt62_checkBUSY(tbt_channel as byte) as boolean
+declare function tbt62_ID_Hex(SensorID as string(8)) as string(16)
+declare function tbt62_ow_get_temperature(byref temperature as real, sensorID as string(8), channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+declare function tbt62_ow_get_temp_separate(byref temperature as real, sensorID as string(8), phase as EN_TBT62_ONEWIRE_GET_TEMP, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+declare function tbt62_set_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
+declare function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
