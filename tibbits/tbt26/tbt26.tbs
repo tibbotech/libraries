@@ -1,0 +1,361 @@
+'***********************************************************************************************************
+'			Tibbit #26 (IR command processor)
+'***********************************************************************************************************
+
+include "global.tbh"
+
+'--------------------------------------------------------------------
+const IR_INIT_SIGNATURE=&h4952
+const IR_STAMP="IRP> "
+const IR_CR_LF=chr(13)+chr(10)
+const MAX_IR_CMD_LEN=250
+
+'--------------------------------------------------------------------
+#if IR_DEBUG_PRINT=1
+	declare sub ir_debug_print(data as string)
+#endif
+
+'--------------------------------------------------------------------
+dim spi_num_tbt26 as byte
+dim ir_init_flag as word
+dim tbt26_carrier as no_yes
+dim tbt26_freq_div as word
+
+'====================================================================
+function tbt26_init() as errcheck
+'Call this function to initialize the Tibbit.
+'This library requires an SSI channel. If all channels are already occupied then this function will return TBT26_NO_SSI_AVAILABLE.
+	dim delay as byte
+	dim s as string
+	dim x as byte
+	
+	tbt26_init=TBT26_OK
+	#if IR_DEBUG_PRINT=1
+		ir_debug_print("++++++++++")
+	#endif
+	ir_init_flag=IR_INIT_SIGNATURE
+
+	spi_num_tbt26=ssi_get("IR")
+	if spi_num_tbt26=255 then
+		tbt26_init=TBT26_NO_SSI_AVAILABLE
+		exit function
+	end if
+	
+	ssi.channel=spi_num_tbt26
+	
+	'SPI CS
+	io.num=TBT26_SPI_CS
+	io.state=HIGH
+	io.enabled=YES
+	
+	
+	'SPI CLK
+	io.num=TBT26_SPI_CLK
+	io.state=HIGH
+	io.enabled=YES							'Enable as output
+	
+	'SPI DO (MOSI)
+	io.num=TBT26_SPI_MOSI
+	io.state=HIGH
+	io.enabled=YES
+
+
+	'SPI DI (MISO)
+	io.num=TBT26_SPI_MISO
+	io.enabled=NO
+
+	'setup SSI channel
+	ssi.channel=spi_num_tbt26
+	ssi.mode=PL_SSI_MODE_2
+	ssi.clkmap=TBT26_SPI_CLK
+	ssi.dimap=TBT26_SPI_MISO
+	ssi.domap=TBT26_SPI_MOSI
+	ssi.zmode=PL_SSI_ZMODE_ALWAYS_ENABLED
+	ssi.direction=PL_SSI_DIRECTION_LEFT
+	ssi.baudrate=1
+		
+
+	ssi.enabled=NO
+	io.lineset(TBT26_SPI_CLK,LOW) 	'Pepare to rising edge generation
+	io.lineset(TBT26_SPI_CLK,HIGH)	'CRESETn is now low
+	
+	for delay = 0 to 10
+	next delay
+	
+	io.lineset(TBT26_SPI_CS,LOW)
+	
+	for delay = 0 to 100 '<----- Reset delay. Adjust to 200 ns or more
+	next delay
+	
+	io.lineset(TBT26_SPI_CLK,LOW) 	'Pepare to rising edge generation
+	io.lineset(TBT26_SPI_CLK,HIGH)	'CRESETn is now high and FPGA is going to clear internal configuration memory
+	
+	for delay = 0 to 100 '<----- Adjust to 800 us or more
+	next delay
+	
+	'Upload the run-time binary into the FPGA
+	ssi.enabled=YES
+	romfile.open("IR_Remote_bitmap.bin")
+	s=romfile.getdata(255)
+	x=len(s)
+	while x>0
+		ssi.str(s,PL_SSI_ACK_OFF)
+		s=romfile.getdata(255)
+		x=len(s)
+	wend
+	
+	ssi.enabled=NO
+	for delay = 0 to 50 		'Send 50 dummy bits
+		io.lineset(TBT26_SPI_CLK,LOW)
+		io.lineset(TBT26_SPI_CLK,HIGH)
+	next delay
+	
+	ssi.mode=PL_SSI_MODE_0
+	ssi.enabled=YES
+	io.lineset(TBT26_SPI_CS,HIGH) 	'Switch MISO to cDONE
+	if io.lineget(TBT26_SPI_MISO)=LOW then 	 	'If 1 - configuration correct, if 0 - ERROR
+		sys.debugprint("FPGA configuration failed\x0A\x0D")
+	end if
+
+	#if IR_DEBUG_PRINT=1
+		sys.debugprint("FPGA configured\x0A\x0D")
+		ir_debug_print("----------")
+	#endif
+	
+	'tbt26_init=TBT26_INIT_FAILURE
+end function
+
+sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq_div as word) 
+'Call this function to start the IR signal recording process, i.e. before pressing a button on a remote control you want to clone.
+'Call tbt26_get_data() to read out the recorded data (after you've pressed the button on the remote control you are cloning).<br><br>
+'Arguments:<br><br>
+'inverted: NO- for receivers that output LOW when the IR light is detected, YES- for receivers that output HIGH when the IR light is detected.<br><br>
+'carrier: NO- carrier frequency is not present in the incoming IR stream, YES- carrier frequency is present.<br><br>
+'freq_div (used only when carrier=NO): frequency divider for the EXPECTED carrier frequency. The formula is freq_div = 12MHz / carrier_freq.<br><br>
+'Returns: IR data. First two bytes are low and high bytes of the divider value for the carrier frequency.
+'Subsequent byte pairs are low and high bytes of "IR ON" and "IR OFF" periods of the signal expressed in clocks of the carrier frequency.<br><br>
+	
+	tbt26_carrier=carrier
+	tbt26_freq_div=freq_div
+
+	if ir_init_flag<>IR_INIT_SIGNATURE then
+		tbt26_init()
+	end if
+
+	ssi.channel=spi_num_tbt26
+	
+	if carrier=NO then
+		io.lineset(TBT26_SPI_CS,LOW) 
+		ssi.value(&h02,8)
+		ssi.value(&h00,8)
+		ssi.value(&h06,8)
+		ssi.value(freq_div and &hFF,8)
+		ssi.value(freq_div/256,8)
+		io.lineset(TBT26_SPI_CS,HIGH)
+	end if
+
+	'Send self-learning enable command
+	io.lineset(TBT26_SPI_CS,LOW)
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h00,8)
+	
+	if carrier=YES then
+		if inverted=YES then
+			ssi.value(&h04,8)
+		else
+			ssi.value(&h00,8)
+		end if
+	else
+		if inverted=YES then
+			ssi.value(&h14,8)
+		else
+			ssi.value(&h10,8)
+		end if
+	end if
+	
+	io.lineset(TBT26_SPI_CS,HIGH)
+	
+	io.lineset(TBT26_SPI_CS,LOW)
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h00,8)
+	
+	if carrier=YES then
+		if inverted=YES then
+			ssi.value(&h06,8)
+		else
+			ssi.value(&h02,8)
+		end if	
+	else
+		if inverted=YES then
+			ssi.value(&h16,8)
+		else
+			ssi.value(&h12,8)
+		end if
+	end if
+	
+	io.lineset(TBT26_SPI_CS,HIGH)
+end sub
+
+function tbt26_get_data() as string
+'Call this function to read out the recorded IR signal. Do this only after the signal has been received
+'(after you've pressed the button on the remote control you are cloning).
+	
+	dim data_low,data_high,data_len as byte
+	dim f as byte	
+
+	if ir_init_flag<>IR_INIT_SIGNATURE then
+		tbt26_init()
+	end if
+
+	ssi.channel=spi_num_tbt26
+	
+	io.lineset(TBT26_SPI_CS,LOW) 	'Read Status
+	ssi.value(&h03,8)
+	ssi.value(&h00,8)
+	ssi.value(&h01,8)
+	ssi.value(&h00,8)
+	data_low = ssi.value(&h00,8) 'status in data_low
+	io.lineset(TBT26_SPI_CS,HIGH)
+
+	if data_low<>&h0003 then
+		tbt26_get_data=""
+		exit function
+	end if	
+		
+	io.lineset(TBT26_SPI_CS,LOW) 	'Read Length of sequence
+	ssi.value(&h03,8)
+	ssi.value(&h00,8)
+	ssi.value(&h04,8)
+	ssi.value(&h00,8)
+	data_low = ssi.value(&h00,8)
+	data_high = ssi.value(&h00,8)
+	io.lineset(TBT26_SPI_CS,HIGH)
+
+	if data_high>0 or data_low>MAX_IR_CMD_LEN or data_low<10 then
+		tbt26_get_data=""
+		exit function
+	end if
+
+	data_len=data_low
+
+	io.lineset(TBT26_SPI_CS,LOW) 	'Read Carrier
+	ssi.value(&h03,8)
+	ssi.value(&h00,8)
+	ssi.value(&h06,8)
+	ssi.value(&h00,8)
+	data_low = ssi.value(&h00,8)
+	data_high = ssi.value(&h00,8)
+	io.lineset(TBT26_SPI_CS,HIGH)
+
+	if tbt26_carrier=NO then
+		data_low =tbt26_freq_div and &hFF
+		data_high=tbt26_freq_div/256
+	end if
+
+	tbt26_get_data=chr(data_low)+chr(data_high)
+
+	io.lineset(TBT26_SPI_CS,LOW) 	'Read command sequence
+	ssi.value(&h03,8)
+	ssi.value(&h08,8)
+	ssi.value(&h00,8)
+	ssi.value(&h00,8)
+	for f=1 to data_len
+		tbt26_get_data=tbt26_get_data+chr(ssi.value(&h00,8))
+	next f
+	io.lineset(TBT26_SPI_CS,HIGH)
+end function
+
+sub tbt26_play_back(byref dt as string, inverted as no_yes)
+'Call this function to play back the IR command.<br><br>
+'Arguments:<br><br>
+'dt: IR data. First two bytes are low and high bytes of the divider value for the carrier frequency (modulation_freq = 12MHz / freq_div).
+'Subsequent byte pairs are low and high bytes of "IR ON" and "IR OFF" periods of the signal expressed in clocks of the carrier frequency.<br><br>
+'inverted: NO- for emitters that turn on when the IR OUTPUT is LOW, YES- for emitters that turn on when the IR OUTPUT is HIGH.
+	
+	dim s as string=dt
+	dim f as byte
+	dim data_low,data_high as byte
+	
+	if ir_init_flag<>IR_INIT_SIGNATURE then
+		tbt26_init()
+	end if
+	
+	ssi.channel=spi_num_tbt26
+	
+	'wait until the previous transmission (if any) is finished
+	do
+		io.lineset(TBT26_SPI_CS,LOW) 	
+		ssi.value(&h03,8)
+		ssi.value(&h00,8)
+		ssi.value(&h01,8)
+		ssi.value(&h00,8)
+		data_low = ssi.value(&h00,8) 'status in data_low
+		io.lineset(TBT26_SPI_CS,HIGH)
+		sys.debugprint("W")
+	loop until data_low=3
+
+	if len(s)<4 then
+		exit sub
+	end if
+	data_low=len(s)-2
+
+	io.lineset(TBT26_SPI_CS,LOW)		'Write Length 
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h02,8)
+	ssi.value(data_low,8)
+	ssi.value(0,8)
+	io.lineset(TBT26_SPI_CS,HIGH)
+
+	data_low=asc(s)
+	s=mid(s,2,255)
+	data_high=asc(s)
+	s=mid(s,2,255)
+	
+	io.lineset(TBT26_SPI_CS,LOW)		'Write Carrier 
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h06,8)
+	ssi.value(data_low,8)
+	ssi.value(data_high,8)
+	io.lineset(TBT26_SPI_CS,HIGH)
+
+	io.lineset(TBT26_SPI_CS,LOW)	'Write to command memory
+	ssi.value(&h02,8)
+	ssi.value(&h08,8)
+	ssi.value(&h00,8)
+	for f=1 to len(s)
+		ssi.value(asc(mid(s,f,1)),8)
+	next f
+	io.lineset(TBT26_SPI_CS,HIGH)
+	
+	io.lineset(TBT26_SPI_CS,LOW)	'Transmission start command
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h00,8)
+	if inverted=NO then
+		ssi.value(&h00,8)
+	else
+		ssi.value(&h08,8)
+	end if
+	io.lineset(TBT26_SPI_CS,HIGH)
+	
+	io.lineset(TBT26_SPI_CS,LOW)	
+	ssi.value(&h02,8)
+	ssi.value(&h00,8)
+	ssi.value(&h00,8)
+	if inverted=NO then
+		ssi.value(&h01,8)
+	else
+		ssi.value(&h09,8)
+	end if
+	io.lineset(TBT26_SPI_CS,HIGH)
+end sub
+
+#if IR_DEBUG_PRINT=1
+sub ir_debug_print(data as string)
+	sys.debugprint(IR_STAMP+data+IR_CR_LF)
+end sub
+#endif
