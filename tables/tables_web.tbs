@@ -318,7 +318,9 @@ verify:
 		error="Field value invalid"
 	case EN_TBL_STATUS_OK:
 		error=""
+#if PLATFORM_ID <> EM500W AND PLATFORM_ID <> EM510W
 		rtc.getdata(ts.ts_daycount,ts.ts_mincount,ts.ts_seconds)
+#endif		
 		ts.ts_milsec=999
 		tbl_timestamp_sg(ts,EN_TBL_SET)
 	case else
