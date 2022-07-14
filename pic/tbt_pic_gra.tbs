@@ -746,7 +746,7 @@ sub tbt_pic_gra_pwm_config_simple(byref tbt as tbt_pic_gra, ch as tbt_pic_gra_pw
 	rCCPRxL = (ccprxl shr 2)
 	rCCPxN =   &h0C  or  ((ccprxl and &h03) shl 4)
 	
-	
+	si2c_get(tbt.i2c_num_pic)
 	 
 	select case ch
 	
