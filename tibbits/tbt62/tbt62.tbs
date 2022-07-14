@@ -418,7 +418,7 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 		exit function
 	end if
 	
-	' Get МСС
+	' Get MCC
 	voltage = tbt62_get_voltage(TBT62_VOLTAGE_VCC, tbt_channel)
 	if voltage < 4.5 OR voltage > 5.5 then
 		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC

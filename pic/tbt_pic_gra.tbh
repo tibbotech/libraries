@@ -173,7 +173,7 @@ declare function tbt_pic_gra_get_fw_version() as string
 'yy -- minor release (not affecting the corresponding Tibbo BASIC library)
 
 
-declare function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
+declare function tbt_pic_gra_init(byref signature as string, byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
 'Call this function to initialize the Tibbit.
 'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
 'go for direct I/O manipulation a.k.a. bit-banging (NO).

@@ -2,7 +2,7 @@ include "global.tbh"
 
  
 '==============================================================================
-function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
+function tbt_pic_gra_init(byref signature as string, byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_str as string)as tbt_pic_gra_result
 'Call this function to initialize the Tibbit.
 'Use_ssi argument specifies whether you want to communicate with this Tibbit using the SSI channel running in the I2C mode (YES), or
 'go for direct I/O manipulation a.k.a. bit-banging (NO).
@@ -42,7 +42,7 @@ function tbt_pic_gra_init(byref tbt as tbt_pic_gra, use_ssi as no_yes, byref fw_
 	wend
 	tbt_pic_gra_init=OK
 	tbt.pic_init_flag=PIC_INIT_SIGNATURE
-	tbt.i2c_num_pic=si2c_register("PIC",tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
+	tbt.i2c_num_pic=si2c_register(signature,tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
 
 	if tbt.i2c_num_pic<4 then
 		ssi.channel=tbt.i2c_num_pic
