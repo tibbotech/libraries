@@ -58,7 +58,7 @@ declare function mqtt_connect() as ok_ng
 declare sub mqtt_disconnect()
 'API procedure, disconnects the device from the MQTT server (broker).	
 
-declare sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices)
+declare sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices, retain as boolean)
 'API procedure, publishes a <b>topic</b> and its <b>data</b> to the MQTT server (broker).
 
 declare sub mqtt_sub(byref topic as string, qos as en_qos_choices)
