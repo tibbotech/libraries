@@ -102,20 +102,20 @@ end sub
 sub cgg_mqtt_ok()
     dim i as byte
     dim value as string = ""
-    mqtt_publish(CGG_ATTR_TOPIC, "{'TIOS':'" + sys.version + "'}",QOS_AT_MOST_ONCE)
-    mqtt_publish(CGG_ATTR_TOPIC, "{'APP':'" + FIRMWARE_VERSION + "'}",QOS_AT_MOST_ONCE)
+    mqtt_publish(CGG_ATTR_TOPIC, "{'TIOS':'" + sys.version + "'}",QOS_AT_MOST_ONCE,false)
+    mqtt_publish(CGG_ATTR_TOPIC, "{'APP':'" + FIRMWARE_VERSION + "'}",QOS_AT_MOST_ONCE,false)
     if CGG_MAX_SETTINGS = 0 then
         exit sub
     end if
     for i=0 to CGG_MAX_SETTINGS-1
         cgg_setting_name = cgg_settings(i)
         value = stg_get(cgg_setting_name,0)
-        mqtt_publish(CGG_ATTR_TOPIC, "{'"+cgg_setting_name+"':'" + value + "'}",QOS_AT_MOST_ONCE)
+        mqtt_publish(CGG_ATTR_TOPIC, "{'"+cgg_setting_name+"':'" + value + "'}",QOS_AT_MOST_ONCE,false)
     next i
 end sub
 
 sub cgg_send(name as string, value as string)
-    mqtt_publish(CGG_TELEMETRY_TOPIC,"{'"+name+"':'"+value+"'}",QOS_AT_MOST_ONCE)
+    mqtt_publish(CGG_TELEMETRY_TOPIC,"{'"+name+"':'"+value+"'}",QOS_AT_MOST_ONCE,false)
 end sub
 
 sub cgg_proc_ser_data()
@@ -137,7 +137,7 @@ sub cgg_proc_sock_data()
 end sub
 
 sub cgg_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
-    mqtt_publish(CGG_ATTR_TOPIC, "{'"+stg_name_or_num+"':'" + stg_value + "'}",QOS_AT_MOST_ONCE)
+    mqtt_publish(CGG_ATTR_TOPIC, "{'"+stg_name_or_num+"':'" + stg_value + "'}",QOS_AT_MOST_ONCE,false)
 end sub
 
 sub cgg_proc_mqtt_notif(byref topic as string, byref data as string)

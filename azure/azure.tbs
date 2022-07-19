@@ -175,7 +175,7 @@ public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
 					if stg_sg(item_name,0,value,EN_STG_SET)=EN_STG_STATUS_OK then
 						value="{\x22"+item_name+"\x22:"+value+"}"
 						azure_rid=azure_rid+1
-						mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED+"?$rid="+str(azure_rid),value,QOS_AT_MOST_ONCE)
+						mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED+"?$rid="+str(azure_rid),value,QOS_AT_MOST_ONCE,false)
 					end if
 				end if
 				pos1=pos3+1
@@ -197,7 +197,7 @@ public sub azure_command_respond(byref command as string, byref returns as strin
 		returns="{}"
 	end if
 	topic="$iothub/methods/res/"+str(result)+"/?$rid="+rid
-	mqtt_publish(topic,returns,QOS_AT_MOST_ONCE)
+	mqtt_publish(topic,returns,QOS_AT_MOST_ONCE,false)
 	
 end sub
 
@@ -248,7 +248,7 @@ sub azure_send_property(prop_name as string, prop_value as string)
 	dim json as string
 	json = azure_update_json(json,prop_name,prop_value)
 	azure_rid=azure_rid+1
-	mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED + "?$rid="+str(azure_rid),json,QOS_AT_MOST_ONCE)
+	mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED + "?$rid="+str(azure_rid),json,QOS_AT_MOST_ONCE,false)
 
 end sub
 
@@ -256,7 +256,7 @@ public sub azure_mqtt_sub_ok()
 	azure_num_of_suback=azure_num_of_suback+1
 	if azure_num_of_suback>4 then
 		azure_rid=azure_rid+1
-		mqtt_publish(AZURE_TOPIC_TWIN+"GET/?$rid="+str(azure_rid),"{}",QOS_AT_MOST_ONCE)
+		mqtt_publish(AZURE_TOPIC_TWIN+"GET/?$rid="+str(azure_rid),"{}",QOS_AT_MOST_ONCE,false)
 	end if
 end sub
 
@@ -320,7 +320,7 @@ public sub azure_send_telemetry()
 	
 	sock.num=mqtt_sock_num
 	sock.notifysent(0)
-	mqtt_publish(server_bound_message_topic,json,QOS_AT_MOST_ONCE)					
+	mqtt_publish(server_bound_message_topic,json,QOS_AT_MOST_ONCE,false)					
 	callback_on_telemetry_sent()
 
 end sub
