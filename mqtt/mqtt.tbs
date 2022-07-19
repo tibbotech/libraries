@@ -654,7 +654,7 @@ sub mqtt_send_data(data as string)
 	
 end sub
 
-sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices)
+sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices, retain as boolean)
 'API procedure, publishes a <b>topic</b> and its <b>data</b> to the MQTT server (broker).
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
@@ -679,9 +679,12 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 		buf=chr(0)+chr(len(topic))+topic+mqtt_get_packet_identifier()+data
 	end if
 	
-	buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
-'	buf=chr(&h03+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
-
+	if retain  then
+		buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
+	else 
+		buf=chr(PUBLISH+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
+	end if
+	
 	mqtt_send_data(buf)
 	mqtt_ping_counter=MQTT_PING_TIMER*2
 
