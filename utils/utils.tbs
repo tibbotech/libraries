@@ -203,3 +203,16 @@ sub date_set_datetime(byref dt_string as string)
 	end if
 		
 end sub
+
+function ftofixed(r as real, decimals as byte) as string
+	ftofixed = !fstr(r)
+	dim pos as byte = instr(1,ftofixed, ".", 1)
+	if pos = 0  then
+		exit function
+	else 
+		if instr(1,ftofixed,"-",1) <> 0 then
+			pos=pos-1
+		end if
+		ftofixed=ftostr(r,FTOSTR_MODE_AUTO,pos+decimals-1)
+	end if
+end function
