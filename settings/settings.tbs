@@ -286,6 +286,7 @@ public function stg_start_with_params(init as no_yes) as en_stg_status_codes
 		case `W`
 		case `S`
 		case `D`
+		case `F`
 		case else
 unknown_setting_type:
 			#if STG_DEBUG_PRINT
@@ -424,6 +425,9 @@ p2_too_large:
 		case `W`:
 			j=2
 			len_of_str_rep=5
+		case `F`:
+			j=4
+			len_of_str_rep=4
 		case `S`:
 			j=stg_sdr(stg_sdr_member).p2+1
 			len_of_str_rep=stg_sdr(stg_sdr_member).p2
@@ -1404,6 +1408,12 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			stg_value=mid(stg_str,2,asc(left(stg_str,1)))
 			i=asc(left(stg_str,1))
 			goto lb1
+		
+		case "F":
+			dim tmp_f as float=0
+			strtobin(tmp_f,stg_str,4)
+			stg_value=ftofixed(tmp_f,3)
+			goto lb1
 					
 		case else:	'dot-decimal string- take length
 			stg_value=ddstr(mid(stg_str,2,asc(left(stg_str,1))))
@@ -1451,6 +1461,11 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			i=val(stg_value)
 			x=i/256
 			new_member_str=chr(x)+chr(i-x*256)
+			goto lb2
+
+		case "F":
+			dim ff as float=stg_value
+			bintostr(new_member_str,ff,4)
 			goto lb2
 
 		case "S":	'string
