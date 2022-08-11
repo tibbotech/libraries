@@ -1412,17 +1412,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 		case "F":
 			dim tmp_f as float=0
 			strtobin(tmp_f,stg_str,4)
-			stg_value = !fstr(tmp_f)
-			dim pos as byte = instr(1,stg_value, ".", 1)
-			
-			if pos <> 0  then
-				stg_value=tmp_f
-				'round to 3 decimal places
-				if instr(1,stg_value,"-",1) <> 0 then
-					pos=pos-1
-				end if
-				stg_value=ftostr(tmp_f,FTOSTR_MODE_AUTO,pos+2)
-			end if
+			stg_value=ftofixed(tmp_f,3)
 			goto lb1
 					
 		case else:	'dot-decimal string- take length
