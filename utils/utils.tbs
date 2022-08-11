@@ -195,13 +195,13 @@ sub date_set_datetime(byref dt_string as string)
 	end select
 	daycounts=daycount(val(syear),val(smonth),val(sdate))
 	mincounts=mincount(val(shour),val(smin))
-	
+#if PLATFORM_ID <> EM500W AND PLATFORM_ID <> EM510W
 	rtc.getdata(curr_daycounts,curr_mincounts, b)
 	if curr_daycounts<>daycounts or curr_mincounts<>mincounts then
 		b=val(ssec) 	
 		rtc.setdata(daycounts,mincounts,b)
 	end if
-		
+#endif		
 end sub
 
 function ftofixed(r as real, decimals as byte) as string
