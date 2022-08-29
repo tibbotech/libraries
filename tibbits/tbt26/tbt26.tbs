@@ -30,7 +30,7 @@ dim tbt26_multiplier as float=1
 function tbt26_init() as errcheck
 'Call this function to initialize the Tibbit.
 'This library requires an SSI channel. If all channels are already occupied then this function will return TBT26_NO_SSI_AVAILABLE.
-	dim delay as byte
+	dim delay as dword
 	dim s as string
 	dim x as byte
 	
@@ -84,19 +84,25 @@ function tbt26_init() as errcheck
 	io.lineset(TBT26_SPI_CLK,LOW) 	'Pepare to rising edge generation
 	io.lineset(TBT26_SPI_CLK,HIGH)	'CRESETn is now low
 	
-	for delay = 0 to 10
-	next delay
+	delay=sys.timercountms+1
+	while sys.timercountms<delay
+		'wait
+	wend
 	
 	io.lineset(TBT26_SPI_CS,LOW)
 	
-	for delay = 0 to 100 '<----- Reset delay. Adjust to 200 ns or more
-	next delay
+	delay=sys.timercountms+1
+	while sys.timercountms<delay
+		'wait
+	wend
 	
 	io.lineset(TBT26_SPI_CLK,LOW) 	'Pepare to rising edge generation
 	io.lineset(TBT26_SPI_CLK,HIGH)	'CRESETn is now high and FPGA is going to clear internal configuration memory
 	
-	for delay = 0 to 100 '<----- Adjust to 800 us or more
-	next delay
+	delay=sys.timercountms+1
+	while sys.timercountms<delay
+		'wait
+	wend
 	
 	'Upload the run-time binary into the FPGA
 	ssi.enabled=YES
