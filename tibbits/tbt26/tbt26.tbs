@@ -402,6 +402,13 @@ sub tbt26_send_nec(byref dt as string, inverted as no_yes)
 '	data_len=4+32+32+data_len*32+4
 	data_len=4+data_len*32+4-2
 	tbt26_multiplier=26
+
+	if len(dt)=0 then
+		#if IR_DEBUG_PRINT=1
+			ir_debug_print("command empty")
+		#endif
+		exit sub
+	end if
 	
 	tbt26_start_send(mid(s,1,2),data_len)
 
@@ -487,7 +494,7 @@ function tbt26_get_data() as string
 	ssi.value(&h00,8)
 	ssi.value(&h00,8)
 	for f=1 to data_len
-		tbt26_get_data=tbt26_get_data+chr(ssi.value(&h00,8))
+		 tbt26_get_data=tbt26_get_data+chr(ssi.value(&h00,8))
 	next f
 	io.lineset(TBT26_SPI_CS,HIGH)
 end function
@@ -498,20 +505,29 @@ sub tbt26_play_back(byref dt as string, inverted as no_yes)
 'dt: IR data. First two bytes are low and high bytes of the divider value for the carrier frequency (modulation_freq = 12MHz / freq_div).
 'Subsequent byte pairs are low and high bytes of "IR ON" and "IR OFF" periods of the signal expressed in clocks of the carrier frequency.<br><br>
 'inverted: NO- for emitters that turn on when the IR OUTPUT is LOW, YES- for emitters that turn on when the IR OUTPUT is HIGH.
-	
+
 	dim s as string=dt
 	dim f as byte
+
+	if len(dt)=0 then
+		#if IR_DEBUG_PRINT=1
+			ir_debug_print("command empty")
+		#endif
+		exit sub
+	end if
 	
 	tbt26_multiplier=1
 	
 	tbt26_start_send(mid(dt,1,2),len(s)-2)
+	
+	s=mid(s,3,255)
 
 	io.lineset(TBT26_SPI_CS,LOW)	'Write to command memory
 	ssi.value(&h02,8)
 	ssi.value(&h08,8)
 	ssi.value(&h00,8)
 	for f=1 to len(s) step 2
-		tbt26_write_duration((asc(mid(s,f+1,1)) SHL 8) + asc(mid(s,f,1)))
+		 tbt26_write_duration((asc(mid(s,f+1,1)) SHL 8) + asc(mid(s,f,1)))
 	next f
 '	for f=1 to len(s)
 '		bcount=bcount+1
@@ -532,7 +548,7 @@ sub tbt26_start_send(byref carrier as string, length as word)
 	
 	ssi.channel=spi_num_tbt26
 	
-	sys.debugprint("sendlen" + str(length)+"\r\n")
+	'sys.debugprint("sendlen" + str(length)+"\r\n")
 	
 	'wait until the previous transmission (if any) is finished
 	do
