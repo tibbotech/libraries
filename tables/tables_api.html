@@ -2,10 +2,7 @@
 include "global.tbh"
 dim params as string=sock.gethttprqstring(255)
 dim table_name as string(TBL_MAX_TABLE_NAME_LEN)
-dim index as byte=instr(0,params," ",1)
-if index>0 then
-	params=left(params,index)
-end if
+dim index as byte=0
 
 'get action param
 dim action as string=tbl_web_get_url_params(params,"action")
