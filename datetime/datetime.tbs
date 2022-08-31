@@ -260,10 +260,22 @@ function datetime_next_cron(next_cron as crontab) as dword
 			timestamp=timestamp - (60*60*c_hour) - (60*c_mins)
 		end if
 		
-		if next_cron.day_of_week <> 255 AND next_cron.day_of_week <> c_weekday AND skip = false then
-			skip = true
-			timestamp=timestamp + (24*60*60*1)
-			timestamp=timestamp - (60*60*c_hour) - (60*c_mins)
+		if next_cron.day_of_week <> 255  AND skip = false then
+			dim ci as byte=2
+			dim ci_day as byte=mid(next_cron.day_of_week,1,1)
+			dim found as boolean=false
+			while ci>0
+				if ci_day=c_weekday then
+					found=true
+				end if
+				ci_day=mid(next_cron.day_of_week,ci+1,1)
+				ci = instr(ci+1,next_cron.day_of_week,",",1)
+			wend
+			if found<>true then
+				skip = true
+				timestamp=timestamp + (24*60*60*1)
+				timestamp=timestamp - (60*60*c_hour) - (60*c_mins)
+			end if
 		end if
 		
 		if next_cron.hour <> 255 AND next_cron.hour <> c_hour AND skip = false then
