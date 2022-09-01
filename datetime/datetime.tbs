@@ -263,9 +263,10 @@ function datetime_next_cron(next_cron as crontab) as dword
 		if next_cron.day_of_week <> 255  AND skip = false then
 			dim ci as byte=2
 			dim ci_day as byte=mid(next_cron.day_of_week,1,1)
+			dim cron_trans_weekdays as byte(7) = {7,1,2,3,4,5,6}
 			dim found as boolean=false
 			while ci>0
-				if ci_day=c_weekday then
+				if cron_trans_weekdays(ci_day)=c_weekday then
 					found=true
 				end if
 				ci_day=mid(next_cron.day_of_week,ci+1,1)
