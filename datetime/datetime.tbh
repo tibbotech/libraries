@@ -22,7 +22,7 @@ type crontab
 	hour as string(10)
 	day as string(10) 'day of month
 	month as string(10)
-	day_of_week as string(10)
+	day_of_week as string(12)
 	next_timestamp as dword
 end type
 
