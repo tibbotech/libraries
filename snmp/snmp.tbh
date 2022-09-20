@@ -98,3 +98,4 @@ declare function snmp_initialize(byref password as string, byref contact as stri
 declare sub snmp_receive(byref data as string)
 declare sub snmp_trap_check_digital(channel as byte)
 declare sub snmp_trap_check_analog(channel as byte, floatPart as boolean)
+declare sub snmp_send_trap(byref trapID as string, specific as byte, typeValue as byte, byref value as string, byref objectID as string)
