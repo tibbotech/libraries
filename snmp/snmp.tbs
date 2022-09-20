@@ -1,0 +1,1685 @@
+include "global.tbh"
+
+declare function snmp_get_integer(byref data as string, pos as byte, byref length as byte, byref value as dword, lengthPacket as byte) as boolean
+declare function snmp_get_string(byref data as string, pos as byte, byref length as byte, byref value as string, lengthPacket as byte) as boolean
+declare function snmp_get_command(byref data as string, pos as byte, byref value as byte, lengthPacket as byte) as boolean
+declare function snmp_get_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
+declare function snmp_set_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
+
+dim sock_snmp as byte
+dim sock_trap as byte
+dim requestID as dword
+
+' Settings
+dim snmp_set_enable as boolean
+dim snmp_set_public as string(20)
+dim snmp_set_contact as string(20)
+dim snmp_set_location as string(20)
+
+'	Traps
+dim traps_enable as boolean
+dim traps(4) as trap
+dim trap_receiver as string(12)
+
+function snmp_initialize(byref password as string, byref contact as string, byref location as string) as boolean
+	
+	dim i as byte
+	
+	snmp_set_enable = true
+	snmp_set_public = password			        ' Get SB - SNMP Password 'public' value
+	snmp_set_contact = contact			' Get SC - SNMP Contact value
+	snmp_set_location = location			' Get SL - SNMP Location setting value
+	
+	snmp_initialize = snmp_set_enable
+
+end function
+
+sub snmp_receive(byref data as string)
+	
+	dim length as byte
+	dim value_dw as dword
+	dim value_b as byte
+	dim value_str as string(20)
+	dim lenValue as byte
+	dim pos as byte
+	
+	if len(data) > 0 then 
+		length = len(data)
+		' Check SNMP packet
+		if asc(mid(data, 1, 1)) = SNMP_SEQUENCE then
+			' Yes! SNMP packet detected
+			pos = 2
+			if asc(mid(data, pos, 1)) + 2 = len(data) then
+				' Length packet is correct
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP packet")
+					'modbus_debug_dump(data)
+				#endif
+
+				' Check SNMP version
+				pos = 3
+				if snmp_get_integer(data, pos, lenValue, value_dw, length) = true then
+					pos = pos + 2 + lenValue
+					if value_dw >= 0 and value_dw < 2 then
+						' SNMP version is 1 or 2
+
+						' Check password
+						if snmp_get_string(data, pos, lenValue, value_str, length) = true then
+							if value_str = snmp_set_public then
+								' Password is OK
+								
+								' Check command 
+								pos = pos + 2 + lenValue
+								if snmp_get_command(data, pos, value_b, length) = true then
+									select case value_b
+									case SNMP_GET_REQUEST_PDU:
+										#if DEV_DEBUG_PRINT
+											dev_debugprint("SNMP command SNMP_GET_REQUEST_PDU")
+										#endif
+										
+										snmp_get_command_sequence(data, pos, length)
+									
+									case SNMP_GET_NEXT_REQUEST_PDU:
+										#if DEV_DEBUG_PRINT
+											dev_debugprint("SNMP command SNMP_GET_NEXT_REQUEST_PDU")
+										#endif
+										
+										snmp_get_command_sequence(data, pos, length)
+										
+									case SNMP_GET_RESPONCE_PDU:
+										#if DEV_DEBUG_PRINT
+											dev_debugprint("SNMP command SNMP_GET_RESPONCE_PDU")
+										#endif
+									
+									case SNMP_SET_REQUEST_PDU:
+										#if DEV_DEBUG_PRINT
+											dev_debugprint("SNMP command SNMP_SET_REQUEST_PDU")
+										#endif
+										
+										snmp_set_command_sequence(data, pos, length)
+
+									case else:
+										#if DEV_DEBUG_PRINT
+											dev_debugprint("SNMP command UNKNOWN")
+										#endif
+										
+									end select
+								end if
+								
+							else
+								#if DEV_DEBUG_PRINT
+									dev_debugprint("SNMP wrong password")
+								#endif
+							end if
+						end if
+					else
+						#if DEV_DEBUG_PRINT
+							dev_debugprint("SNMP wrong version")
+						#endif
+					end if
+				end if
+			else
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP packet length is wrong")
+				#endif
+			end if
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP packet is not SEQUENCE type")
+			#endif
+		end if
+	end if
+
+end sub
+
+function snmp_is_integer(byref data as string, pos as byte) as boolean
+
+	if asc(mid(data, pos, 1)) = SNMP_INTEGER then
+		snmp_is_integer = true
+	else
+		snmp_is_integer = false
+	end if
+	
+end function
+
+function snmp_get_integer(byref data as string, pos as byte, byref length as byte, byref value as dword, lengthPacket as byte) as boolean
+	
+	dim _value as dword
+	dim _length as byte
+	dim i as byte
+	
+	_value = 0
+	value = 0
+	length = 0
+	snmp_get_integer = false
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_integer(data, pos) = true then
+			_length = asc(mid(data, pos + 1, 1))
+			if lengthPacket >= pos + 1 + _length then
+				if _length > 0 and _length < 5 then
+					for i = 1 to _length
+						_value = _value * 256
+						_value = _value + asc(mid(data, pos + 1 + i, 1))
+					next i
+
+					value = _value
+					length = _length
+					snmp_get_integer = true
+
+				else
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Integer Value - length is not correct")
+					#endif
+				end if
+			else
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP Integer Value - packet length is not correct")
+				#endif
+			end if
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP Integer Value - type is not correct")
+			#endif
+		end if
+	else
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP Integer Value - packet length is not correct")
+		#endif
+	end if
+
+end function
+
+function snmp_is_string(byref data as string, pos as byte) as boolean
+
+	if asc(mid(data, pos, 1)) = SNMP_OCTET_STRING then
+		snmp_is_string = true
+	else
+		snmp_is_string = false
+	end if
+	
+end function
+
+function snmp_get_string(byref data as string, pos as byte, byref length as byte, byref value as string, lengthPacket as byte) as boolean
+
+	value = ""
+	length = 0
+	snmp_get_string = false
+
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_string(data, pos) = true then
+			length = asc(mid(data, pos + 1, 1))
+			if lengthPacket >= pos + 1 + length then
+				snmp_get_string = true
+				if length > 0 then
+					value = mid(data, pos + 2, length)
+				end if
+			else
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP String Value - packet length is not correct")
+				#endif
+			end if
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP String Value - type is not correct")
+			#endif
+		end if
+	else
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP String Value - packet length is not correct")
+		#endif
+	end if
+
+end function
+
+function snmp_is_command(byref data as string, pos as byte) as boolean
+
+	select case asc(mid(data, pos, 1))
+	case SNMP_GET_REQUEST_PDU:
+		snmp_is_command = true
+
+	case SNMP_GET_NEXT_REQUEST_PDU:
+		snmp_is_command = true
+
+	case SNMP_GET_RESPONCE_PDU:
+		snmp_is_command = true
+
+	case SNMP_SET_REQUEST_PDU:
+		snmp_is_command = true
+
+	case else:
+		snmp_is_command = false
+		
+	end select
+	
+end function
+
+function snmp_get_command(byref data as string, pos as byte, byref value as byte, lengthPacket as byte) as boolean
+
+	value = 0
+	snmp_get_command = false
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_command(data, pos) = true then
+
+			value = asc(mid(data, pos, 1))
+			snmp_get_command = true
+			
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP Command Value - type is not correct")
+			#endif
+		end if
+	else
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP Command Value - packet length is not correct")
+		#endif
+	end if
+
+end function
+
+function snmp_is_objectID(byref data as string, pos as byte) as boolean
+
+	if asc(mid(data, pos, 1)) = SNMP_OBJECT_ID then
+		snmp_is_objectID = true
+	else
+		snmp_is_objectID = false
+	end if
+	
+end function
+
+function snmp_get_objectID(byref data as string, pos as byte, byref length as byte, byref objectID as string, lengthPacket as byte) as boolean
+
+	length = 0
+	snmp_get_objectID = false
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_objectID(data, pos) = true then
+			length = asc(mid(data, pos + 1, 1))
+			if lengthPacket >= pos + 1 + length then
+				snmp_get_objectID = true
+				if length > 0 then
+					objectID = mid(data, pos + 2, length)
+				end if
+			else
+				length = 0
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP Command Value - packet length is not correct")
+				#endif
+			end if
+		else
+			length = 0
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP Command Value - type is not correct")
+			#endif
+		end if
+	else
+		length = 0
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP Command Value - packet length is not correct")
+		#endif
+	end if
+	
+end function
+
+sub snmp_send_error(byref objectID as string)
+
+	dim packet as string
+	
+	packet = chr(&h30) + chr(len(objectID) + 6 + 27)
+				+ chr(&h02) + chr(&h01) + chr(&h00)	
+				+ chr(&h04) + chr(&h06) + "public"
+				+ chr(&ha2) + chr(len(objectID) + 20)
+				+ chr(&h02) + chr(&h04) + chr((requestID shr 24) and &hff) + chr((requestID shr 16) and &hff) + chr((requestID shr 8) and &hff) + chr(requestID and &hff)
+				+ chr(&h02) + chr(&h01) + chr(&h02)	
+				+ chr(&h02) + chr(&h01) + chr(&h01)	
+				+ chr(&h30) + chr(len(objectID) + 6)
+				+ chr(&h30) + chr(len(objectID) + 4)
+				+ chr(&h06) + chr(len(objectID)) + objectID
+				+ chr(&h04) + chr(0)
+	
+	sock.setdata(packet)
+	sock.send()
+	
+end sub
+
+function snmp_integer_to_bin(value as dword) as string(4)
+	
+	if value < 128 then
+		snmp_integer_to_bin = chr(value and &hff)
+	else
+		if value < 32768 then
+			snmp_integer_to_bin = chr((value shr 8) and &hff) + chr(value and &hff)
+		else
+			if value < 65536 then
+				snmp_integer_to_bin = chr((value shr 16) and &hff) + chr((value shr 8) and &hff) + chr(value and &hff)
+			else
+				snmp_integer_to_bin = chr((value shr 24) and &hff) + chr((value shr 16) and &hff) + chr((value shr 8) and &hff) + chr(value and &hff)
+			end if
+		end if
+	end if
+
+end function
+
+function snmp_counter_to_bin(value as dword) as string(4)
+	
+	snmp_counter_to_bin = chr((value shr 24) and &hff) + chr((value shr 16) and &hff) + chr((value shr 8) and &hff) + chr(value and &hff)
+
+end function
+
+sub snmp_send_responce(typeValue as byte, byref value as string, byref objectID as string)
+	
+	dim packet as string
+	
+	packet = chr(&h30) + chr(len(value) + len(objectID) + 6 + 27)
+				+ chr(&h02) + chr(&h01) + chr(&h00)	
+				+ chr(&h04) + chr(&h06) + "public"
+				+ chr(&ha2) + chr(len(value) + len(objectID) + 20)
+				+ chr(&h02) + chr(&h04) + snmp_integer_to_bin(requestID)
+				+ chr(&h02) + chr(&h01) + chr(&h00)	
+				+ chr(&h02) + chr(&h01) + chr(&h00)	
+				+ chr(&h30) + chr(len(value) + len(objectID) + 6)
+				+ chr(&h30) + chr(len(value) + len(objectID) + 4)
+				+ chr(&h06) + chr(len(objectID)) + objectID
+				+ chr(typeValue) + chr(len(value)) + value
+	
+	sock.setdata(packet)
+	sock.send()
+
+end sub
+
+sub snmp_send_trap(byref trapID as string, specific as byte, typeValue as byte, byref value as string, byref objectID as string)
+	
+	dim packet as string
+	dim sock_num as byte
+	dim ip as string(16)
+	
+	sock_num = sock.num
+	
+	sock.num = sock_trap
+	sock.targetinterface = current_interface
+	
+	select case current_interface
+	case PL_SOCK_INTERFACE_NET:
+		ip = net.ip
+	case PL_SOCK_INTERFACE_WLN:
+		ip = wln.ip
+	end select
+	
+	packet = chr(SNMP_SEQUENCE) + chr(len(value) + len(trapID) + len(objectID) + 41)
+				+ chr(SNMP_INTEGER) + chr(&h01) + chr(&h00)											' Version
+				+ chr(SNMP_OCTET_STRING) + chr(&h06) + "public"										' Pass
+				+ chr(SNMP_TRAP_PDU)																' PDU - Trap
+				+ chr(len(trapID) + len(objectID) + 29)												' Len
+				+ chr(SNMP_OBJECT_ID) + chr(len(trapID)) + trapID									' UID
+				+ chr(SNMP_IP_ADDRESS) + chr(&h04) + ddval(net.ip)									' IP Address
+				+ chr(SNMP_INTEGER) + chr(&h01) + chr(&h06)											' Trap Type
+				+ chr(SNMP_INTEGER) + chr(&h01) + chr(specific)										' Trap Specific
+				+ chr(SNMP_TIMETICKS) + chr(&h04) + snmp_counter_to_bin(sys.timercountms / 10)
+				+ chr(SNMP_SEQUENCE) + chr(len(value) + len(objectID) + 4 + 2)
+				+ chr(SNMP_SEQUENCE) + chr(len(value) + len(objectID) + 4)
+				+ chr(SNMP_OBJECT_ID) + chr(len(objectID)) + objectID								' UID
+				+ chr(typeValue) + chr(len(value)) + value
+	
+	sock.setdata(packet)
+	sock.send()
+	sock.connect
+	
+	sock.num= sock_num
+
+end sub
+
+sub snmp_trap_check_digital(channel as byte)
+	
+	dim i as byte
+	
+	' if traps_enable = true then
+	' 	for i = 0  to 3
+	' 		if traps(i).enable = true and traps(i).channel = channel then
+	' 			if traps(i).ttype = TrapDigital then
+	' 				if traps(i).dtype = TrapDigitalRise then		' Rise
+	' 					if param_io(channel).io_state = LOW and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if param_io(channel).io_state = HIGH and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				else											' Edge
+	' 					if param_io(channel).io_state = HIGH and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if param_io(channel).io_state = LOW and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+	' 			end if
+	' 			if traps(i).ttype = TrapCounter then
+	' 				if io_cn(channel).counter >= traps(i).counter_limit then	' Counter Limit Fire
+	' 					snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, str(io_cn(channel).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 				end if
+	' 			end if
+	' 		end if
+	' 	next i
+	' end if
+	
+end sub
+
+sub snmp_trap_check_analog(channel as byte, floatPart as boolean)
+
+	dim i as byte
+	
+	' if traps_enable = true then
+	' 	for i = 0  to 3
+	' 		if traps(i).enable = true and traps(i).channel = channel then
+	' 			if traps(i).ttype = TrapAnalog then
+	' 				if traps(i).atype = TrapAnalogBelow then		' Below
+	' 					if analog_float_values(channel) < traps(i).analog_limit1 and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if analog_float_values(channel) >= traps(i).analog_limit1 and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+
+	' 				if traps(i).atype = TrapAnalogAbove then		' Above
+	' 					if analog_float_values(channel) > traps(i).analog_limit1 and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if analog_float_values(channel) <= traps(i).analog_limit1 and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+					
+	' 				if traps(i).atype = TrapAnalogBetween then		' Between
+	' 					if analog_float_values(channel) > traps(i).analog_limit1 and analog_float_values(channel) < traps(i).analog_limit2 and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if (analog_float_values(channel) <= traps(i).analog_limit1 or analog_float_values(channel) >= traps(i).analog_limit2) and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+					
+	' 				if traps(i).atype = TrapAnalogOutOfRange then		' Out Of Range
+	' 					if (analog_float_values(channel) < traps(i).analog_limit1 or analog_float_values(channel) > traps(i).analog_limit2) and traps(i).fired = NO then	'Need TRAP
+	' 						traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if (analog_float_values(channel) >= traps(i).analog_limit1 and analog_float_values(channel) <= traps(i).analog_limit2) and traps(i).fired = YES then	'Need reset TRAP
+	' 						traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+	' 			end if
+	' 		end if
+	' 	next i
+	' end if
+	
+end sub
+
+sub snmp_serial_speed(value as byte, index as byte)
+	
+	dim spd as long
+	
+	' select case value
+	' case BR_1200:
+	' 	spd = 1200
+	' case BR_2400:
+	' 	spd = 2400
+	' case BR_4800:
+	' 	spd = 4800
+	' case BR_9600:
+	' 	spd = 9600
+	' case BR_19200:
+	' 	spd = 19200
+	' case BR_38400:
+	' 	spd = 38400
+	' case BR_57600:
+	' 	spd = 57600
+	' case BR_115200:
+	' 	spd = 115200
+	' case BR_150:
+	' 	spd = 150
+	' case BR_300:
+	' 	spd = 300
+	' case BR_600:
+	' 	spd = 600
+	' case BR_28800:
+	' 	spd = 28800
+	' case BR_230400:
+	' 	spd = 230400
+	' case BR_460800:
+	' 	spd = 460800
+	' case else:
+	' 	spd = 0
+	' end select
+
+	snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(spd), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h05) + chr(index))
+
+end sub
+
+function snmp_interface(byref objectID as string) as boolean
+
+	dim index as byte
+
+	snmp_interface = false
+	
+	if len(objectID) = 2 then
+		index = asc(mid(objectID, 2, 1))
+		
+		if (index <= SNMP_INTERFACE_COUNT_VALUE) and (index > 0) then
+			select case left(objectID, 1)
+			case chr(&h01):			' IfIndex
+				snmp_interface = true
+				snmp_send_responce(SNMP_INTEGER, chr(index), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h01) + chr(index))
+
+			case chr(&h02):			' IfDescr
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo Ethernet", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+				
+				case 2:					' WiFi
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo WiFi", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+				
+				case 3:					' GPRS
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo GPRS", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+
+				case 4:					' Serial 1
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo Serial 1", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+
+				case 5:
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo Serial 2", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+				
+				case 6:
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo Serial 3", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+				
+				case 7:
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "Tibbo Serial 4", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h02) + chr(index))
+				
+				end select
+
+			case chr(&h03):			' IfType
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(6), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 2:					' WiFi
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(6), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 3:					' GPRS
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(48), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 4:					' Serial 1
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(33), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 5:					' Serial 2
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(33), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 6:					' Serial 3
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(33), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				case 7:					' Serial 4
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, chr(33), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h03) + chr(index))
+
+				end select
+				
+			case chr(&h04):			' IfMTU
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1500), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 2:					' WiFi
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1500), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 3:					' GPRS
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 4:					' Serial 1
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 5:					' Serial 2
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 6:					' Serial 3
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				case 7:					' Serial 4
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h04) + chr(index))
+					
+				end select
+
+			case chr(&h05):			' IfSpeed
+				' select case index
+				' case 1:					' Ethernet
+				' 	snmp_interface = true
+				' 	snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h05) + chr(index))
+					
+				' case 2:					' WiFi
+				' 	snmp_interface = true
+				' 	snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h05) + chr(index))
+					
+				' case 3:					' GPRS
+				' 	snmp_interface = true
+				' 	snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h05) + chr(index))
+					
+				' case 4:					' Serial 1
+				' 	snmp_interface = true
+				' 	snmp_serial_speed(val(stg_get("BR", index - 4)), index)
+					
+				' case 5:					' Serial 2
+				' 	snmp_interface = true
+				' 	snmp_serial_speed(val(stg_get("BR", index - 4)), index)
+					
+				' case 6:					' Serial 3
+				' 	snmp_interface = true
+				' 	snmp_serial_speed(val(stg_get("BR", index - 4)), index)
+					
+				' case 7:					' Serial 4
+				' 	snmp_interface = true
+				' 	snmp_serial_speed(val(stg_get("BR", index - 4)), index)
+					
+				' end select
+
+			case chr(&h06):			' IfPhysAddress
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, net.mac, SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				case 2:					' WiFi
+					snmp_interface = true
+					#if WLN_AVAILABLE
+						snmp_send_responce(SNMP_OCTET_STRING, wln.mac, SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+					#else
+						snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+					#endif
+
+				case 3:					' GPRS
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				case 4:					' Serial 1
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				case 5:					' Serial 2
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				case 6:					' Serial 3
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				case 7:					' Serial 4
+					snmp_interface = true
+					snmp_send_responce(SNMP_OCTET_STRING, "", SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h06) + chr(index))
+
+				end select
+
+			case chr(&h07):			' IfAdminStatus
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+
+				case 2:					' WiFi
+					snmp_interface = true
+					' #if WLN_AVAILABLE
+					' 	if param_we <> WE_DISABLED then
+					' 		snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+					' 	else
+					' 		snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+					' 	end if
+					' #else
+					' 	snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+					' #endif
+
+				case 3:					' GPRS
+'					snmp_interface = true
+'					if param_ge <> GE_DISABLED then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					end if
+
+				case 4:					' Serial 1
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					end if
+
+				case 5:					' Serial 2
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					end if
+
+				case 6:					' Serial 3
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					end if
+
+				case 7:					' Serial 4
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h07) + chr(index))
+'					end if
+
+				end select
+
+			case chr(&h08):			' IfOperStatus
+				select case index
+				case 1:					' Ethernet
+					snmp_interface = true
+					if net.linkstate = PL_NET_LINKSTAT_NOLINK then
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+					end if
+
+				case 2:					' WiFi
+					snmp_interface = true
+					#if WLN_AVAILABLE
+						if wln.associationstate = PL_WLN_NOT_ASSOCIATED then
+							snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+						else
+							snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+						end if
+					#else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+					#endif
+
+				case 3:					' GPRS
+'					snmp_interface = true
+'					if gprs_connected = NO then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					end if
+
+				case 4:					' Serial 1
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					end if
+
+				case 5:					' Serial 2
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					end if
+
+				case 6:					' Serial 3
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					end if
+
+				case 7:					' Serial 4
+'					snmp_interface = true
+'					if port_in_use(index - 4) = YES then
+'						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(1), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					else
+						snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(2), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h08) + chr(index))
+'					end if
+
+				end select
+
+			case chr(&h09):			' IfLastChange
+				snmp_interface = true
+				snmp_send_responce(SNMP_TIMETICKS, chr(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h09) + chr(index))
+
+			case chr(&h0a):			' IfInOctets
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0a) + chr(index))
+
+			case chr(&h0b):			' IfInUcastPkts
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0b) + chr(index))
+
+			case chr(&h0c):			' IfInNUcastPkts
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0c) + chr(index))
+
+			case chr(&h0d):			' IfInDiscards
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0d) + chr(index))
+
+			case chr(&h0e):			' IfInErrors
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0e) + chr(index))
+
+			case chr(&h0f):			' IfInUnknownProtos
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h0f) + chr(index))
+
+			case chr(&h10):			' IfOutOctets
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h10) + chr(index))
+
+			case chr(&h11):			' IfOutUcastPkts
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h11) + chr(index))
+
+			case chr(&h12):			' IfOutNUcastPkts
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h12) + chr(index))
+
+			case chr(&h13):			' IfOutDiscards
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h13) + chr(index))
+
+			case chr(&h14):			' IfOutErrors
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h14) + chr(index))
+
+			case chr(&h15):			' IfOutQLen
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h15) + chr(index))
+
+			case chr(&h16):			' IfSpecific
+				snmp_interface = true
+				snmp_send_responce(SNMP_COUNTER, snmp_integer_to_bin(0), SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h16) + chr(index))
+				
+			end select
+		end if
+	end if
+	
+end function
+
+function snmp_TibboSockets(byref objectID as string) as boolean
+
+	dim index as byte
+
+	snmp_TibboSockets = false
+	
+	if len(objectID) = 2 then
+		index = asc(mid(objectID, 2, 1))
+		
+		if (index <= SNMP_TIBBO_SLOT_COUNT_VALUE) and (index > 0) then
+			select case left(objectID, 1)
+			case chr(&h01):			' IfIndex
+				snmp_TibboSockets = true
+				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(index), SNMP_TIBBO_SLOT_TABLE_ROOT + chr(&h01) + chr(index))
+
+			case chr(&h02):			' IfTypeSocket
+				' snmp_TibboSockets = true
+				' snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_st(index - 1)), SNMP_TIBBO_SLOT_TABLE_ROOT + chr(&h02) + chr(index))
+				
+			end select
+		end if
+	end if
+	
+end function
+
+function snmp_TibboPins(byref objectID as string) as boolean
+
+	dim index as byte
+	dim socket as byte
+	dim pin as byte
+
+	snmp_TibboPins = false
+	
+	' if len(objectID) = 2 then
+	' 	index = asc(mid(objectID, 2, 1))
+		
+	' 	if (index <= SNMP_TIBBO_PIN_COUNT_VALUE) and (index > 0) then
+
+	' 		socket = io_get_slot(index - 1) + 1
+	' 		pin = io_get_pin(index - 1) + 1
+	
+	' 		select case left(objectID, 1)
+	' 		case chr(&h01):			' IfIndex
+	' 			snmp_TibboPins = true
+	' 			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(index), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h01) + chr(index))
+			
+	' 		case chr(&h02):			' Socket Number
+	' 			snmp_TibboPins = true
+	' 			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(socket), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h02) + chr(index))
+			
+	' 		case chr(&h03):			' Pin Number In Socket
+	' 			snmp_TibboPins = true
+	' 			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(pin), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h03) + chr(index))
+
+	' 		case chr(&h04):			' IfTypeSocket
+	' 			snmp_TibboPins = true
+	' 			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_st(socket - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h04) + chr(index))
+				
+	' 		case chr(&h05)			' Value Integer(Bool)	(Pulse for #16, #17)
+	' 			select case (param_st(socket - 1))
+	' 			case SLOT_EMPTY:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_SERIAL_01:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_SERIAL_02:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_SERIAL_05:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IOD_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IOD_3:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IOD_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_ID_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_ID_3:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_ID_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_OD_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_OD_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_OD_1:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(param_io(index - 1).io_state), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IA_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IA_RTD:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IA_52:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_IA_53:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_OA_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_OA_3:			' #16, #17
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_pwm_pulse(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			case SLOT_DP:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_values(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(index))
+					
+	' 			end select
+
+	' 		case chr(&h06)			' Value Float (Period for #16, #17)
+	' 			snmp_TibboPins = true
+	' 			select case (param_st(socket - 1))
+	' 			case SLOT_EMPTY:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_SERIAL_01:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_SERIAL_02:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_SERIAL_05:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IOD_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IOD_3:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IOD_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_ID_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_ID_3:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_ID_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(io_cn(index - 1).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_OD_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_OD_2:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_OD_1:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IA_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IA_RTD:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(FloatToDWord(analog_float_values(index - 1))), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IA_52:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(FloatToDWord(analog_float_values(index - 1))), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_IA_53:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(FloatToDWord(analog_float_values(index - 1))), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_OA_4:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_OA_3:			' #16, #17
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(analog_pwm_period(index - 1)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			case SLOT_DP:
+	' 				snmp_TibboPins = true
+	' 				snmp_send_responce(SNMP_INTEGER, chr(0), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h06) + chr(index))
+					
+	' 			end select
+	' 		end select
+	' 	end if
+	' end if
+	
+end function
+
+sub snmp_next_objectID(byref objectID as string)
+	
+	dim interface as string(5)
+	dim x, y as byte
+
+	if len(objectID) < 5 then
+		objectID = SNMP_OBJECT_SYSDESC
+	else
+		if objectID = SNMP_OBJECT_MIB2_ROOT then
+			objectID = SNMP_OBJECT_SYSDESC
+		else
+			if objectID = SNMP_OBJECT_SYSTEM_ROOT then
+				objectID = SNMP_OBJECT_SYSDESC
+			else
+				select case objectID
+				case SNMP_OBJECT_SYSDESC:						' .1.3.6.1.2.1.1.1.0 Description
+					objectID = SNMP_OBJECT_SYSOBJECTID
+				case SNMP_OBJECT_SYSOBJECTID:					' .1.3.6.1.2.1.1.2.0 Object ID
+					objectID = SNMP_OBJECT_SYSUPTIME
+				case SNMP_OBJECT_SYSUPTIME:						' .1.3.6.1.2.1.1.3.0 UpTime System
+					objectID = SNMP_OBJECT_SYSCONTACT
+				case SNMP_OBJECT_SYSCONTACT:					' .1.3.6.1.2.1.1.4.0 Contact
+					objectID = SNMP_OBJECT_SYSNAME
+				case SNMP_OBJECT_SYSNAME:						' .1.3.6.1.2.1.1.5.0 Name
+					objectID = SNMP_OBJECT_SYSLOCATION
+				case SNMP_OBJECT_SYSLOCATION:					' .1.3.6.1.2.1.1.6.0 Location
+					objectID = SNMP_OBJECT_SYSSERVICES
+				case SNMP_OBJECT_SYSSERVICES:					' .1.3.6.1.2.1.1.7.0 Services
+					objectID = SNMP_OBJECT_INTERFACE_COUNT
+				
+				' Interface table
+				case SNMP_OBJECT_INTERFACE_ROOT:
+					objectID = SNMP_OBJECT_INTERFACE_COUNT
+				case SNMP_OBJECT_INTERFACE_COUNT:
+					objectID = SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h01) + chr(&h01)
+				case SNMP_OBJECT_INTERFACE_TABLE:
+					objectID = SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h01) + chr(&h01)
+				
+				'Tibbo tables
+				case SNMP_TIBBO:
+					objectID = SNMP_TIBBO_SLOT_COUNT
+				case SNMP_TIBBO_SLOT_ROOT:
+					objectID = SNMP_TIBBO_SLOT_COUNT
+				case SNMP_TIBBO_SLOT_COUNT:
+					objectID = SNMP_TIBBO_SLOT_TABLE_ROOT + chr(&01) + chr(&01)
+				case SNMP_TIBBO_SLOT_TABLE:
+					objectID = SNMP_TIBBO_SLOT_TABLE_ROOT + chr(&01) + chr(&01)
+					
+				case SNMP_TIBBO_PIN_ROOT:
+					objectID = SNMP_TIBBO_PIN_COUNT
+				case SNMP_TIBBO_PIN_COUNT:
+					objectID = SNMP_TIBBO_PIN_TABLE_ROOT + chr(&01) + chr(&01)
+				case SNMP_TIBBO_PIN_TABLE:
+					objectID = SNMP_TIBBO_PIN_TABLE_ROOT + chr(&01) + chr(&01)
+					
+				case else:
+					if left(objectID, len(SNMP_OBJECT_INTERFACE_ROOT)) = SNMP_OBJECT_INTERFACE_ROOT then
+						interface = right(objectID, len(objectID) - len(SNMP_OBJECT_INTERFACE_TABLE_ROOT))
+						if len(interface) > 2 then 
+							objectID = SNMP_TIBBO_SLOT_COUNT
+						else
+							if len(interface) < 2 then 
+								objectID = SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(&h01) + chr(&h01)
+							else
+								x = asc(left(interface, 1))
+								y = asc(right(interface, 1))
+								
+								y = y + 1
+								if y > SNMP_INTERFACE_COUNT_VALUE then
+									y = 1
+									x = x + 1
+									if x > &h16 then
+										objectID = SNMP_TIBBO_SLOT_COUNT
+										
+									else
+										objectID = SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(x) + chr(y)
+									end if
+								else
+									objectID = SNMP_OBJECT_INTERFACE_TABLE_ROOT + chr(x) + chr(y)
+								end if
+							end if
+						end if
+					else
+						if left(objectID, len(SNMP_TIBBO_SLOT_TABLE_ROOT)) = SNMP_TIBBO_SLOT_TABLE_ROOT then
+							interface = right(objectID, len(objectID) - len(SNMP_TIBBO_SLOT_TABLE_ROOT))
+							if len(interface) > 2 then 
+								objectID = SNMP_OBJECT_AT			' End 
+							else
+								if len(interface) < 2 then 
+									objectID = SNMP_TIBBO_SLOT_TABLE_ROOT + chr(&h01) + chr(&h01)
+								else
+									x = asc(left(interface, 1))
+									y = asc(right(interface, 1))
+									
+									y = y + 1
+									if y > SNMP_TIBBO_SLOT_COUNT_VALUE then
+										y = 1
+										x = x + 1
+										if x > &h02 then
+											objectID = SNMP_TIBBO_PIN_COUNT
+										else
+											objectID = SNMP_TIBBO_SLOT_TABLE_ROOT + chr(x) + chr(y)
+										end if
+									else
+										objectID = SNMP_TIBBO_SLOT_TABLE_ROOT + chr(x) + chr(y)
+									end if
+								end if
+							end if
+						else
+							if left(objectID, len(SNMP_TIBBO_PIN_TABLE_ROOT)) = SNMP_TIBBO_PIN_TABLE_ROOT then
+								interface = right(objectID, len(objectID) - len(SNMP_TIBBO_PIN_TABLE_ROOT))
+								if len(interface) > 2 then 
+									objectID = SNMP_OBJECT_AT			' End 
+								else
+									if len(interface) < 2 then 
+										objectID = SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h01) + chr(&h01)
+									else
+										x = asc(left(interface, 1))
+										y = asc(right(interface, 1))
+										
+										y = y + 1
+										if y > SNMP_TIBBO_PIN_COUNT_VALUE then
+											y = 1
+											x = x + 1
+											if x > &h06 then
+												objectID = SNMP_OBJECT_AT		' End
+											else
+												objectID = SNMP_TIBBO_PIN_TABLE_ROOT + chr(x) + chr(y)
+											end if
+										else
+											objectID = SNMP_TIBBO_PIN_TABLE_ROOT + chr(x) + chr(y)
+										end if
+									end if
+								end if
+							else
+								objectID = SNMP_OBJECT_AT		' End
+							end if
+						end if
+					end if
+				end select
+			end if
+		end if
+	end if
+end sub
+
+function snmp_operate_objectID(byref data as string, pos as byte, lengthPacket as byte, isNext as boolean) as boolean
+
+	dim objectID as string(24)
+	dim lengthObjectID as byte
+	
+	snmp_operate_objectID = false
+	objectID = ""
+
+	' Check Object ID 
+	if snmp_get_objectID(data, pos, lengthObjectID, objectID, lengthPacket) = true then
+		
+		if isNext = true then
+			snmp_next_objectID(objectID)
+		end if
+		
+		select case objectID
+		case SNMP_OBJECT_SYSDESC:		' .1.3.6.1.2.1.1.1.0 Description
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_OCTET_STRING, SNMP_SET_DESCRIPTION, SNMP_OBJECT_SYSDESC)
+			
+		case SNMP_OBJECT_SYSOBJECTID:
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_OBJECT_ID, SNMP_SET_OBJECTID, SNMP_OBJECT_SYSOBJECTID)
+			
+		case SNMP_OBJECT_SYSUPTIME:	' .1.3.6.1.2.1.1.3.0 UpTime System
+			snmp_operate_objectID = true
+			#if PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				snmp_send_responce(SNMP_TIMETICKS, snmp_integer_to_bin(sys.timercountms / 10), SNMP_OBJECT_SYSUPTIME)
+			#else
+				snmp_send_responce(SNMP_TIMETICKS, snmp_integer_to_bin(sys.timercount * 500), SNMP_OBJECT_SYSUPTIME)
+			#endif
+		
+		case SNMP_OBJECT_SYSCONTACT:	' .1.3.6.1.2.1.1.4.0 Contact
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_OCTET_STRING, snmp_set_contact, SNMP_OBJECT_SYSCONTACT)
+		
+		case SNMP_OBJECT_SYSNAME:		' .1.3.6.1.2.1.1.5.0 Name
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_OCTET_STRING, SNMP_SET_SYSNAME, SNMP_OBJECT_SYSNAME)
+
+		case SNMP_OBJECT_SYSLOCATION:	' .1.3.6.1.2.1.1.6.0 Location
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_OCTET_STRING, snmp_set_location, SNMP_OBJECT_SYSLOCATION)
+		
+		case SNMP_OBJECT_SYSSERVICES:	' .1.3.6.1.2.1.1.7.0 Services
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_INTEGER, chr(72), SNMP_OBJECT_SYSSERVICES)
+		
+		case SNMP_OBJECT_INTERFACE_COUNT:	' .1.3.6.1.2.1.2.1.0 Interface Count
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(SNMP_INTERFACE_COUNT_VALUE), SNMP_OBJECT_INTERFACE_COUNT)
+			
+		case SNMP_TIBBO_SLOT_COUNT:		' .1.3.6.1.4.1.20738.2.1.1.0 Tibbo Socket Count
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(SNMP_TIBBO_SLOT_COUNT_VALUE), SNMP_TIBBO_SLOT_COUNT)
+		
+		case SNMP_TIBBO_PIN_COUNT:		' .1.3.6.1.4.1.20738.2.2.1.0 Tibbo Pin Count
+			snmp_operate_objectID = true
+			snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(SNMP_TIBBO_PIN_COUNT_VALUE), SNMP_TIBBO_PIN_COUNT)
+		
+		end select
+
+		if snmp_operate_objectID = false then
+			' Check dynamic object
+			' Table Interfaces
+			if len(SNMP_OBJECT_INTERFACE_TABLE_ROOT) <= len(objectID) then
+				if left(objectID, len(SNMP_OBJECT_INTERFACE_TABLE_ROOT)) = SNMP_OBJECT_INTERFACE_TABLE_ROOT then	' interface Root
+					snmp_operate_objectID = snmp_interface(right(objectID, len(objectID) - len(SNMP_OBJECT_INTERFACE_TABLE_ROOT)))
+				end if
+			end if
+			
+			'Table Tibbo 
+			if len(SNMP_TIBBO_SLOT_TABLE_ROOT) <= len(objectID) then
+				if left(objectID, len(SNMP_TIBBO_SLOT_TABLE_ROOT)) = SNMP_TIBBO_SLOT_TABLE_ROOT then	' Tibbo Socket Table Root
+					snmp_operate_objectID = snmp_TibboSockets(right(objectID, len(objectID) - len(SNMP_TIBBO_SLOT_TABLE_ROOT)))
+				end if
+			end if
+
+			if len(SNMP_TIBBO_PIN_TABLE_ROOT) <= len(objectID) then
+				if left(objectID, len(SNMP_TIBBO_PIN_TABLE_ROOT)) = SNMP_TIBBO_PIN_TABLE_ROOT then	' Tibbo Pin Table Root
+					snmp_operate_objectID = snmp_TibboPins(right(objectID, len(objectID) - len(SNMP_TIBBO_PIN_TABLE_ROOT)))
+				end if
+			end if
+		end if
+	end if
+	
+	if snmp_operate_objectID = false then
+		snmp_operate_objectID = true
+		snmp_send_error(objectID)
+	end if
+
+end function
+
+function snmp_operate_set_objectID(byref objectID as string, lengthObjectID as byte, setValue as word) as boolean
+
+	dim pin as byte
+	dim entry as byte
+	dim socket as byte
+	
+	snmp_operate_set_objectID = false
+
+
+	if len(SNMP_TIBBO_PIN_TABLE_ROOT) <= len(objectID) then
+		if left(objectID, len(SNMP_TIBBO_PIN_TABLE_ROOT)) = SNMP_TIBBO_PIN_TABLE_ROOT then	' Tibbo Pin Table Root
+			' operate Pins table
+			' Get Number Pin and Number Value
+			entry = asc(mid(objectID, len(SNMP_TIBBO_PIN_TABLE_ROOT) + 1, 1))
+			pin = asc(mid(objectID, len(SNMP_TIBBO_PIN_TABLE_ROOT) + 2, 1)) - 1
+			
+			' Calc Socket number
+			' socket = io_get_slot(pin)
+			
+			' ' Check Tibbit type
+			' select case (param_st(socket))
+			' case SLOT_IOD_4:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_IOD_3:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_IOD_2:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_OD_4:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_OD_2:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_OD_1:
+			' 	if entry = 5 then
+			' 		if io_set(pin, setValue) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' case SLOT_OA_4:
+			' 	if entry = 5 then
+			' 		if analog_set(pin, setValue, false) = true then snmp_operate_set_objectID = true
+			' 	end if
+
+			' case SLOT_OA_3:		' #16, #17
+			' 	if entry = 5 then		' Pulse PWM
+			' 		if analog_set(pin, setValue, false) = true then snmp_operate_set_objectID = true
+			' 	else
+			' 		if entry = 6 then	' Period PWM 
+			' 			if analog_set(pin, setValue, true) = true then snmp_operate_set_objectID = true
+			' 		end if
+			' 	end if
+				
+			' case SLOT_DP:
+			' 	if entry = 5 then
+			' 		if analog_set(pin, setValue, false) = true then snmp_operate_set_objectID = true
+			' 	end if
+				
+			' end select
+			
+		end if
+	end if
+	
+	if snmp_operate_set_objectID = false then
+		snmp_operate_set_objectID = true
+		snmp_send_error(objectID)
+	else
+		snmp_send_responce(SNMP_INTEGER, snmp_integer_to_bin(setValue), objectID)
+	end if
+
+end function
+
+function snmp_get_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
+	
+	dim lenID as byte
+	dim lenError as byte
+	dim valueError as dword
+	dim lenErrIndex as byte
+	dim valueErrIndex as dword
+	dim isNext as boolean
+	dim objectID as string(64)
+
+	isNext = false
+	
+	' Check command sequence
+	snmp_get_command_sequence = false
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_command(data, pos) = true then
+
+			if (asc(mid(data, pos, 1)) = SNMP_GET_REQUEST_PDU) or (asc(mid(data, pos, 1)) = SNMP_GET_NEXT_REQUEST_PDU) then
+				if asc(mid(data, pos, 1)) = SNMP_GET_NEXT_REQUEST_PDU then
+					isNext = true
+				end if
+				
+				' Check integer ID
+				if snmp_get_integer(data, pos + 2, lenID, requestID, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - ID value is not correct")
+					#endif
+				end if
+				
+				' Check integer Error
+				if snmp_get_integer(data, pos + 4 + lenID, lenError, valueError, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Error value is not correct")
+					#endif
+				end if
+				
+				' Check integer Error index
+				if snmp_get_integer(data, pos + 6 + lenID + lenError, lenErrIndex, valueErrIndex, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Error index value is not correct")
+					#endif
+				end if
+
+				' Check Sequence
+				if asc(mid(data, pos + 8 + lenID + lenError + lenErrIndex, 1)) <> SNMP_SEQUENCE then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Sequence value is not correct")
+					#endif
+				end if
+				
+				if asc(mid(data, pos + 10 + lenID + lenError + lenErrIndex, 1)) <> SNMP_SEQUENCE then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Sequence value is not correct")
+					#endif
+				end if
+				
+				' Get object ID
+				if asc(mid(data, pos + 12 + lenID + lenError + lenErrIndex, 1)) <> SNMP_OBJECT_ID then
+					
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Object ID value is not correct")
+					#endif
+				end if
+				
+				'Operate Object ID
+				if snmp_operate_objectID(data, pos + 12 + lenID + lenError + lenErrIndex, lengthPacket, isNext) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Object ID value is not operate")
+					#endif
+				end if
+				
+			else
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP Command Sequence Value - type is not correct")
+				#endif
+			end if
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP Command Sequence Value - type is not correct")
+			#endif
+		end if
+	else
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP Command Sequence Value - packet length is not correct")
+		#endif
+	end if
+	
+	
+end function
+
+function snmp_set_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
+	
+	dim lenID as byte
+	dim lenError as byte
+	dim lenObjectID as byte
+	dim valueError as dword
+	dim lenErrIndex as byte
+	dim valueErrIndex as dword
+	dim isNext as boolean
+	dim objectID as string(64)
+	dim setValue as dword
+
+	isNext = false
+	
+	' Check command sequence
+	snmp_set_command_sequence = false
+
+	if lengthPacket >= pos + 1 then
+		if snmp_is_command(data, pos) = true then
+
+			if asc(mid(data, pos, 1)) = SNMP_SET_REQUEST_PDU then
+				
+				' Check integer ID
+				if snmp_get_integer(data, pos + 2, lenID, requestID, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - ID value is not correct")
+					#endif
+				end if
+				
+				' Check integer Error
+				if snmp_get_integer(data, pos + 4 + lenID, lenError, valueError, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Error value is not correct")
+					#endif
+				end if
+				
+				' Check integer Error index
+				if snmp_get_integer(data, pos + 6 + lenID + lenError, lenErrIndex, valueErrIndex, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Error index value is not correct")
+					#endif
+				end if
+
+				' Check Sequence
+				if asc(mid(data, pos + 8 + lenID + lenError + lenErrIndex, 1)) <> SNMP_SEQUENCE then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Sequence value is not correct")
+					#endif
+				end if
+				
+				if asc(mid(data, pos + 10 + lenID + lenError + lenErrIndex, 1)) <> SNMP_SEQUENCE then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Sequence value is not correct")
+					#endif
+				end if
+				
+				' Check ObjectID
+				if asc(mid(data, pos + 12 + lenID + lenError + lenErrIndex, 1)) <> SNMP_OBJECT_ID then
+					
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Object ID value is not correct")
+					#endif
+				end if
+
+				'Get ObjectID
+				if snmp_get_objectID(data, pos + 12 + lenID + lenError + lenErrIndex, lenObjectID, ObjectID, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Object ID value is not correct")
+					#endif
+				end if
+
+				' Get value for set
+				if snmp_get_integer(data, pos + 14 + lenID + lenError + lenErrIndex + lenObjectID, lenErrIndex, setValue, lengthPacket) = false then
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Error Set value is not correct")
+					#endif
+				end if
+				
+				'Operate ObjectID
+				if snmp_operate_set_objectID(ObjectID, lenObjectID, setValue) = true then
+					snmp_set_command_sequence = true
+				else
+					#if DEV_DEBUG_PRINT
+						dev_debugprint("SNMP Command Sequence Value - Object ID set value is not operate")
+					#endif
+				end if
+				
+			else
+				#if DEV_DEBUG_PRINT
+					dev_debugprint("SNMP Command Sequence Value - type is not correct")
+				#endif
+			end if
+		else
+			#if DEV_DEBUG_PRINT
+				dev_debugprint("SNMP Command Sequence Value - type is not correct")
+			#endif
+		end if
+	else
+		#if DEV_DEBUG_PRINT
+			dev_debugprint("SNMP Command Sequence Value - packet length is not correct")
+		#endif
+	end if
+	
+	
+end function
