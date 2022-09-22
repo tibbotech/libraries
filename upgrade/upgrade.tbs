@@ -1,5 +1,4 @@
 include "global.tbh"
-include "upgrade.tbh"
 
 dim upload_started as boolean = false
 dim current_fw_upg_state as pl_upg_state_t
