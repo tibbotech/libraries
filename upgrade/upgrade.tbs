@@ -6,6 +6,7 @@ dim isBtConnected as boolean = false
 dim fw_buffer as string(128)=""
 dim pattern_timer as dword = sys.timercount32
 dim led_detect_timer as byte
+dim upgrade_socket_number as socket_assignment
 
 
 sub device_firmware_init(source as PL_FW_UPG_SOURCE, number as byte)
@@ -33,6 +34,32 @@ sub device_firmware_init(source as PL_FW_UPG_SOURCE, number as byte)
 	
 end sub
 
+' sub led_upgrade_pattern()
+
+' 	if sys.timercount32-pattern_timer>=1 then
+' 		if led_detect_timer<4 then
+' 			led_detect_timer=led_detect_timer+1
+' 		else
+' 			led_detect_timer=0
+' 		end if
+' 		pattern_timer = sys.timercount32
+' 	end if
+	
+' 	select case led_detect_timer
+' 	case 0:
+' 		set_LED(&b00001)
+' 	case 1:
+' 		set_LED(&b00010)
+' 	case 2:
+' 		set_LED(&b00100)
+' 	case 3:
+' 		set_LED(&b01000)
+' 	case 4:
+' 		set_LED(&b10000)
+' 	end select	
+
+' end sub
+
 function hex_mac(mac as string) as string
 	dim i as integer = 0
 	dim startpos as integer = 1
@@ -59,13 +86,14 @@ sub device_firmware_download_init()
 
 select case current_fw_upg_state.source
 	case PL_FW_UPG_BLE:
-		device_firmware_download_init_ble()
 		current_fw_upg_state.state = PL_FW_READ_HEADER	
 	case PL_FW_UPG_WEB:
 		current_fw_upg_state.state = PL_FW_READ_HEADER
 	case PL_FW_UPG_SOCK:
 		current_fw_upg_state.state = PL_FW_READ_HEADER
 	case PL_FW_UPG_SER:
+		current_fw_upg_state.state = PL_FW_READ_HEADER
+	case PL_FW_UPG_HTTP:
 		current_fw_upg_state.state = PL_FW_READ_HEADER
 	case else:
 		current_fw_upg_state.fw_fail_reason = PL_FW_FAIL_SOURCE_UNKNOWN
@@ -105,7 +133,7 @@ sub init_receive_socket(receive_interface as string)
 
 	dim prevsock as byte=sock.num
 	
-	sock.num=socket_number.upgrade_socket 'Receiving Socket
+	sock.num=upgrade_socket_number.upgrade_socket 'Receiving Socket
 	if receive_interface="wifi" then
 		sock.targetinterface=PL_SOCK_INTERFACE_WLN
 	else if receive_interface="ethernet" then
@@ -261,8 +289,8 @@ end sub
 
 function device_firmware_upload_update() as no_yes
 	
-	pat.play(PAT_GREEN_ON,PL_PAT_CANINT)
-	led_upgrade_pattern()
+	pat.play("G~",PL_PAT_CANINT)
+	' led_upgrade_pattern()
 	device_firmware_upload_update = YES
 	select case current_fw_upg_state.state
 		case PL_FW_UPG__INIT:
@@ -287,33 +315,7 @@ function device_firmware_upload_update() as no_yes
 	
 end function
 
-sub led_upgrade_pattern()
-
-	if sys.timercount32-pattern_timer>=1 then
-		if led_detect_timer<4 then
-			led_detect_timer=led_detect_timer+1
-		else
-			led_detect_timer=0
-		end if
-		pattern_timer = sys.timercount32
-	end if
-	
-	select case led_detect_timer
-	case 0:
-		set_LED(&b00001)
-	case 1:
-		set_LED(&b00010)
-	case 2:
-		set_LED(&b00100)
-	case 3:
-		set_LED(&b01000)
-	case 4:
-		set_LED(&b10000)
-	end select	
-
-end sub
-
-public function device_firmware_upload_async(source as PL_FW_UPG_SOURCE, number as byte) as no_yes	
+function device_firmware_upload_async(source as PL_FW_UPG_SOURCE, number as byte) as no_yes	
 	
 	device_firmware_init(source, number) 'Move parameters below into firmware init
  	device_firmware_upload_async=device_firmware_upload_update()
@@ -338,3 +340,153 @@ function get_firmware_index(fwtype as PL_UPG_FW_TYPE) as integer
 	next i
 	get_firmware_index = -1
 end function 
+
+function device_firmware_read_32_uint() as dword
+	dim l as byte(4)
+	dim s as string
+	select case current_fw_upg_state.source
+		case PL_FW_UPG_BLE:		
+		
+			l=bt.getdata(4)
+									 
+	
+		case PL_FW_UPG_WEB:
+			sock.num=upgrade_socket_number.http_socket		 
+			l=sock.getdata(4)
+			device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 
+		case PL_FW_UPG_SOCK:
+			sock.num=upgrade_socket_number.upgrade_socket
+			l=sock.getdata(4)
+			device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 							 
+		case PL_FW_UPG_SER:
+			ser.num=current_fw_upg_state.source_num
+			l=ser.getdata(4)
+			device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 							 
+		case PL_FW_UPG_HTTP:
+			l=sock.gethttprqstring(4)
+			device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 							 
+		case else:
+			l(0)=0
+			l(1)=0
+			l(2)=0
+			l(3)=0
+	end select
+	device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 	
+end function
+
+function device_firmware_bytes_available() as dword
+	
+	select case current_fw_upg_state.source
+		case PL_FW_UPG_WEB:
+			sock.num=upgrade_socket_number.http_socket
+			device_firmware_bytes_available=sock.rxlen
+		case PL_FW_UPG_BLE:		   	
+			device_firmware_bytes_available = bt.rxlen							 
+		case PL_FW_UPG_SOCK:
+			sock.num=upgrade_socket_number.upgrade_socket
+			device_firmware_bytes_available=sock.rxlen
+		case PL_FW_UPG_SER:
+			ser.num=current_fw_upg_state.source_num
+			device_firmware_bytes_available=ser.rxlen
+		case PL_FW_UPG_HTTP:
+			device_firmware_bytes_available=sock.rxlen
+		case else:
+			device_firmware_bytes_available = 0
+	end select
+	
+end function
+
+
+sub device_firmware_read_data(byref data as string, byref count as dword)
+
+	select case current_fw_upg_state.source
+		case PL_FW_UPG_WEB:
+			sock.num=upgrade_socket_number.http_socket
+			data = sock.getdata(count)	
+		case PL_FW_UPG_BLE:		
+			data = bt.getdata(count)							 
+		case PL_FW_UPG_SOCK:
+			sock.num=upgrade_socket_number.upgrade_socket
+			data = sock.getdata(count)	
+		case PL_FW_UPG_SER:
+			ser.num=current_fw_upg_state.source_num
+			data = ser.getdata(count)
+		case PL_FW_UPG_HTTP:
+			data = sock.gethttprqstring(count)
+		case else:
+			data = ""
+	end select
+	
+end sub
+
+sub device_firmware_get_fw_block(byref dev_fw_upg_state as pl_upg_state_t )
+	dim fw as string
+	dim percent_complete, total_percent as byte
+	dim i as dword
+	if dev_fw_upg_state.fw_remaining  >= FW_UPG_BLK_LEN then   'We have remaining pages for the firmware update
+		if device_firmware_bytes_available()  >= FW_UPG_BLK_LEN then			
+			device_firmware_read_data(fw,FW_UPG_BLK_LEN)
+		end if
+	else 'Last block of firmware data
+		if device_firmware_bytes_available()  >= dev_fw_upg_state.fw_remaining then					
+			device_firmware_read_data(fw,dev_fw_upg_state.fw_remaining)
+		end if 
+	end if 
+	
+	if len(fw) > 0  then 
+		dim csdata(128) as byte = fw		
+		dev_fw_upg_state.fw_remaining = dev_fw_upg_state.fw_remaining - len(fw)
+		dev_fw_upg_state.fw_total_remaining = dev_fw_upg_state.fw_total_remaining - len(fw)
+		for i = 0 To len(fw)-1
+			 dev_fw_upg_state.fw_checksum  = dev_fw_upg_state.fw_checksum + csdata(i) 
+		next i
+		
+		select case dev_fw_upg_state.fw_types(current_fw_upg_state.fw_currentfile)
+		case COMPRESSED_TIOS_APP,UNCOMPRESSED_TIOS_APP,UNCOMPRESSED_TIOS:
+			device_firmware_write_tios_app( fw)
+			dev_fw_upg_state.fw_page = dev_fw_upg_state.fw_page + 1
+		case WA2000_MON:
+			device_firmware_write_wa2000_mon_app( fw)
+		case WA2000_APP:
+			device_firmware_write_wa2000_mon_app( fw)
+		case MANIFEST: 
+			device_firmware_read_manifest(fw)
+		case else:
+			'Ignore the file.
+		end select
+		
+		on_firmware_update_data_received(dev_fw_upg_state)
+
+		percent_complete = 100 - 100 * (dev_fw_upg_state.fw_remaining/dev_fw_upg_state.fw_lengths(dev_fw_upg_state.fw_currentfile))
+		total_percent = 100 - (100 * dev_fw_upg_state.fw_total_remaining/dev_fw_upg_state.fw_totalsize)
+		if percent_complete > dev_fw_upg_state.fw_percent or total_percent > dev_fw_upg_state.fw_total_percent then
+			dev_fw_upg_state.fw_percent  = percent_complete
+			dev_fw_upg_state.fw_total_percent = total_percent
+			on_firmware_update_percent_change(dev_fw_upg_state)
+		end if
+	
+	end if
+	if dev_fw_upg_state.fw_remaining = 0 then
+   
+		dev_fw_upg_state.fw_checksum  = not dev_fw_upg_state.fw_checksum 
+		dev_fw_upg_state.fw_checksum = dev_fw_upg_state.fw_checksum + 1
+
+		if dev_fw_upg_state.fw_checksum<>dev_fw_upg_state.fw_checksums(dev_fw_upg_state.fw_currentfile) then
+			dev_fw_upg_state.fw_fail_reason=PL_FW_FAIL_INVALID_FW_CHECKSUM
+			dev_fw_upg_state.state=PL_FW_UPG_FAIL
+			exit sub
+		end if
+		dev_fw_upg_state.fw_checksum=0
+		on_firmware_update_file_complete(dev_fw_upg_state)
+		dev_fw_upg_state.fw_numfiles = dev_fw_upg_state.fw_numfiles - 1
+		dev_fw_upg_state.fw_currentfile = dev_fw_upg_state.fw_currentfile + 1
+		if dev_fw_upg_state.fw_numfiles=0 then 
+			dev_fw_upg_state.state=PL_FW_UPG_COMPLETE
+			on_firmware_update_complete(dev_fw_upg_state)
+		else
+			dev_fw_upg_state.state=PL_FW_UPG_READ_FW_TYPE
+			dev_fw_upg_state.fw_percent=0
+		end if
+	 
+	end if		
+end sub
