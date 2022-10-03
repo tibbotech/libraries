@@ -395,7 +395,7 @@ function device_firmware_bytes_available() as dword
 			ser.num=current_fw_upg_state.source_num
 			device_firmware_bytes_available=ser.rxlen
 		case PL_FW_UPG_HTTP:
-			device_firmware_bytes_available=sock.rxlen
+			device_firmware_bytes_available=sock.varlen
 		case else:
 			device_firmware_bytes_available = 0
 	end select
