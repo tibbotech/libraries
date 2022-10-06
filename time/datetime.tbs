@@ -244,7 +244,7 @@ function datetime_next_cron(next_cron as crontab) as dword
 
 		if next_cron.month <> 255 AND next_cron.month <> c_month then
 			dim diff as dword
-			if next_cron.month > c_month then
+			if val(next_cron.month) > c_month then
 				diff = daycount(year(days),val(next_cron.month),1) - daycount(year(days),c_month,date(days))
 			else 
 				diff = daycount(year(days),12,31) - daycount(year(days),c_month,date(days))
