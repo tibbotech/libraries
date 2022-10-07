@@ -1,5 +1,5 @@
 #ifndef AZURE_DEBUG_PRINT
-	#define AZURE_DEBUG_PRINT 0
+	#define AZURE_DEBUG_PRINT 1
 #endif
 
 enum en_azure_command_codes
@@ -32,6 +32,11 @@ declare sub callback_azure_command_triggered(byref command as string, byref para
 declare sub azure_set_datetime(byref dt_string as string)
 declare sub callback_azure_device_assigned(byref assigned_hub as string)
 declare sub callback_on_telemetry_sent()
+declare sub callback_azure_conn_timeout()
+'XXXXXXXXXXXXXXX  add callback_azure_on_connected() and callback_azure_on_disconnected() 
+declare sub callback_azure_on_connected()
+declare sub callback_azure_on_disconnected()
+
 declare sub iot_send_headers()
 declare sub azure_content_arrival(data as string)
 declare sub azure_http_request_complete()

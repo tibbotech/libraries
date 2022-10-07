@@ -25,7 +25,7 @@
 	#define MQTT_CONNECTION_TIMER 30
 #endif
 
-#ifdef MQTT_CER_FILE
+#if MQTT_CER_FILE
 	#if TLS_AVAILABLE=0
 		#error "MQTT certification file defined but TLS_AVAILABLE not true"
 	#endif
@@ -41,7 +41,17 @@ enum en_qos_choices
 	QOS_EXACTLY_ONCE=2
 end enum
 
-
+'XXXXXXXXXXXXXXXXXXXXXXX move to header file so it call be accessed. (needed when checking the mqtt state)
+enum en_mqtt_states
+	
+	EN_MQTT_STATES_IDLE,
+	EN_MQTT_STATES_NOT_CONNECTED,
+	EN_MQTT_STATES_DNS_NOT_COMPLETE,
+	EN_MQTT_STATES_CONNECTING,
+	EN_MQTT_STATES_CONNECTED,
+	EN_MQTT_STATES_LOGGED_IN
+	
+end enum
 
 declare sub mqtt_start(target_interface as pl_sock_interfaces, byref server as string,dst_port as word,byref user as string,byref password as string,byref client_id as string, encrypted as boolean)
 'API procedure, starts the MQTT library.
@@ -58,7 +68,7 @@ declare function mqtt_connect() as ok_ng
 declare sub mqtt_disconnect()
 'API procedure, disconnects the device from the MQTT server (broker).	
 
-declare sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices, retain as boolean)
+declare sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices)
 'API procedure, publishes a <b>topic</b> and its <b>data</b> to the MQTT server (broker).
 
 declare sub mqtt_sub(byref topic as string, qos as en_qos_choices)
@@ -114,6 +124,5 @@ declare sub callback_mqtt_notif(byref topic as string,byref data as string,remai
 
 #endif
 
-declare sub mqtt_stop()
 declare sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_sock_state_simple)
 declare sub mqtt_send_data(data as string)

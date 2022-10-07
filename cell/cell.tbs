@@ -286,8 +286,10 @@ dim cell__at_cmd_storArray_numof_cmds as word
 #if CELL__DEBUG_PRINT
     declare sub cell__debugprint(byref print_data as string)
 	
-	
     sub cell__debugprint(byref print_data as string)
+	'XXXXXXXXXXXXXXXXXXXXXX  delay added
+	cell__sleeptimer(1000)
+	
 	'Print out message
         #if CELL__DEBUGPRINT_SERPORT_ISENABLED 
             cell__debugprint_thru_serport(print_data)
@@ -296,6 +298,9 @@ dim cell__at_cmd_storArray_numof_cmds as word
                 cell__debugprint_thru_udp(print_data)
                 #else
                 sys.debugprint(print_data + CELL__CRLF)
+				#if SOCK_DEBUGPRINT
+' 				debugprint(print_data + CELL__CRLF)
+				#endif
             #endif
         #endif
     end sub
@@ -777,7 +782,7 @@ end sub
 		
         end if
 		
-		
+
 		'PRINT
         #if CELL__DEBUG_PRINT
             cell__debugprint(phasemsg)
@@ -984,8 +989,8 @@ sub cell__init(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cel
 
 	'UPDATE start-state
 	'	This is important because it will be used later on 
-    cell__startstate = io.lineget(CELL__STATUS_LINENUM)
-
+'XXXXXXXXXXXXXXXXXXXXXX  using Macro
+    cell__startstate = CELL__MODEM_STATUS
 
 	'PRINT
     #if CELL__DEBUGPRINT_PWR_ISENABLED
@@ -1057,7 +1062,11 @@ sub cell__init_io()
 				
 		end if
     end if
-
+'XXXXXXXXXXXXXXXXXXXX	using macro for io extender
+#if CELL_IO_EXTENDER
+	cell_callback_io_extender_setup()
+	
+#else
 	'SHDN line
     io.num = CELL__SHDN_LINENUM
     io.enabled = YES	'output
@@ -1079,6 +1088,8 @@ sub cell__init_io()
 	'STATUS line
     io.num = CELL__STATUS_LINENUM
     io.enabled = NO	'input
+#endif
+
 end sub
 
 sub cell__init_at_cmd_storArray()
@@ -1235,7 +1246,7 @@ end sub
 		
         ser.interface = PL_SER_SI_FULLDUPLEX
         ser.flowcontrol = PL_SER_FC_DISABLED
-        ser.baudrate = PL_SER_BAUD_9600	'9600 baud
+        ser.baudrate = ser.div9600	'9600 baud
         ser.esctype = PL_SER_ET_DISABLED
         ser.interchardelay = 0
         ser.txbuffrq(1)
@@ -1262,7 +1273,10 @@ sub cell__init_ser()
     ser.rxclear	'clear rx-buffer
 	
     ser.txclear	'clear tx-buffer    
-	ser.baudrate = PL_SER_BAUD_115200	'set baudrate to 115200
+	'XXXXXXXXXXXXXXXXXXXXXX set baudrate to 115200 directly
+	'ser.baudrate = ser.div9600/(CELL__SER_PORT_BAUDRATE/9600)	'set baudrate to 115200
+	ser.baudrate =  PL_SER_BAUD_115200	'set baudrate to 115200
+	
     ser.flowcontrol = PL_SER_FC_DISABLED	'disable flow-control
     ser.rtsmap = CELL__RTS_LINENUM	'set RTS line (which is the same as the Serial Port number)
     ser.ctsmap = CELL__CTS_LINENUM	'set CTS line (which is the same as the Serial Port number)
@@ -1407,8 +1421,9 @@ sub cell__reset_on(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en
 	
 	'Update startstate
 	'	This is important because it will be used later on 
-    cell__startstate = io.lineget(CELL__STATUS_LINENUM)
-	
+'XXXXXXXXXXXXXXXXXXXXXX  using Macro
+    cell__startstate = CELL__MODEM_STATUS
+
     #if CELL__DEBUGPRINT_PWR_ISENABLED
         cell__debugprint_pwr_phase(PHASE_PWR_RESET_ON, CELL__EMPTYSTRING)	'PRINT
     #endif
@@ -1692,8 +1707,9 @@ sub cell__powering_onoff_wait(next_pwr_on_phase as en_cell__op_pwr_phases, next_
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the modem to turn ON/OFF
-		cell__newstate = io.lineget(CELL__STATUS_LINENUM)	'update the modem state
-
+	'XXXXXXXXXXXXXXXXXXXXXX  using Macro
+		cell__startstate = CELL__MODEM_STATUS              'update the modem state
+	
 		if cell__newstate <> cell__startstate then	'check periodically whether the modem state has changed
 			if CELL__MODEM_STATUS = cell__status_setto_on then	'Modem has turned ON
 				'***IMPORTANT: update start-timecounter
@@ -1723,6 +1739,7 @@ sub cell__check_rdy_state(next_pwr_phase as en_cell__op_pwr_phases, next_at_phas
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the Serial-port to become RDY
+		dim s as string=ser.peekdata(255)
 		if CELL__AT_REPLIED_WITH_RDY then	'serial-port is RDY
 			cell__ser_port_isRdy = TRUE	'set boolean to TRUE
 			#if CELL__DEBUGPRINT_PWR_ISENABLED		
@@ -1756,7 +1773,8 @@ sub cell__modem_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as
 	
 		'Update startstate
 		'REMARK: this is important because it will be used later on 
-		cell__startstate = io.lineget(CELL__STATUS_LINENUM)
+	'XXXXXXXXXXXXXXXXXXXXXX  using Macro
+		cell__startstate = CELL__MODEM_STATUS              'update the modem state
 
 		cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
 
@@ -1965,7 +1983,6 @@ sub cell__at_send(atcmd as string)
 		
 	end if
 	
-
 	'Send AT-command
 	ser.num = CELL__DATA_SER_PORT	'set serial-port
     ser.setdata(atcmd) 	'set AT-command
@@ -2002,6 +2019,7 @@ sub cell__at_usermode_send(atcmd as string)
 	end if
 
 SET_AND_SEND_HANDLER:
+
 	'Set and Send AT-command
 	ser.num = CELL__DATA_SER_PORT	'set serial-port
 	ser.setdata(atcmd) 	'set AT-command
@@ -2024,7 +2042,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 
 '---Parse AT-reply Messsage
     cell__at_get_cleandata(atreply_checkitem)
-	
+
 '---Handle the parsed AT-reply message
     if ( atreply_checkitem = CELL__SIMPIN or atreply_checkitem = CELL__SIMPUK ) then	'AT replied with an error `SIM PIN` or `SIM PUK`
 		#if CELL__DEBUGPRINT_AT_ISENABLED
@@ -2228,7 +2246,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 		'Note:	if `CELL__AT_USERMODE_ISENABLED` then FAST LOAD MUST be DISABLED. 
 		'		The reason for this is to prevent recursive warnings.
 		#if CELL__AT_USERMODE_ISENABLED=0
-			#if CELL__AT_FAST_LOAD_ISENABLED
+			#if CELL__AT_FAST_LOAD_ISENABLED			
 				cell__at_proc_sys_timer()
 			#endif
 		#endif
@@ -2627,8 +2645,11 @@ end sub
 sub cell__at_ifc(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cell__op_at_phases, 
 					next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 						next_parse_phase as en_cell__op_parse_phases)
-
-    if (ser.flowcontrol <> PL_SER_FC_RTSCTS) then	'serial-port's flow-control is disabled
+	
+	'after changing baudrate, sending another at command often cause failure, therefore added delay is required
+	cell__sleeptimer(2000)
+    
+	if (ser.flowcontrol <> PL_SER_FC_RTSCTS) then	'serial-port's flow-control is disabled
 		ser.rxclear()	'clear rx-buffer
 		ser.txclear()	'clear tx-buffer
 
@@ -3954,8 +3975,9 @@ NEXT_FOR_HANDLER:
 			cell__ppp_ping_reply = CELL__NG
 			
 			'PRINT
-			cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
-			
+			#if CELL__DEBUG_PRINT	''XXXXXXXXXXXXXXXXXX  add compilation condition to the debugprint otherwise code won't compile if condition is false.
+				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
+			#endif
 			'CALLBACK
 			cell__callback_ppp_ping_failed()
 			
@@ -3969,8 +3991,9 @@ NEXT_FOR_HANDLER:
 				cell__ppp_ping_reply = CELL__NG
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
-
+				#if CELL__DEBUG_PRINT	''XXXXXXXXXXXXXXXXXX add compilation condition to the debugprint otherwise code won't compile if condition is false.
+					cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
+				#endif
 				'CALLBACK
 				cell__callback_ppp_ping_failed()
 				
@@ -3982,8 +4005,9 @@ NEXT_FOR_HANDLER:
 				cell__ppp_ping_reply = CELL__OK
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, DDSTR(source_ip))
-				
+				#if CELL__DEBUG_PRINT	''XXXXXXXXXXXXXXXXXX add compilation condition to the debugprint otherwise code won't compile if condition is false.
+					cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, DDSTR(source_ip))
+				#endif
 				'Set next phase to transit to (e.g.,  PHASE_PPP_IPCP_CONNECT)
 				'***IMPORTANT: Make sure to set `next_parse_phase` to `PHASE_PARSE_IDLE`
 				cell__update_op_next_phases(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, PHASE_PARSE_IDLE)
@@ -4771,11 +4795,23 @@ sub cell__at_proc_sys_timer()
 																PHASE_PWR_DONOT_CHANGE, PHASE_AT_AT, 
 																	PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,
 																		PHASE_PARSE_DONOT_CHANGE)
-        case PHASE_AT_AT:
-			cell__at_cmd_exec(CELL__AT, 
-								PHASE_PWR_DONOT_CHANGE, PHASE_AT_AMPERSAND_E1, 
+        case PHASE_AT_AT:	
+'XXXXXXXXXXXXXXXXXXXXXXXXXXX  reodering the AT command
+
+			if CELL__SIM_MODEL_IS_7000 then
+				cell__op_at_phase = PHASE_AT_CGMM
+			else
+				cell__op_at_phase = PHASE_AT_AMPERSAND_E1
+			end if	
+			
+			cell__at_cmd_exec(CELL__AT_CBC, 
+								PHASE_PWR_DONOT_CHANGE, cell__op_at_phase, 
 									PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,
 										PHASE_PARSE_AT_MESSAGE)
+'			cell__at_cmd_exec(CELL__AT, 
+'								PHASE_PWR_DONOT_CHANGE, PHASE_AT_AMPERSAND_E1, 
+'									PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,
+'										PHASE_PARSE_AT_MESSAGE)
 
 
 		case PHASE_AT_AMPERSAND_E1:
@@ -4838,8 +4874,6 @@ sub cell__at_proc_sys_timer()
 								PHASE_PWR_DONOT_CHANGE, PHASE_AT_CNMP,
 									PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,
 										PHASE_PARSE_AT_MESSAGE)
-
-
 '---PPP-MODE
 #if CELL__PPP_MODE_ISENABLED
 	
@@ -4860,7 +4894,7 @@ sub cell__at_proc_sys_timer()
 								PHASE_PWR_DONOT_CHANGE, PHASE_AT_IFC,
 									PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,
 										PHASE_PARSE_AT_MESSAGE)
-			
+										
 		case PHASE_AT_IFC:
 			cell__at_ifc(PHASE_PWR_DONOT_CHANGE, PHASE_AT_CMEE,
 							PHASE_PPP_DONOT_CHANGE, PHASE_GPS_DONOT_CHANGE,

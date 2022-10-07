@@ -10,6 +10,8 @@ const AZURE_TOPIC_RESULT="$iothub/twin/res/"
 const AZURE_API_VERSION="?api-version=2019-03-31"
 const AZURE_MQTT_API_VERSION="?api-version=2018-06-30"
 const TOPIC_TIMESTAMP="iothub-creation-time-utc="
+'XXXXXXXXXXXXXX  add timer to manage connection timeout
+const AZURE_CONNECTION_TOUT=120
 
 dim azure_state as en_azure_states
 dim azure_rid as dword=0
@@ -24,15 +26,24 @@ dim azure_current_scope_id as string(16)
 dim azure_current_device_id as string(32)
 dim azure_current_primary_key as string(64)
 dim azure_sas_token as string
-dim azure_timer as byte=0
 dim azure_dps_authorization as string
 dim azure_current_json_key as string
 dim azure_current_json_value as string
 dim azure_http_buf as string
 dim azure_assigned_status as boolean
 
+'XXXXXXXXXXXXXX 'add timer to manage connection timeout
+dim azure_timer as byte = 0
+'XXXXXXXXXXXXXXXXX	not fixed using PL_SOCK_INTERFACE_WLN 
+dim azure_interface as pl_sock_interfaces
+'XXXXXXXXXXXXXXXXX deleting telemetry should be done on azure_on_telemetry_sent() all at once, and based on timestampe
+dim azure_telemetry_ts as string(36) = ""
+
 declare azure_current_url as string
 declare mqtt_sock_num as byte
+
+'XXXXXXXXXXXXXXX allow azure library to access mqtt connection state
+declare mqtt_state as en_mqtt_states
 
 declare function azure_generate_sas_token(byref resourceUri as string, byref signingKey as string, expiresInMins as word) as string
 declare sub azure_debugprint(byref print_data as string)
@@ -40,15 +51,16 @@ declare sub azure_dps_device_provisioning()
 declare sub azure_http_reset()
 
 public sub azure_start(byref device_id as string, byref scope_id as string, byref dps_url as string, byref symmetricKey as string, interface as pl_sock_interfaces)
-	
-	azure_init_flag=AZURE_INIT_SIGNATURE
 
+'XXXXXXXXXXXXXXXXX signature signed after passing parameter checking
+'	azure_init_flag=AZURE_INIT_SIGNATURE
 	if device_id="" or scope_id="" or dps_url="" or symmetricKey="" then
 		#if AZURE_DEBUG_PRINT
 			azure_debugprint("ERROR: azure_start() invalid parameters")
 		#endif
 		exit sub
 	end if
+		
 	azure_current_device_id=device_id
 	azure_current_scope_id=scope_id
 	azure_current_dps_server=dps_url
@@ -57,6 +69,10 @@ public sub azure_start(byref device_id as string, byref scope_id as string, byre
 	device_bound_message_topic="devices/"+azure_current_device_id+"/messages/devicebound/"
 	azure_state=EN_AZURE_NOT_CONNECTED
 	
+'XXXXXXXXXXXXXXXXX init new variables
+	azure_init_flag=AZURE_INIT_SIGNATURE
+	azure_timer=AZURE_CONNECTION_TOUT
+	azure_interface=interface
 end sub
 
 public sub azure_on_connected()
@@ -78,6 +94,7 @@ public sub azure_on_connected()
 		azure_debugprint("Server connected.")
 	#endif
 	azure_state=EN_AZURE_CONNECTED
+	callback_azure_on_connected()
 end sub
 
 public sub azure_on_disconnected()
@@ -91,7 +108,11 @@ public sub azure_on_disconnected()
 	#if AZURE_DEBUG_PRINT
 		azure_debugprint("Disconnected from server.")
 	#endif
-	azure_state=EN_AZURE_NOT_CONNECTED
+	
+	'XXXXXXXXXXXXXXXXXXXXXX 'after connection establish, let mqtt library manage the connection.
+	azure_telemetry_ts=""
+	'azure_state=EN_AZURE_NOT_CONNECTED
+	callback_azure_on_disconnected()
 end sub
 
 public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
@@ -175,7 +196,7 @@ public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
 					if stg_sg(item_name,0,value,EN_STG_SET)=EN_STG_STATUS_OK then
 						value="{\x22"+item_name+"\x22:"+value+"}"
 						azure_rid=azure_rid+1
-						mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED+"?$rid="+str(azure_rid),value,QOS_AT_MOST_ONCE,false)
+						mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED+"?$rid="+str(azure_rid),value,QOS_AT_MOST_ONCE)
 					end if
 				end if
 				pos1=pos3+1
@@ -197,21 +218,32 @@ public sub azure_command_respond(byref command as string, byref returns as strin
 		returns="{}"
 	end if
 	topic="$iothub/methods/res/"+str(result)+"/?$rid="+rid
-	mqtt_publish(topic,returns,QOS_AT_MOST_ONCE,false)
+	mqtt_publish(topic,returns,QOS_AT_MOST_ONCE)
 	
 end sub
-
+'XXXXXXXXXXXXXXXXX 'add timer to manage connection timeout
 public sub azure_proc_timer()
-
 	select case azure_state
 	case EN_AZURE_NOT_CONNECTED:
-		azure_device_lookup()			
+		azure_device_lookup()
+	case EN_AZURE_DEVICE_LOOKUP:
+		if azure_timer >0 then
+			azure_timer=azure_timer-1
+		else
+			azure_timer=AZURE_CONNECTION_TOUT
+			callback_azure_conn_timeout()
+		end if
 	case EN_AZURE_NOT_PROVISIONED:
 		azure_dps_device_provisioning()
-	case EN_AZURE_CONNECTED
-		azure_send_telemetry()
+	case EN_AZURE_PROVISIONING:
+		if azure_timer >0 then
+			azure_timer=azure_timer-1
+		else
+			azure_timer=AZURE_CONNECTION_TOUT
+			callback_azure_conn_timeout()
+		end if
+	case EN_AZURE_CONNECTED:		
 	end select	
-	
 end sub
 
 public function azure_update_json(byref original as string, byref attribute as string, byref value as string) as string
@@ -248,7 +280,7 @@ sub azure_send_property(prop_name as string, prop_value as string)
 	dim json as string
 	json = azure_update_json(json,prop_name,prop_value)
 	azure_rid=azure_rid+1
-	mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED + "?$rid="+str(azure_rid),json,QOS_AT_MOST_ONCE,false)
+	mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED + "?$rid="+str(azure_rid),json,QOS_AT_MOST_ONCE)
 
 end sub
 
@@ -256,13 +288,13 @@ public sub azure_mqtt_sub_ok()
 	azure_num_of_suback=azure_num_of_suback+1
 	if azure_num_of_suback>4 then
 		azure_rid=azure_rid+1
-		mqtt_publish(AZURE_TOPIC_TWIN+"GET/?$rid="+str(azure_rid),"{}",QOS_AT_MOST_ONCE,false)
+		mqtt_publish(AZURE_TOPIC_TWIN+"GET/?$rid="+str(azure_rid),"{}",QOS_AT_MOST_ONCE)
 	end if
 end sub
 
 public sub azure_send_telemetry()
 
-	if azure_state<>EN_AZURE_CONNECTED then
+	if mqtt_state<>EN_MQTT_STATES_LOGGED_IN or azure_telemetry_ts<>"" then
 		exit sub
 	end if
 	
@@ -272,47 +304,43 @@ public sub azure_send_telemetry()
 		#endif
 		exit sub
 	end if
-	
+'XXXXXXXXXXXXXXXXXXXXXXX	original code might leave partially deleted telemetry, deleting telemetry should be done on azure_on_telemetry_sent() all at once, and based on timestamp
 	dim ts as string(36)
 	dim same_ts as boolean = true
 	dim json as string
-
+	dim rec_num as word=1
+	
 	while same_ts = true
-		dim active_rec_num as word			
 		tbl_select("Azure","Azure")
-		tbl_get_num_records(active_rec_num,NO)
-		if active_rec_num>0 then
-			if tbl_record_read_active(1)=EN_TBL_STATUS_OK then
-				dim record_type, record_value as string(36)
-				tbl_field_sg("time",ts,EN_TBL_GET)
-				tbl_field_sg("type", record_type,EN_TBL_GET)
-				tbl_field_sg("value",record_value ,EN_TBL_GET)	
-				tbl_record_delete(1)	
-				json=azure_update_json(json,record_type,record_value)
-				dim next_ts as string
-				tbl_get_num_records(active_rec_num,NO)
-				if active_rec_num>0 then
-					if tbl_record_read_active(1)=EN_TBL_STATUS_OK then
-						tbl_field_sg("time",next_ts,EN_TBL_GET)
-						if ts <> next_ts then
-							same_ts = false
-						end if
-					end if
-				else
+		if tbl_record_read_active(rec_num)=EN_TBL_STATUS_OK then
+			dim record_type, record_value as string(36)
+			tbl_field_sg("time",ts,EN_TBL_GET)
+			tbl_field_sg("type", record_type,EN_TBL_GET)
+			tbl_field_sg("value",record_value ,EN_TBL_GET)	
+			'tbl_record_delete(1)	
+			json=azure_update_json(json,record_type,record_value)
+		
+			dim next_ts as string
+			rec_num=rec_num+1
+			if tbl_record_read_active(rec_num)=EN_TBL_STATUS_OK then
+				tbl_field_sg("time",next_ts,EN_TBL_GET)
+				if ts <> next_ts then
 					same_ts = false
-				end if				
+				end if
+			else
+				same_ts = false
 			end if
 		else
 			exit sub
 		end if
 	wend
-	
-			
+	azure_telemetry_ts=ts
+
 	dim pos as byte
 	if ts<>"" then
 		pos=instr(1,server_bound_message_topic,TOPIC_TIMESTAMP,1)
 		if pos>0 then
-				server_bound_message_topic=left(server_bound_message_topic,pos-1)+TOPIC_TIMESTAMP+ts
+			server_bound_message_topic=left(server_bound_message_topic,pos-1)+TOPIC_TIMESTAMP+ts
 		else
 			server_bound_message_topic=server_bound_message_topic+TOPIC_TIMESTAMP+ts
 		end if
@@ -320,8 +348,7 @@ public sub azure_send_telemetry()
 	
 	sock.num=mqtt_sock_num
 	sock.notifysent(0)
-	mqtt_publish(server_bound_message_topic,json,QOS_AT_MOST_ONCE,false)					
-	callback_on_telemetry_sent()
+	mqtt_publish(server_bound_message_topic,json,QOS_AT_MOST_ONCE)					
 
 end sub
 
@@ -371,7 +398,18 @@ public sub azure_on_telemetry_sent()
 	if sock.num<>mqtt_sock_num then
 		exit sub
 	end if
-	azure_send_telemetry()
+	
+	'XXXXXXXXXXXXXXXXXXXXXXXXXX original code might leave partially deleted telemetry, deleting telemetry should be done on azure_on_telemetry_sent() all at once, and based on timestampe
+	if mqtt_state=EN_MQTT_STATES_LOGGED_IN then
+		dim rec_num as word=1
+	    tbl_select("Azure","Azure")
+		while tbl_record_find(EN_TBL_RECORD_ACTIVE,azure_telemetry_ts,"time",rec_num,EN_TBL_SEARCH_DOWN,PL_FD_FIND_EQUAL) = EN_TBL_STATUS_OK
+			tbl_record_delete(rec_num)			
+		wend
+		azure_telemetry_ts=""
+		callback_on_telemetry_sent()
+				
+	end if
 
 end sub
 
@@ -387,7 +425,10 @@ sub azure_device_lookup()
 	azure_dps_authorization=azure_generate_sas_token(azure_current_scope_id+"%2Fregistrations%2F"+azure_current_device_id, azure_current_primary_key, 525600)
 	azure_current_url = "https://" + azure_current_dps_server  + "/" + azure_current_scope_id + "/registrations/"+azure_current_device_id+AZURE_API_VERSION
 	azure_http_reset()
-	http_request(HTTP_POST, azure_current_url, PL_SOCK_INTERFACE_WLN,"{registrationId: \x22"+azure_current_device_id+"\x22}")
+	
+	'XXXXXXXXXXXXXXXXX	not fixed using PL_SOCK_INTERFACE_WLN 
+	'http_request(HTTP_POST, azure_current_url, PL_SOCK_INTERFACE_WLN,"{registrationId: \x22"+azure_current_device_id+"\x22}")
+	http_request(HTTP_POST, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}")
 	azure_state=EN_AZURE_DEVICE_LOOKUP	
 
 end sub
@@ -396,9 +437,15 @@ sub azure_dps_device_provisioning()
  
 	if azure_state<>EN_AZURE_PROVISIONING then
 		azure_state=EN_AZURE_PROVISIONING
+		'XXXXXXXXXXXXXXXXX generate token
+		azure_dps_authorization=azure_generate_sas_token(azure_current_scope_id+"%2Fregistrations%2F"+azure_current_device_id, azure_current_primary_key, 525600)		
+		
 		azure_current_url = "https://" + azure_current_dps_server + "/" + azure_current_scope_id +"/registrations/"+azure_current_device_id+"/register"+AZURE_API_VERSION
 		azure_http_reset()
-		http_request(HTTP_PUT, azure_current_url, PL_SOCK_INTERFACE_WLN,"{registrationId: \x22"+azure_current_device_id+"\x22}")	
+		'XXXXXXXXXXXXXXXXX	not fixed using PL_SOCK_INTERFACE_WLN 
+		'http_request(HTTP_PUT, azure_current_url, PL_SOCK_INTERFACE_WLN,"{registrationId: \x22"+azure_current_device_id+"\x22}")	
+		http_request(HTTP_PUT, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}")	
+		
 	end if
 	
 end sub
@@ -414,13 +461,16 @@ end sub
 
 
 sub azure_mqtt_start()
+	'XXXXXXXXXXXXXXXXXXXX changing the state after the mqtt connection is established.
+	'azure_state=EN_AZURE_CONNECTED
 	
-	azure_state=EN_AZURE_CONNECTED
 	dim user_name as string=azure_assigned_hub+"/"+azure_current_device_id+"/"+AZURE_MQTT_API_VERSION	
 	dim resourceUri as string= azure_assigned_hub+"%2Fdevices%2F"+azure_current_device_id
 	azure_sas_token="SharedAccessSignature sr="+azure_assigned_hub+"%2Fdevices%2F"+azure_current_device_id+"&sig="+azure_generate_sas_token(resourceUri, azure_current_primary_key, 525600)
-	mqtt_start(PL_SOCK_INTERFACE_WLN,azure_assigned_hub,8883,user_name,azure_sas_token,azure_current_device_id,true)
-
+	
+	'XXXXXXXXXXXXXXXXXXX not fixed using PL_SOCK_INTERFACE_WLN 
+	'mqtt_start(PL_SOCK_INTERFACE_WLN,azure_assigned_hub,8883,user_name,azure_sas_token,azure_current_device_id,true)
+	mqtt_start(azure_interface,azure_assigned_hub,8883,user_name,azure_sas_token,azure_current_device_id,true)
 end sub
 
 sub azure_json_callback(byref key as string, byref value as string)
@@ -494,14 +544,16 @@ sub azure_http_request_complete()
 	
 	if http_request_item.url = azure_current_url then
 		select case azure_state		
-		case EN_AZURE_DEVICE_LOOKUP:
+		case EN_AZURE_DEVICE_LOOKUP: 
 			if azure_assigned_status=false then
 				azure_state=EN_AZURE_NOT_PROVISIONED
 			end if
+			'if device is already registered, skip provisioning
 			if azure_assigned_hub<>"" and azure_assigned_status<>false then
 				azure_mqtt_start()
 			end if	
-		case EN_AZURE_PROVISIONING:
+		case EN_AZURE_PROVISIONING: 
+			'after provisioning, lookup the device
 			azure_state=EN_AZURE_NOT_CONNECTED
 		end select
 	end if
@@ -576,5 +628,9 @@ end function
 #if AZURE_DEBUG_PRINT
 	sub azure_debugprint(byref print_data as string)
 		sys.debugprint("AZURE> "+print_data+"\x0d\x0a")
+		
+		'#if SOCK_DEBUGPRINT
+		'debugprint("AZURE> "+print_data+"\x0d\x0a")
+		'#endif
 	end sub
 #endif	

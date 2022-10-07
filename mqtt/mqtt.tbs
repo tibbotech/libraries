@@ -12,16 +12,17 @@ const MQTT_TIMEOUT=2000
 const MQTT_LEVEL	=&h04
 const MQTT_PROTOCOL	="MQTT"
 
-enum en_mqtt_states
+'XXXXXXXXXXXXXXXXXXXXXXX move to header file so it call be accessed. (needed when checking the mqtt state)
+'enum en_mqtt_states
 	
-	EN_MQTT_STATES_IDLE,
-	EN_MQTT_STATES_NOT_CONNECTED,
-	EN_MQTT_STATES_DNS_NOT_COMPLETE,
-	EN_MQTT_STATES_CONNECTING,
-	EN_MQTT_STATES_CONNECTED,
-	EN_MQTT_STATES_LOGGED_IN
+'	EN_MQTT_STATES_IDLE,
+'	EN_MQTT_STATES_NOT_CONNECTED,
+'	EN_MQTT_STATES_DNS_NOT_COMPLETE,
+'	EN_MQTT_STATES_CONNECTING,
+'	EN_MQTT_STATES_CONNECTED,
+'	EN_MQTT_STATES_LOGGED_IN
 	
-end enum
+'end enum
 
 enum en_mqtt_message_types
 
@@ -365,6 +366,9 @@ sub mqtt_ping()
 			mqtt_unreplied_ping_count=mqtt_unreplied_ping_count+1
 			if mqtt_unreplied_ping_count>3 then
 				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+				'XXXXXXXXXXXXXXXXXXXXX add the callback
+				callback_mqtt_connect_lost()
+
 				mqtt_debug_print("PING is unresponsive, disconnecting...")
 				sock.discard()
 			end if
@@ -397,6 +401,9 @@ sub mqtt_proc_timer()
 				#endif
 			case EN_MQTT_STATES_CONNECTED:
 				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+				'XXXXXXXXXXXXXXXXXXXXX add the callback
+				callback_mqtt_connect_lost()
+				
 				mqtt_connection_counter=MQTT_RECONNECT_TIME*2
 				#if MQTT_DEBUG_PRINT=1
 					mqtt_debug_print("Unable to log in to server...")
@@ -412,21 +419,23 @@ end sub
 
 
 sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_sock_state_simple)
-	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
-		exit sub
-	end if
+	
 	if sock.num<>mqtt_sock_num then 
 		exit sub 
 	end if 
 	
-	if newstatesimple=PL_SSTS_CLOSED then
-		mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
-		mqtt_connection_counter=MQTT_RECONNECT_TIME*2
-		#if MQTT_DEBUG_PRINT=1
-		mqtt_debug_print("Lost server connection.")
-		#endif
-	end if
 	select case newstate
+	case PL_SST_CLOSED, PL_SST_CL_PCLOSED,PL_SST_CL_PRESET_EST:
+		if mqtt_state<>EN_MQTT_STATES_IDLE then
+			mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+			'XXXXXXXXXXXXXXXXXXXXX add the callback
+			callback_mqtt_connect_lost()
+		
+			mqtt_connection_counter=MQTT_RECONNECT_TIME*2
+			#if MQTT_DEBUG_PRINT=1
+			mqtt_debug_print("Lost server connection.")
+			#endif
+		end if
 	case PL_SST_EST_AOPENED:
 		if mqtt_encrypted=false then
 			mqtt_send_login()
@@ -622,6 +631,9 @@ sub mqtt_send_data(data as string)
 #if TLS_AVAILABLE
 			if sock.state<>PL_SST_EST_TLS then
 				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+				'XXXXXXXXXXXXXXXXXXXXX add the callback
+				callback_mqtt_connect_lost()
+
 				mqtt_debug_print("unable to send, disconnected")
 				exit sub
 			end if
@@ -634,6 +646,9 @@ sub mqtt_send_data(data as string)
 		else
 			if sock.statesimple<>PL_SSTS_EST then
 				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+				'XXXXXXXXXXXXXXXXXXXXX add the callback
+				callback_mqtt_connect_lost()
+
 				mqtt_debug_print("unable to send, disconnected")
 				exit sub
 			end if		
@@ -654,7 +669,7 @@ sub mqtt_send_data(data as string)
 	
 end sub
 
-sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices, retain as boolean)
+sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choices)
 'API procedure, publishes a <b>topic</b> and its <b>data</b> to the MQTT server (broker).
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
@@ -679,27 +694,12 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 		buf=chr(0)+chr(len(topic))+topic+mqtt_get_packet_identifier()+data
 	end if
 	
-	if retain  then
-		buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
-	else 
-		buf=chr(PUBLISH+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
-	end if
-	
+	buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
+'	buf=chr(&h03+1+(qos*2))+mqtt_build_remaining_length(len(buf)) + buf
+
 	mqtt_send_data(buf)
 	mqtt_ping_counter=MQTT_PING_TIMER*2
 
-end sub
-
-sub mqtt_stop()
-	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
-		exit sub
-	end if
-	mqtt_init_flag=0
-	#if MQTT_DEBUG_PRINT=1
-		mqtt_debug_print("---STOP---")
-	#endif
-	mqtt_state=EN_MQTT_STATES_IDLE
-	sock_release(mqtt_sock_num)
 end sub
 
 #if MQTT_LARGE_PACKETS
@@ -765,7 +765,7 @@ sub mqtt_continue_publish(byref data as string)
 		mqtt_packet_length=0
 		exit sub
 	end if
-	mqtt_send_data(data)
+	mqtt_send_data(data)	
 
 end sub
 
@@ -774,5 +774,9 @@ end sub
 #if MQTT_DEBUG_PRINT=1
 sub mqtt_debug_print(data as string)
 	sys.debugprint(MQTT_STAMP+data+MQTT_CR_LF)
+	
+	'#if SOCK_DEBUGPRINT
+	'debugprint(MQTT_STAMP+data+MQTT_CR_LF)
+	'#endif
 end sub
 #endif
