@@ -25,7 +25,7 @@ sub tbl_web_set(byref tbl_name as string, tbl_enabled as no_yes)
 end sub
 
 
-sub tbl_web_get_tables()
+sub tbl_web_get_tables(byref selected_type as string)
 	dim i,j as byte
 	dim table_name as string(TBL_MAX_TABLE_NAME_LEN)
 	dim html_tbl as tbl_type
@@ -42,36 +42,38 @@ sub tbl_web_get_tables()
 			table_name=tbl_web_enabled_tables(i)
 			tbl_web_tbl_status=tbl_select(table_name,table_name)
 			if tbl_web_tbl_status=EN_TBL_STATUS_OK then
-				sock.setdata(table_name+"|")
-				if html_tbl.struct = EN_TBL_STRUCT_TABLE then
-					table_type="table"
-				else
-					table_type="log"
-				end if
-				sock.setdata(table_name+"|")
-				tbl_get_num_records(tbl_rows,NO)
-				sock.setdata(str(tbl_rows)+"|")
-				'fieldName|rowCount|column1|column2|....\r\n
 				if tbl_get_table_info(table_name,html_tbl) = EN_TBL_STATUS_OK then
-					num_of_fld = tbl_get_num_fields(table_name)
-					for j = 0 to num_of_fld-1
-						tbl_get_field_info(table_name,j,field_metadata)
-						sock.setdata(field_metadata.field_name+",")
-						sock.setdata(chr(field_metadata.field_type)+",")
-						sock.setdata(str(field_metadata.p1)+",")
-						sock.setdata(str(field_metadata.p2)+",")
-						sock.setdata(str(field_metadata.key)+",")
-						sock.setdata(str(field_metadata.romaddr_def)+",")
-						dim df as string
-						tbl_get_field_def(table_name,field_metadata.field_name,df)
-						sock.setdata(df)
-						if j<num_of_fld-1 then
-							sock.setdata("|")
-						end if
-						sock.send()
-					next j
+					if html_tbl.struct = EN_TBL_STRUCT_TABLE then
+						table_type="table"
+					else
+						table_type="log"
+					end if
+					if selected_type = table_type then
+						sock.setdata(table_name+"|")
+						sock.setdata(table_type+"|")
+						tbl_get_num_records(tbl_rows,NO)
+						sock.setdata(str(tbl_rows)+"|")
+						'fieldName|rowCount|column1|column2|....\r\n
+						num_of_fld = tbl_get_num_fields(table_name)
+						for j = 0 to num_of_fld-1
+							tbl_get_field_info(table_name,j,field_metadata)
+							sock.setdata(field_metadata.field_name+",")
+							sock.setdata(chr(field_metadata.field_type)+",")
+							sock.setdata(str(field_metadata.p1)+",")
+							sock.setdata(str(field_metadata.p2)+",")
+							sock.setdata(str(field_metadata.key)+",")
+							sock.setdata(str(field_metadata.romaddr_def)+",")
+							dim df as string
+							tbl_get_field_def(table_name,field_metadata.field_name,df)
+							sock.setdata(df)
+							if j<num_of_fld-1 then
+								sock.setdata("|")
+							end if
+							sock.send()
+						next j
+						sock.setdata("\r\n")
+					end if
 				end if
-				sock.setdata("\r\n")
 			end if
 			
 		end if
