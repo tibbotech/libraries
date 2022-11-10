@@ -8,8 +8,6 @@ include "global.tbh"
 const TD_DEFAULT_TD_STR="20000101000000000"
 const TD_DEFAULT_BINSTR=chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)
 
-'------------------------------------------------------------------------------
-declare sub td_get_tzone_offset(timezone as en_td_timezones, byref minutes_offset as word)
 
 '==============================================================================
 public function td_from_binstr(byref td_str as string, byref day_count as word, byref min_count as word, byref seconds as byte, byref mseconds as word) as ok_ng
