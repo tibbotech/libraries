@@ -51,6 +51,7 @@ enum en_td_date_formats
 end enum
 
 '------------------------------------------------------------------------------
+declare sub td_get_tzone_offset(timezone as en_td_timezones, byref minutes_offset as word)
 declare function td_gmt_to_local(byref day_count as word, byref min_count as word, timezone as en_td_timezones, dst as off_on) as ok_ng
 declare function td_local_to_gmt(byref day_count as word, byref min_count as word, timezone as en_td_timezones, dst as off_on) as ok_ng
 declare function td_to_str(byref td_str as string, day_count as word,min_count as word, seconds as byte, mseconds as word) as ok_ng
