@@ -387,18 +387,18 @@ public function tbl_start() as en_tbl_status_codes
 		
 			select case s
 			#if TBL_TIME_TYPE_INCLUDED
-				case "S","B","W","U","T":
+				case "S","B","W","U","T","F":
 			#else
-				case "S","B","W","U":
+				case "S","B","W","U","F":
 			#endif
 			case else
 				#if TBL_TIME_TYPE_INCLUDED
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U', 'S' or 'T' only.")
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U', 'S', 'F' or 'T' only.")
 					#endif
 				#else
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U' or 'S' only.")
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U','F' or 'S' only.")
 					#endif
 				#endif
 				field_index=0 'change field type to 'S','B','W','U' or 'T'
@@ -1893,6 +1893,11 @@ public function tbl_record_find(
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
+		case `F`:
+			' dim tmp_f as float=0
+			' strtobin(tmp_f,search_data,4)
+			' s=ftofixed(tmp_f,3)
+			' s=chr(val(search_data))
 		end select
 
 		for i=tbl_info(tbl_info_index).field_num_offset to field_index
@@ -1911,6 +1916,49 @@ query:
 			s=right(s,len(s)-1)
 			daddr_offset=daddr_offset+1
 			find_method=PL_FD_FIND_EQUAL
+		end if
+		
+		if tbl_field_info(field_index).field_type=`F` then
+			dim query_num as float=strtof(search_data)
+			dim tbl_result as en_tbl_status_codes=EN_TBL_STATUS_OK
+			dim tmp_rec_num as word=-1
+			dim tbl_rows as word=0
+			tbl_get_num_records(tbl_rows,NO)
+			if tbl_rows=0 then goto finish
+			while rec_num <= tbl_rows 
+				tmp_rec_num=rec_num
+				tbl_result=tbl_record_sg(tmp_rec_num,EN_TBL_GET)
+				s=tbl_field_get(field_name)
+				dim fnum as float=strtof(s)
+				select case find_method
+				case PL_FD_FIND_EQUAL:
+					if query_num = fnum then
+						goto finish
+					end if
+				case PL_FD_FIND_NOT_EQUAL:
+					if query_num<>fnum then
+						goto finish
+					end if
+				case PL_FD_FIND_GREATER:
+					if fnum > query_num then
+						goto finish
+					end if
+				case PL_FD_FIND_GREATER_EQUAL:
+					if fnum >= query_num then
+						goto finish
+					end if
+				case PL_FD_FIND_LESSER:
+					if fnum < query_num then
+						goto finish
+					end if
+				case PL_FD_FIND_LESSER_EQUAL:
+					if fnum <= query_num then
+						goto finish
+					end if
+				end select
+				rec_num=rec_num+1
+			wend
+			
 		end if
 		
 		daddr=daddr+daddr_offset
@@ -2163,6 +2211,10 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			dp2=tbl_field_info(field_index).p2			
 			if lval(field_value)<dp1 then goto tbl_invalid
 			if lval(field_value)>dp2 then goto tbl_invalid
+		case `F`:
+			dim tmp_f as float=0
+			strtobin(tmp_f,s,4)
+			field_value=!fstr(tmp_f)
 		end select	
 		goto tbl_ok
 	else
@@ -2214,6 +2266,13 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			w2=lval(field_value)/65536
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
+		case `F`:
+			dim tmp_f as float=strtof(field_value)
+			dp1=tbl_field_info(field_index).p1
+			dp2=tbl_field_info(field_index).p2
+			if tmp_f < dp1 then goto tbl_invalid
+			if tmp_f > dp2 then goto tbl_invalid
+			bintostr(s,tmp_f,4)
 		end select
 		temp1=left(tbl_record_string, fld_pos-1)
 		temp2=right(tbl_record_string,len(tbl_record_string)-fld_pos-fld_sz+1)
@@ -2344,6 +2403,7 @@ function tbl_get_field_size(field_index as word) as byte
 	case `W`: sz=2
 	case `S`: sz=tbl_field_info(field_index).p2+1
 	case `U`: sz=4
+	case `F`: sz=4
 	case else: sz=0
 	end select
 	tbl_get_field_size=sz

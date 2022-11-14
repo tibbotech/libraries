@@ -11,7 +11,8 @@ dim result as string=""
 
 select case action
 case "get":
-	tbl_web_get_tables()
+	dim table_type as string=tbl_web_get_url_params(params, "type")
+	tbl_web_get_tables(table_type)
 case "rows":
 	table_name=tbl_web_get_url_params(params,"table")
 	dim count as word=val(tbl_web_get_url_params(params,"count"))
@@ -25,6 +26,9 @@ case "delete":
 	table_name=tbl_web_get_url_params(params,"table")
 	dim row as word=val(tbl_web_get_url_params(params,"row"))
 	tbl_web_delete_row(table_name,row)
+case "clear":
+	table_name=tbl_web_get_url_params(params,"table")
+	result=tbl_web_clear_table(table_name)
 case "edit":
 	table_name=tbl_web_get_url_params(params,"table")
 	dim row as string=tbl_web_get_url_params(params,"row")
