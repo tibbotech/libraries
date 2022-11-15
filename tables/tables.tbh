@@ -114,8 +114,8 @@ end enum
 type tbl_field_type
 	field_name as string(TBL_MAX_FIELD_NAME_LEN)
 	field_type as byte
-	p1 as dword
-	p2 as dword
+	p1 as long
+	p2 as long
 	key as no_yes
 	romaddr_def as word
 end type
