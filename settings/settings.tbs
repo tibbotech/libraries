@@ -18,8 +18,8 @@ type en_sdr_type
 	storage as byte
 	stype as byte
 	members as byte
-	p1 as word
-	p2 as word
+	p1 as long
+	p2 as long
 	ini as byte
 	memaddr as word
 	romaddr_def as word
@@ -85,6 +85,7 @@ public function stg_start_with_params(init as no_yes) as en_stg_status_codes
 	dim field_start_pos as word
 	dim l as long
 	dim pos as byte
+	dim p1,p2 as long
 	#if STG_STORAGE_MEMORY
 		dim fd_status as pl_fd_status_codes
 		dim newfile as no_yes
@@ -331,6 +332,7 @@ unknown_setting_type:
 		
 		'extract P1
 		s=stg_get_descriptor_field(line_end,field_start_pos)
+		p1=s
 		if s="" then
 			'missing p1 parameter field
 			#if STG_DEBUG_PRINT
@@ -343,15 +345,15 @@ unknown_setting_type:
 		
 		select case stg_sdr(stg_sdr_member).stype
 		case `B`:
-			if val(s)>255 then goto p1_too_large
+			if p1>255 then goto p1_too_large
 
 		case `W`:
-			if lval(s)>65535 then goto p1_too_large
+			if p1>65535 then goto p1_too_large
 
 		case `S`:
-			if val(s)>254 then goto p1_too_large
+			if p1>254 then goto p1_too_large
 		case `D`:
-			if val(s)>63 then
+			if p1>63 then
 p1_too_large:
 				#if STG_DEBUG_PRINT
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): minimum value (P1 param) can't exceed 255 for byte, 65535 for word, 254 for strings, and 63 for dot-decimal strings, it is now "+s)
@@ -361,10 +363,11 @@ p1_too_large:
 				exit function
 			end if
 		end select
-		stg_sdr(stg_sdr_member).p1=val(s)
+		stg_sdr(stg_sdr_member).p1=p1
 
 		'extract P2
 		s=stg_get_descriptor_field(line_end,field_start_pos)
+		p2=s
 		if s="" then
 			'missing P2 parameter field
 			#if STG_DEBUG_PRINT
@@ -374,29 +377,19 @@ p1_too_large:
 			stg_start_with_params=EN_STG_STATUS_WRONG_DESCRIPTOR
 			exit function
 		end if
-		
-		if val(s)=0 then
-			#if STG_DEBUG_PRINT
-				stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): maximum value (P2 param) can't be zero!")
-			#endif
-			'maximum value (P2 param) can't be zero
-			stg_num_settings=0
-			stg_start_with_params=EN_STG_STATUS_WRONG_DESCRIPTOR
-			exit function
-		end if
-		
+				
 		select case stg_sdr(stg_sdr_member).stype
 		case `B`:
-			if val(s)>255 then goto p2_too_large
+			if p2>255 then goto p2_too_large
 
 		case `W`:
-			if lval(s)>65535 then goto p2_too_large
+			if p2>65535 then goto p2_too_large
 
 		case `S`:
-			if val(s)>254 then goto p2_too_large
+			if p2>254 then goto p2_too_large
 		
 		case `D`:
-			if val(s)>63 then
+			if p2>63 then
 p2_too_large:
 				#if STG_DEBUG_PRINT
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): maximum value (P2 param) can't exceed 255 for byte, 65535 for word, 254 for strings, and 63 for dot-decimal strings, it is now "+s)
@@ -407,7 +400,7 @@ p2_too_large:
 				exit function
 			end if
 		end select
-		stg_sdr(stg_sdr_member).p2=val(s)
+		stg_sdr(stg_sdr_member).p2=p2
 
 		if stg_sdr(stg_sdr_member).p2<stg_sdr(stg_sdr_member).p1 then
 			#if STG_DEBUG_PRINT
