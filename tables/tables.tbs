@@ -388,9 +388,9 @@ public function tbl_start() as en_tbl_status_codes
 		
 			select case s
 			#if TBL_TIME_TYPE_INCLUDED
-				case "S","B","W","U","T","F":
+				case "S","B","W","U","T","F","E":
 			#else
-				case "S","B","W","U","F":
+				case "S","B","W","U","F","E":
 			#endif
 			case else
 				#if TBL_TIME_TYPE_INCLUDED
@@ -469,7 +469,16 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_info_index=0
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
-				end if			
+				end if
+			case `E`: ' Time
+				if p1>2147483647 then
+					#if TBL_DEBUG_PRINT
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 2147483647 for byte type. It is now "+s)
+					#endif
+					tbl_info_index=0
+					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
+					exit function
+				end if
 			end select
 			field_item.p1=p1
 			
@@ -1888,6 +1897,10 @@ public function tbl_record_find(
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
+		case `E`:
+			w1=lval(search_data)/65536
+			w2=lval(search_data) mod 65536
+			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
 		case `F`:
 			' dim tmp_f as float=0
 			' strtobin(tmp_f,search_data,4)
@@ -2198,6 +2211,13 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			field_value =lstr(d)
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
+		case `E`:	'unix timestamp
+			w2=asc(left(s,1))*256+asc(mid(s,2,1))
+			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
+			d=w2*65536+w3
+			field_value =lstr(d)
+			if lval(field_value)<p1 then goto tbl_invalid
+			if lval(field_value)>p2 then goto tbl_invalid
 		case `F`:
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
@@ -2242,6 +2262,12 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if len(field_value) > p2 then goto tbl_invalid
 			s=chr(len(field_value))+field_value+strgen(fld_sz-len(field_value)-1,chr(TBL_NULL))
 		case `U`:
+			if lval(field_value) < p1 then goto tbl_invalid
+			if lval(field_value) > p2 then goto tbl_invalid
+			w2=lval(field_value)/65536
+			w3=lval(field_value) mod 65536
+			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
+		case `E`: ' unix timestamp
 			if lval(field_value) < p1 then goto tbl_invalid
 			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
@@ -2383,6 +2409,7 @@ function tbl_get_field_size(field_index as word) as byte
 	case `S`: sz=tbl_field_info(field_index).p2+1
 	case `U`: sz=4
 	case `F`: sz=4
+	case `E`: sz=4
 	case else: sz=0
 	end select
 	tbl_get_field_size=sz
