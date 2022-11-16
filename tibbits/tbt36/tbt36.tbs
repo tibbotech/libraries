@@ -287,7 +287,6 @@ function tbt36_get_reg(cmd as byte) as byte
 
 
 	i2c.write(TBT36_READ_CODE)
-	tbt36_delay_msecond(30)
 	tmp=i2c.read(NACK)
 
 	i2c.stop()
