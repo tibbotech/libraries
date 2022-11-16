@@ -39,23 +39,10 @@ function tbt52_init(use_ssi as no_yes,pin_clk as byte,pin_data as byte,pin_mclr 
 
 	tbt52_init_flag=TBT52_INIT_SIGNATURE
 	channel=si2c_register("TBT52", pin_data, pin_clk,use_ssi)
-
-	if channel<4 then
-		ssi.channel=channel
-		ssi.enabled=NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap=pin_clk
-		ssi.dimap=pin_data
-		ssi.domap=pin_data
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.mode=PL_SSI_MODE_2
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled=YES
-	else
-		if use_ssi=YES then
-			tbt52_init=NG
-		end if
-	end if
+	i2c.num=channel
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 
 	io.num=pin_mclr
 	io.enabled=YES
@@ -77,23 +64,23 @@ function tbt52_init(use_ssi as no_yes,pin_clk as byte,pin_data as byte,pin_mclr 
 	io.enabled=NO
 
 
-	si2c_get(channel)
+	i2c.num=channel
 
-	si2c_start()
-	si2c_write(&h20)
-	si2c_write(&h03)
-	si2c_stop()
+	i2c.start()
+	i2c.write(&h20)
+	i2c.write(&h03)
+	i2c.stop()
 
-	si2c_start()
-	si2c_write(&h21)
+	i2c.start()
+	i2c.write(&h21)
 
 	s=""
 	for i=0 to 14
-		s=s+chr(si2c_read(TRUE))
+		s=s+chr(i2c.read(ACK))
 	next i
-	s=s+chr(si2c_read(FALSE))
+	s=s+chr(i2c.read(NACK))
 
-	si2c_stop()
+	i2c.stop()
 
 	#if TBT52_DEBUG_PRINT=1
 		tbt52_debug_print("F/W : "+s)
@@ -107,12 +94,12 @@ function tbt52_init(use_ssi as no_yes,pin_clk as byte,pin_data as byte,pin_mclr 
 	end if
 	
 	for tbt52_channel=ADC_1 to ADC_4
-		si2c_start()
-		si2c_write(&h20)
-		si2c_write(&h02)
-		si2c_write(tbt52_channel)
-		si2c_write(&h1C)	'single mode + 16 bits +  Gain = 1
-		si2c_stop()
+		i2c.start()
+		i2c.write(&h20)
+		i2c.write(&h02)
+		i2c.write(tbt52_channel)
+		i2c.write(&h1C)	'single mode + 16 bits +  Gain = 1
+		i2c.stop()
 		while (io.lineget(pin_int)=LOW)
 		wend
 	next tbt52_channel
@@ -142,20 +129,20 @@ function tbt52_get_volts(pin_int as byte,channel as byte)as real
 	const LSB_mV=0.00030517578125
 	f=NO
 busy_wait:
-    si2c_get(channel)
-	si2c_start()
-	si2c_write(&h20)
-	si2c_write(&h01)
-	si2c_write(tbt52_channel)
-	si2c_stop()
+    i2c.num=channel
+	i2c.start()
+	i2c.write(&h20)
+	i2c.write(&h01)
+	i2c.write(tbt52_channel)
+	i2c.stop()
 	while (io.lineget(pin_int)=LOW)
 	wend
-	si2c_start()
-	si2c_write(&h21)
-	hi_byte=si2c_read(TRUE)
-	lo_byte=si2c_read(TRUE)
-	config=si2c_read(FALSE)
-	si2c_stop()
+	i2c.start()
+	i2c.write(&h21)
+	hi_byte=i2c.read(ACK)
+	lo_byte=i2c.read(ACK)
+	config=i2c.read(NACK)
+	i2c.stop()
 
 	if (config and &h80) then goto busy_wait
 
@@ -164,12 +151,12 @@ busy_wait:
 		tmp=tmp+lo_byte
 	else
 		' start a conversion.
-		si2c_start()
-		si2c_write(&h20)
-		si2c_write(&h02)
-		si2c_write(tbt52_channel)
-		si2c_write(&h9C)	'single mode + 16 bits +  Gain = 1
-		si2c_stop()
+		i2c.start()
+		i2c.write(&h20)
+		i2c.write(&h02)
+		i2c.write(tbt52_channel)
+		i2c.write(&h9C)	'single mode + 16 bits +  Gain = 1
+		i2c.stop()
 		while (io.lineget(pin_int)=LOW)
 		wend
 		f=YES
@@ -206,11 +193,6 @@ busy_wait:
 	end if
 end function
 
-sub tbt52_release(channel as byte)
-	if TBT52_INIT_SIGNATURE<>tbt52_init_flag then exit sub
-	tbt52_init_flag=&hFFFF
-	si2c_release(channel)
-end sub
 
 sub param_read(pin_int as byte,channel as byte)
 	dim value(4)as byte
@@ -219,21 +201,21 @@ sub param_read(pin_int as byte,channel as byte)
 		dim r,tmp as dword
 	#endif
 
-	si2c_get(channel)
+	i2c.num=channel
 
-	si2c_start()
-	si2c_write(&h20)
-	si2c_write(&h06)
-	si2c_stop()
+	i2c.start()
+	i2c.write(&h20)
+	i2c.write(&h06)
+	i2c.stop()
 	while (io.lineget(pin_int)=LOW)
 	wend
-	si2c_start()
-	si2c_write(&h21)
+	i2c.start()
+	i2c.write(&h21)
 
-	value(0)=si2c_read(true)
-	value(1)=si2c_read(true)
-	value(2)=si2c_read(true)
-	value(3)=si2c_read(true)
+	value(0)=i2c.read(ACK)
+	value(1)=i2c.read(ACK)
+	value(2)=i2c.read(ACK)
+	value(3)=i2c.read(ACK)
 
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
@@ -279,10 +261,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(true)
-	value(1)=si2c_read(true)
-	value(2)=si2c_read(true)
-	value(3)=si2c_read(true)
+	value(0)=i2c.read(ACK)
+	value(1)=i2c.read(ACK)
+	value(2)=i2c.read(ACK)
+	value(3)=i2c.read(ACK)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -327,10 +309,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(true)
-	value(1)=si2c_read(true)
-	value(2)=si2c_read(true)
-	value(3)=si2c_read(true)
+	value(0)=i2c.read(ACK)
+	value(1)=i2c.read(ACK)
+	value(2)=i2c.read(ACK)
+	value(3)=i2c.read(ACK)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -375,10 +357,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(true)
-	value(1)=si2c_read(true)
-	value(2)=si2c_read(true)
-	value(3)=si2c_read(false)
+	value(0)=i2c.read(ACK)
+	value(1)=i2c.read(ACK)
+	value(2)=i2c.read(ACK)
+	value(3)=i2c.read(NACK)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -423,7 +405,7 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	si2c_stop()
+	i2c.stop()
 	while (io.lineget(pin_int)=LOW)
 	wend
 end sub
@@ -464,16 +446,16 @@ sub param_write(pin_int as byte,channel as byte)
 		end if
 	next i
     
-    si2c_get(channel)
-	si2c_start()
-	si2c_write(&h20)
-	si2c_write(&h05)
+    i2c.num=channel
+	i2c.start()
+	i2c.write(&h20)
+	i2c.write(&h05)
 	for i=0 to 3
 		for j= 0 to 3
-			si2c_write(data(i,j))
+			i2c.write(data(i,j))
 		next j
 	next i
-	si2c_stop()
+	i2c.stop()
 	while (io.lineget(pin_int)=LOW)
 	wend
 end sub
@@ -501,20 +483,20 @@ sub tbt52_compensation_calibrate(pin_int as byte,channel as byte)
 	next i
 
 busy_wait:
-    si2c_get(channel)
-	si2c_start()
-	si2c_write(&h20)
-	si2c_write(&h01)
-	si2c_write(tbt52_channel)
-	si2c_stop()
+    i2c.num=channel
+	i2c.start()
+	i2c.write(&h20)
+	i2c.write(&h01)
+	i2c.write(tbt52_channel)
+	i2c.stop()
 	while (io.lineget(pin_int)=LOW)
 	wend
-	si2c_start()
-	si2c_write(&h21)
-	hi_byte=si2c_read(TRUE)
-	lo_byte=si2c_read(TRUE)
-	config=si2c_read(FALSE)
-	si2c_stop()
+	i2c.start()
+	i2c.write(&h21)
+	hi_byte=i2c.read(ACK)
+	lo_byte=i2c.read(ACK)
+	config=i2c.read(NACK)
+	i2c.stop()
 	if (config and &h80) then goto busy_wait
 
 	if f=YES then
@@ -522,12 +504,12 @@ busy_wait:
 		tmp=tmp+lo_byte
 	else
 		' start a conversion.
-		si2c_start()
-		si2c_write(&h20)
-		si2c_write(&h02)
-		si2c_write(tbt52_channel)
-		si2c_write(&h9C)	'single mode + 16 bits +  Gain = 1
-		si2c_stop()
+		i2c.start()
+		i2c.write(&h20)
+		i2c.write(&h02)
+		i2c.write(tbt52_channel)
+		i2c.write(&h9C)	'single mode + 16 bits +  Gain = 1
+		i2c.stop()
 		while (io.lineget(pin_int)=LOW)
 		wend
 		f=YES

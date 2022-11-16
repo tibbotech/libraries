@@ -69,7 +69,11 @@ function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, rese
 	#endif
 	
 	tbt_channel = si2c_register(signature, data_pin, clk_pin, use_ssi)
-	
+	i2c.num=tbt_channel
+	i2c.sdamap=data_pin
+	i2c.sclmap=clk_pin
+	i2c.enabled=YES
+
 	if tbt_channel = 255 then 
 		tbt62_init = TBT62_INIT_ERROR_SI2C_NO_EMPTY_CHANNEL
 		exit function
@@ -84,28 +88,6 @@ function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, rese
 	#if TBT62_DEBUG_PRINT = 1
 		tbt62_debug_print("i2c num:" + str(tbt_channel))
 	#endif
-	
-	if tbt_channel < 4 then
-		ssi.channel = tbt_channel
-		ssi.enabled = NO
-		ssi.baudrate = TBT62_SSI_BAUDRATE
-		ssi.clkmap = clk_pin
-		ssi.dimap = data_pin
-		ssi.domap = data_pin
-		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.direction = PL_SSI_DIRECTION_LEFT
-		ssi.mode = PL_SSI_MODE_0
-		ssi.enabled = YES
-		
-		io.num = clk_pin
-		io.state = HIGH
-		io.num = data_pin
-		io.state = HIGH
-	'else
-	'	if use_ssi = YES then
-	'		tbt62_init = NG
-	'	end if
-	end if
 
 	' Init and self-diagnostic TIBBIT
 	tbt62_init = tbt62_checkTibbit(tbt_channel)
@@ -121,7 +103,7 @@ sub tbt62_send_string(data as string)
 	dim i as byte
 	
 	for i = 1 to len(data)
-		si2c_write(asc(mid(data, i, 1)))
+		i2c.write(asc(mid(data, i, 1)))
 	next i
 	
 end sub
@@ -139,13 +121,13 @@ function tbt62_send_command(command as byte, tbt_channel as byte) as boolean
 		tbt62_mode(tbt_channel, tbt62_channel(tbt_channel)) = command AND &h01
 	end if
 	
-	si2c_get(tbt_channel)
+	i2c.num=tbt_channel
 	
-	si2c_start()		'I2C START
+	i2c.start()		'I2C START
 	
 	tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(command))	' Send Command
 
-	si2c_stop()		'I2C STOP
+	i2c.stop()		'I2C STOP
 
 	tbt62_send_command = true
 
@@ -157,14 +139,14 @@ function tbt62_send_data(command as byte, rom as string(8), data as string(16), 
 	if not tbt62_check_library(tbt_channel) then exit function
 	
 	if len(data) > 0 and len(data) < 17 then
-		si2c_get(tbt_channel)
+		i2c.num=tbt_channel
 		
-		si2c_start()		'I2C START
+		i2c.start()		'I2C START
 		
 		' Send
 		tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(command + len(data) - 1) + rom + data)		' Send Command
 		
-		si2c_stop()		'I2C STOP
+		i2c.stop()		'I2C STOP
 
 		tbt62_send_data = true
 		
@@ -187,25 +169,25 @@ function tbt62_read_data(byref data as string, data_len as byte, tbt_channel as 
 
 	if data_len = 0 then exit function
 	
-	si2c_get(tbt_channel)
+	i2c.num=tbt_channel
 	
-	si2c_start()		'I2C START
+	i2c.start()		'I2C START
 
 	' Send address for read register
 	tbt62_send_string(chr(TBT62_REGISTER_DATA_ADDRESS))		' Send Command
 	i = 1
 	do
 		if i < data_len then
-			tmp = tmp + chr(si2c_read(true))
+			tmp = tmp + chr(i2c.read(ACK))
 		else
-			tmp = tmp + chr(si2c_read(false))
+			tmp = tmp + chr(i2c.read(NACK))
 		end if
 		i = i + 1
 	loop until i > data_len
 	
 	data = tmp
 	
-	si2c_stop()		'I2C START
+	i2c.stop()		'I2C START
 
 	tbt62_read_data = true
 
@@ -374,28 +356,28 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 	' delay 100 ms for RESET in PIC uPC
 	tbt62_delayMS(100)
 	
-	si2c_get(tbt_channel)
+	i2c.num=tbt_channel
 	
-	si2c_start()		'I2C START
+	i2c.start()		'I2C START
 	
 	' Send
 	tbt62_send_string(chr(TBT62_REGISTER_COMMAND_ADDRESS) + chr(TBT62_CMD_GETVERSION))		' Send Command for Get Version
 	
 	' Read data from PIC
 	' Send START
-	si2c_start()
+	i2c.start()
 	
 	' Send Address
 	tbt62_send_string(chr(TBT62_REGISTER_DATA_ADDRESS))		' Send data register address
 	' Read version
 	version = ""
 	for i = 1 to 5
-		version = version + chr(si2c_read(true))
+		version = version + chr(i2c.read(ACK))
 	next i
-	version = version + chr(si2c_read(false))
+	version = version + chr(i2c.read(NACK))
 
 	' Send STOP
-	si2c_stop()
+	i2c.stop()
 
 	if version <> "TBT" + chr(&h62) + chr(&h00) + chr(&h01) then
 		tbt62_checkTibbit = TBT62_INIT_ERROR_NO_VALID_VERSION

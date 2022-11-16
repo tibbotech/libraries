@@ -66,26 +66,11 @@ function pic_init(byref signature as string, use_ssi as no_yes, byref fw_str as 
 	pic_use_ssi=use_ssi
 	channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
 
-	if channel<4 then
-		ssi.channel=channel
-		ssi.enabled=NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
+	i2c.num=channel
+	i2c.sdamap=data_pin
+	i2c.sclmap=clk_pin
+	i2c.enabled=YES
 
-		ssi.clkmap=clk_pin
-		ssi.dimap=data_pin
-		ssi.domap=data_pin
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.mode=PL_SSI_MODE_2
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled=YES
-	else
-		if use_ssi=YES then
-			pic_init=NG
-		end if
-	end if
-
-	si2c_get(channel)
-	
 	'7.RXDTSEL 0 = RX/DT function is on RC5
 	'6.SDOSEL  0 = SDO function is on RC2
 	'5.SSSEL   1 = SS function is on RA3
@@ -315,7 +300,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 		end if
 	#endif
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	if pic_func(num)<>f then
 		if pic_func(num)=PIC_FUNC_PWM then
@@ -368,7 +353,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 
 	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
 		if pic_func(num)=PIC_FUNC_UART then
-			si2c_get(channel)
+			i2c.num=channel
 			'Disable uart before we change to another function
 			'SPEN = 0
 			s=pic_reg_read(PIC_RCSTA,1)
@@ -763,7 +748,7 @@ sub pic_adc_config( p as pic_adc_ref_positive_voltage,n as pic_adc_ref_negative_
 	dim value,value2 as byte
 	dim s as string
 	
-	si2c_get(channel)
+	i2c.num=channel
 
 	s=pic_reg_read(PIC_ADCON1,1)
 	value=asc(s)
@@ -972,7 +957,7 @@ function pic_adc_get(ch as pic_adc_enum, channel as byte)as word
 	end select
 
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	pic_reg_write(PIC_ADCON0,chr(value))
 
@@ -1010,7 +995,7 @@ sub pic_io_enabled(num as pic_pin_enum, en as no_yes, channel as byte)
 
 	if pic_func(num)<>PIC_FUNC_IO then exit sub
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	select case num
 	case PIC_PIN0:	'RC5
@@ -1100,7 +1085,7 @@ sub pic_io_set(num as pic_pin_enum, state as low_high, channel as byte)
 
 	if pic_func(num)<>PIC_FUNC_IO then exit sub
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	select case num
 	case PIC_PIN0:	'RC5
@@ -1191,7 +1176,7 @@ function pic_io_get(num as pic_pin_enum, channel as byte)as low_high
 
 	pic_io_get=LOW
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	select case num
 	case PIC_PIN0:	'RC5
@@ -1301,7 +1286,7 @@ sub pic_pwm_config(ch as pic_pwm_enum, pulse_width as word,period as word, presc
 
 	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	select case ch
 	case PIC_PWM0:
@@ -1399,7 +1384,7 @@ sub pic_pwm_start(ch as pic_pwm_enum, channel as byte)
 
 	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
 
-	si2c_get(channel)
+	i2c.num=channel
 	select case ch
 	case PIC_PWM0:
 		if pic_func(0)<>PIC_FUNC_PWM then exit sub
@@ -1447,7 +1432,7 @@ sub pic_pwm_stop(ch as pic_pwm_enum, channel as byte)
 
 	if pic_func(ch)<>PIC_FUNC_PWM then exit sub
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	select case ch
 	case PIC_PWM0:
@@ -1542,7 +1527,7 @@ sub pic_pwm_duty_set(ratio as word, pwm_channel as byte, channel as byte)
 		ratio=1000
 	end if
 
-	si2c_get(channel)
+	i2c.num=channel
 	s=pic_reg_read(PIC_CCPXCON,1)
 	rCCPxN(pwm_channel)=asc(s)
 
@@ -1596,7 +1581,7 @@ sub pic_pwm_duty(ratio0 as word, ratio1 as word, ratio2 as word, channel as byte
 	if ratio2>1000 then
 		ratio2=1000
 	end if
-	si2c_get(channel)
+	i2c.num=channel
 	s=pic_reg_read(PIC_CCP1CON,1)
 	rCCPxN(0)=asc(s)
 	s=pic_reg_read(PIC_CCP2CON,1)
@@ -1666,7 +1651,7 @@ sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enable
 		exit sub
 	end if
 
-	si2c_get(channel)
+	i2c.num=channel
 
 	if pic_uart_flag and &h80 then
 		#if PIC_DEBUG_PRINT=1
@@ -1859,7 +1844,7 @@ sub pic_ser_setsend(data as string, channel as byte)
 		exit sub
 	end if
 
-	si2c_get(channel)
+	i2c.num=channel
 	pic_reg_write(TX_BUFF_ADDR,data)
 	pic_reg_write(TX_BYTE_COUNT,chr(len(data)))
 end sub
@@ -1915,7 +1900,7 @@ function pic_ser_get(channel as byte)as string
 		exit function
 	end if
 	dim rec as byte
-	si2c_get(channel)
+	i2c.num=channel
 
 keep_check:
 	s=pic_reg_read(RX_BYTE_COUNT,1)
@@ -1932,7 +1917,7 @@ function pic_ser_txlen(channel as byte)as byte
 'Returns the number of bytes currently waiting in the TX buffer. The buffer is maintained by the GRA firmware and can fit up to 80 bytes.
 	const TX_BYTE_COUNT=&h77
 	dim s as string
-	si2c_get(channel)
+	i2c.num=channel
 	s=pic_reg_read(TX_BYTE_COUNT,1)
 	pic_ser_txlen=asc(s)
 end function
@@ -1942,7 +1927,7 @@ function pic_ser_rxlen(channel as byte)as byte
 
 	const RX_BYTE_COUNT=&h76
 	dim s as string
-	si2c_get(channel)
+	i2c.num=channel
 	s=pic_reg_read(RX_BYTE_COUNT,1)
 	pic_ser_rxlen=asc(s)
 end function
