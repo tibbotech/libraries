@@ -67,25 +67,53 @@ sub datetime_time_to_str(byref ts_str as string(14),
 	ts_str=time_year_str+time_month_str+time_date_str+time_hour_str+time_minute_str+time_second_str
 end sub
 
+function datetime_timestamp_to_string(timestamp as dword, byref format as string) as string
+	dim days,mins as word
+	dim secs as byte
+	dim result as string=""
+	datetime_from_timestamp(timestamp,days,mins,secs)
+	td_gmt_to_local(days,mins,datetime_tz_offset,PL_OFF)
+	datetime_string_format(result,format,days,mins,secs)
+	datetime_timestamp_to_string = result
+end function
+
 sub datetime_string_format(byref result as string(14), 
 	byref format as string(14),
 	byref time_daycount as word,
 	byref time_mincount as word,
 	byref time_second_byte as byte)
 	datetime_time_to_str(result, time_daycount, time_mincount, time_second_byte)
-	'YYYYMMDDhhmmss
-	select case format
-		case "YYYYMMDD":
-			result=mid(result,1,8)
-		case "YYYYMMDDhhmm":
-			result=mid(result,1,12)
-		case "YYYYMMDDhhmmss":
-			result=result
-		case "hhmmss":
-			result=mid(result,9,6)
-		case "hhmm":
-			result=mid(result,9,4)
-	end select
+
+	dim max as byte=len(format)
+	dim index as byte=1
+	dim dstr as string=""
+	while index<max
+		dim cur_str as string=mid(format,index,1)
+		select case cur_str
+		case "Y":
+			dstr=dstr+mid(result,1,4)
+			index=index+4
+		case "M":
+			dstr=dstr+mid(result,5,2)
+			index=index+2
+		case "D":
+			dstr=dstr+mid(result,7,2)
+			index=index+2
+		case "h":
+			dstr=dstr+mid(result,9,2)
+			index=index+2
+		case "m":
+			dstr=dstr+mid(result,11,2)
+			index=index+2
+		case "s":
+			dstr=dstr+mid(result,13,2)
+			index=index+2
+		case else:
+			dstr=dstr+cur_str
+			index=index+1
+		end select
+	wend
+	result=dstr
 end sub
 
 sub datetime_time_to_bytestr(
