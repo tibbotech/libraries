@@ -388,18 +388,18 @@ public function tbl_start() as en_tbl_status_codes
 		
 			select case s
 			#if TBL_TIME_TYPE_INCLUDED
-				case "S","B","W","U","T","F","E":
+				case "S","B","W","U","T","F","E","M":
 			#else
-				case "S","B","W","U","F","E":
+				case "S","B","W","U","F","E","M":
 			#endif
 			case else
 				#if TBL_TIME_TYPE_INCLUDED
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U', 'S', 'F' or 'T' only.")
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U', 'S', 'F','E','M', or 'T' only.")
 					#endif
 				#else
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U','F' or 'S' only.")
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): unknown field type '"+s+"', use 'B','W','U','F','E','M', or 'S' only.")
 					#endif
 				#endif
 				field_index=0 'change field type to 'S','B','W','U' or 'T'
@@ -470,10 +470,19 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
 				end if
-			case `E`: ' Time
+			case `E`: ' Timestamp
 				if p1>2147483647 then
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 2147483647 for byte type. It is now "+s)
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 2147483647 for datetime type. It is now "+s)
+					#endif
+					tbl_info_index=0
+					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
+					exit function
+				end if
+			case `M`: ' Time
+				if p1>1440 then
+					#if TBL_DEBUG_PRINT
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 1440 for time type. It is now "+s)
 					#endif
 					tbl_info_index=0
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
@@ -1887,7 +1896,7 @@ public function tbl_record_find(
 		#endif				
 		case `B`:
 			s=chr(val(search_data))
-		case `W`:
+		case `W`,`M`:
 			w1=val(search_data)/256
 			w2=val(search_data) mod 256
 			s=chr(w1)+chr(w2)
@@ -2193,12 +2202,12 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 		case `B`:	'byte type
 			field_value=str(asc(s))
 			if val(field_value)<p1 then goto tbl_invalid
-			if val(field_value)>p2 then goto tbl_invalid
-		case `W`:	'word type
+			if val(field_value)>p2 then goto tbl_invalid				
+		case `W`,`M`:	'word type
 			w1=asc(left(s,1))*256+asc(mid(s,2,1))
 			field_value=str(w1)
 			if val(field_value)<p1 then goto tbl_invalid
-			if val(field_value)>p2 then goto tbl_invalid
+			if val(field_value)>p2 then goto tbl_invalid				
 		case `S`:	'string type
 			b1=asc(left(s,1))
 			field_value=mid(s,2,b1)
@@ -2251,7 +2260,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if val(field_value) < p1 then goto tbl_invalid
 			if val(field_value) > p2 then goto tbl_invalid
 			s=chr(val(field_value))
-		case `W`:
+		case `W`,`M`:
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
 			msb=val(field_value)/256
@@ -2405,7 +2414,7 @@ function tbl_get_field_size(field_index as word) as byte
 			end select
 	#endif
 	case `B`: sz=1
-	case `W`: sz=2
+	case `W`,`M`: sz=2
 	case `S`: sz=tbl_field_info(field_index).p2+1
 	case `U`: sz=4
 	case `F`: sz=4
