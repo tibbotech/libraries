@@ -289,6 +289,7 @@ public function stg_start_with_params(init as no_yes) as en_stg_status_codes
 		case `D`
 		case `F`
 		case `T`
+		case `M`
 		case else
 unknown_setting_type:
 			#if STG_DEBUG_PRINT
@@ -434,6 +435,9 @@ p2_too_large:
 		case `T`:
 			j=4
 			len_of_str_rep=10
+		case `M`:
+			j=2
+			len_of_str_rep=5
 		end select
 		
 		if len_of_str_rep>STG_MAX_SETTING_VALUE_LEN then
@@ -1396,7 +1400,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			stg_value=str(i)
 			goto lb1
 						
-		case "W":	'word- convert into value
+		case "W","M":	'word- convert into value
 			i=asc(left(stg_str,1))*256+asc(mid(stg_str,2,1))
 			stg_value=str(i)
 			goto lb1
@@ -1461,7 +1465,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			new_member_str=chr(i)
 			goto lb2
 
-		case "W":	'word- convert into value
+		case "W","M":	'word- convert into value
 			i=val(stg_value)
 			x=i/256
 			new_member_str=chr(x)+chr(i-x*256)
