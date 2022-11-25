@@ -49,7 +49,6 @@ const TBT36_REG_ORIENT			=&h3C
 
 declare sub tbt36_write_reg(cmd as byte, data as byte)
 declare function tbt36_get_reg(cmd as byte) as byte
-declare sub tbt36_delay_msecond(value as word)
 declare sub tbt36_error()
 
 #if TBT36_DEBUG_PRINT=1
@@ -76,9 +75,9 @@ function tbt36_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 
 	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
 	i2c.num=channel
-	i2c.sdamap = pin_data
-	i2c.sclmap = pin_clk
-	i2c.enabled = YES
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 	
 	dim id as byte=&h00
 	
@@ -107,6 +106,9 @@ function tbt36_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 		'when format= 12G mode ,it should be full resolution mode
 		format=format or &h0B
 	#endif
+	
+	'Set sampling rate 100 samples per second. 
+	tbt36_write_reg(TBT36_REG_BW_RATE,&h0A)
 	'set resolution + range
 	tbt36_write_reg(TBT36_REG_DATA_FORMAT,format)
 	'set measure bit
@@ -148,8 +150,7 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 		exit sub
 	end if
 
-	i2c.num = channel
-	tbt36_write_reg(TBT36_REG_POWER_CTL,&h08)
+	i2c.num=channel
 
 	'Read X axis value
 	hi_byte=tbt36_get_reg(TBT36_REG_DATA_X1)
@@ -166,13 +167,6 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 	lo_byte=tbt36_get_reg(TBT36_REG_DATA_Z0)
 	z=hi_byte*256+lo_byte
 
-	dim tmp as byte
-	'In bypass mode, the overrun bit is set when new data replaces unread data in the DATAX, DATAY, and DATAZ registers.
-	tmp=tbt36_get_reg(TBT36_REG_INT_ENABLE)
-	tmp=tmp and &hFE
-	tbt36_write_reg(TBT36_REG_INT_ENABLE,tmp)
-
-	tbt36_write_reg(TBT36_REG_POWER_CTL,&h00)
 	#if TBT36_DEBUG_PRINT=1
 		adxl_debug_print(hex(x)+"/"+hex(y)+"/"+hex(z))
 	#endif
@@ -233,6 +227,20 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 	end if
 end sub
 
+sub tbt36_error()
+	select case i2c.state
+	case I2C_IDLE:
+		sys.debugprint("I2C Error: I2C_IDLE this should not be seen.\r\n")
+	case I2C_STARTED:
+		sys.debugprint("I2C Error: I2C_STARTED this should not be seen.\r\n")
+	case I2C_STRETCHING_ERROR:
+		sys.debugprint("I2C Error: I2C_STRETCHING_ERROR\r\n")
+	case I2C_ARBITRATION_ERROR:
+		sys.debugprint("I2C Error: I2C_ARBITRATION_ERROR\r\n")
+	end select
+end sub
+
+
 sub tbt36_write_reg(cmd as byte, data as byte)
 	i2c.start()
 
@@ -256,12 +264,13 @@ sub tbt36_write_reg(cmd as byte, data as byte)
 	end if
 
 
+
 	i2c.stop()
 
 	if i2c.state <> I2C_IDLE then
 		tbt36_error()
 	end if
-	
+
 end sub
 
 function tbt36_get_reg(cmd as byte) as byte
@@ -287,7 +296,11 @@ function tbt36_get_reg(cmd as byte) as byte
 
 
 	i2c.write(TBT36_READ_CODE)
-	tmp=i2c.read(NACK)
+	tmp=i2c.read(NACK)  
+
+	if i2c.state <> I2C_STARTED then
+		tbt36_error()
+	end if
 
 	i2c.stop()
 	if i2c.state <> I2C_IDLE then
@@ -301,18 +314,6 @@ function tbt36_get_reg(cmd as byte) as byte
 	tbt36_get_reg=tmp
 end function
 
-sub tbt36_error()
-	sys.debugprint("error with tibbit 36")
-end sub
-
-sub tbt36_delay_msecond(value as word)
-	dim ax,bx as word
-
-	for ax=0 to value
-		for bx=0 to 5
-		next bx
-	next ax
-end sub
 
 #if TBT36_DEBUG_PRINT=1
 sub adxl_debug_print(data as string)
