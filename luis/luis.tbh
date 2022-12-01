@@ -77,12 +77,6 @@ declare sub callback_luis_bt_disabled()
 'Callback procedure, indicates that the Bluetooth has failed. Call luis_start() to restart it.<br/>
 'Procedure body has to be created elsewhere in the project (externally with respect to the library).
 
-declare sub callback_luis_buzz_command()
-'Callback procedure, indicates that the buzz ("B") command was received from the host.<br/>
-'Procedure body has to be created elsewhere in the project (externally with respect to the library).
-
 declare function callback_luis_read(byref name as string, byref value as string) as boolean
 
 declare function callback_luis_write(byref name as string, byref value as string) as boolean
-
-declare function luis_proc_cmd(byref cmd_str as string) as string
