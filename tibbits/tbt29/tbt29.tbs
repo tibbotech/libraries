@@ -59,25 +59,16 @@ function tbt29_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	#endif
 	tbt29_init_flag=TBT29_INIT_SIGNATURE
 
-	channel=si2c_register(signature, pin_data, pin_clk,use_ssi)
 	#if TBT29_DEBUG_PRINT=1
 		tbt29_debug_print("i2c num:"+str(channel))
 	#endif
 
-	if channel <4 then
-		ssi.channel=channel
-		ssi.enabled=NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap=pin_clk
-		ssi.dimap=pin_data
-		ssi.domap=pin_data
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.mode=PL_SSI_MODE_2
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled=YES
-	else
-		tbt29_init=TBT29_NO_SSI_AVAILABLE
-	end if
+
+	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
+	i2c.num=channel
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 
 	'check the TBT29_MFG_ID
 	if tbt29_read_data(TBT29_REG_MFGID,channel)<>TBT29_MFG_ID then
@@ -131,7 +122,7 @@ function tbt29_get(channel as byte) as integer
 		exit function
 	end if
 
-	si2c_get(channel) 
+	i2c.num=channel
 
 	tbt29_delay_msecond(DELAY_IN_65_MS)
 
@@ -159,46 +150,46 @@ function tbt29_read_data(op as tbt29_regs, byref channel as byte) as word
 
 	upper=0
 	lower=0
-	si2c_get(channel)
-	si2c_start()
+	i2c.num=channel
+	i2c.start()
 
 	'send address + op
-	si2c_write(TBT29_WRITE_ADDR)
-	si2c_write(op)
+	i2c.write(TBT29_WRITE_ADDR)
+	i2c.write(op)
 	
-	si2c_start()
+	i2c.start()
 
-	si2c_write(TBT29_READ_ADDR)
+	i2c.write(TBT29_READ_ADDR)
 
 	if op=TBT29_REG_RESOL then
-		lower=si2c_read(true)
+		lower=i2c.read(ACK)
 	else
-		upper=si2c_read(true)
-		lower=si2c_read(false)
+		upper=i2c.read(ACK)
+		lower=i2c.read(NACK)
 	end if
 
-	si2c_stop()
+	i2c.stop()
 	tbt29_read_data=upper*256+lower
 end function
 
 sub tbt29_write_data(op as tbt29_regs,data as word, channel as byte)
 	dim value as byte
-	si2c_get(channel) 
-	si2c_start()
+	i2c.num=channel
+	i2c.start()
 
-	si2c_write(TBT29_WRITE_ADDR)
-	si2c_write(op)
+	i2c.write(TBT29_WRITE_ADDR)
+	i2c.write(op)
 
 	if op=TBT29_REG_RESOL then
 		value=data and &h00FF
-		si2c_write(value)
+		i2c.write(value)
 	else
 		value=(data and &hFF00)/256
-		si2c_write(value)
+		i2c.write(value)
 		value=data and &h00FF
-		si2c_write(value)		
+		i2c.write(value)		
 	end if	
-	si2c_stop()
+	i2c.stop()
 end sub
 
 sub tbt29_delay_msecond(value as word)

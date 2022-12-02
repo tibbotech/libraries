@@ -17,25 +17,25 @@ function pic_reg_read(addr as word,length as byte)as string
 		exit function
 	end if
 
-	si2c_start()
+	i2c.start()
 
-	si2c_write(PIC_CHIP_ADDR_W)
-	si2c_write(PIC_CMD_R)
+	i2c.write(PIC_CHIP_ADDR_W)
+	i2c.write(PIC_CMD_R)
 	
 	tmp=addr / 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 	tmp=addr or 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 
-	si2c_stop()
-	si2c_start()
-	si2c_write(PIC_CHIP_ADDR_R)
+	i2c.stop()
+	i2c.start()
+	i2c.write(PIC_CHIP_ADDR_R)
 	for tmp=1 to length-1
-		data=data+chr(si2c_read(true))
+		data=data+chr(i2c.read(ACK))
 	next tmp
-	data=data+chr(si2c_read(false))
+	data=data+chr(i2c.read(NACK))
 	pic_reg_read=data
-	si2c_stop()
+	i2c.stop()
 end function
 
 function pic_reg_write(addr as word, data as string)as ok_ng
@@ -47,23 +47,23 @@ function pic_reg_write(addr as word, data as string)as ok_ng
 	pic_reg_write=NG
 	if data="" then exit function
 
-	si2c_start()
+	i2c.start()
 
-	si2c_write(PIC_CHIP_ADDR_W)
-	si2c_write(PIC_CMD_W)
+	i2c.write(PIC_CHIP_ADDR_W)
+	i2c.write(PIC_CMD_W)
 
 	tmp=addr/256
-	si2c_write(tmp)
+	i2c.write(tmp)
 	tmp=addr or 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 
 	buf=""
 	for pos=1 to len(data)
 		buf=mid(data,pos,1)
-		si2c_write(asc(buf))
+		i2c.write(asc(buf))
 	next pos
 
-	si2c_stop()
+	i2c.stop()
 
 	pic_reg_write=OK
 end function

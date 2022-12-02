@@ -47,29 +47,15 @@ function tbt28_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 		tbt28_debug_print("++++++++++")
 	#endif
 
-	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
 	#if TBT28_DEBUG_PRINT=1
 		tbt28_debug_print("i2c num:"+str(channel))
 	#endif
 	
-	si2c_get(channel)
-
-	if channel<=3 then
-		ssi.channel=channel
-		ssi.enabled=NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap=pin_clk
-		ssi.dimap=pin_data
-		ssi.domap=pin_data
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.mode=PL_SSI_MODE_0
-		ssi.enabled=YES
-	else
-		if use_ssi=YES then
-			tbt28_init=NG
-		end if
-	end if
+	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
+	i2c.num=channel
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 
 	'Switch sensor to power down mode
 	tbt28_cmd_send(TBT28_CMD_POWER_DOWN)
@@ -100,13 +86,13 @@ function tbt28_get(byref channel as byte) as word
 		exit function
 	end if
 
-	si2c_get(channel)
-
-	si2c_start()
-	si2c_write(TBT28_READ_ADDR)
-	upper=si2c_read(true)
-	lower=si2c_read(false)
-	si2c_stop()
+	' si2c_get(channel)
+	i2c.num=channel
+	i2c.start()
+	i2c.write(TBT28_READ_ADDR)
+	upper=i2c.read(ACK)
+	lower=i2c.read(NACK)
+	i2c.stop()
 
 	#if TBT28_DEBUG_PRINT=1
 		tbt28_debug_print("u:"+hex(upper)+" l:"+hex(lower))
@@ -121,10 +107,10 @@ function tbt28_get(byref channel as byte) as word
 end function
 
 sub tbt28_cmd_send(cmd as byte)
-	si2c_start()
-	si2c_write(TBT28_WRITE_ADDR)
-	si2c_write(cmd)
-	si2c_stop()
+	i2c.start()
+	i2c.write(TBT28_WRITE_ADDR)
+	i2c.write(cmd)
+	i2c.stop()
 end sub
 
 sub tbt28_delay_msecond(value as word)

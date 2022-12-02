@@ -43,25 +43,12 @@ function tbt_pic_gra_init(byref signature as string, byref tbt as tbt_pic_gra, u
 	tbt_pic_gra_init=OK
 	tbt.pic_init_flag=PIC_INIT_SIGNATURE
 	tbt.i2c_num_pic=si2c_register(signature,tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
+	i2c.num = tbt.i2c_num_pic
+	i2c.sdamap=tbt.PIC_DATA_PIN
+	i2c.sclmap=tbt.PIC_CLK_PIN
+	i2c.enabled=YES
 
-	if tbt.i2c_num_pic<4 then
-		ssi.channel=tbt.i2c_num_pic
-		ssi.enabled=NO
-		ssi.baudrate= PL_SSI_BAUD_100kHz
-		ssi.clkmap=tbt.PIC_CLK_PIN
-		ssi.dimap=tbt.PIC_DATA_PIN
-		ssi.domap=tbt.PIC_DATA_PIN
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.mode=PL_SSI_MODE_2
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled=YES
-	else
-		if use_ssi=YES then
-			tbt_pic_gra_init=NG
-		end if
-	end if
-
-	si2c_get(tbt.i2c_num_pic)
+	i2c.num=tbt.i2c_num_pic
 	
 	'7.RXDTSEL 0 = RX/DT function is on RC5
 	'6.SDOSEL  0 = SDO function is on RC2
@@ -232,25 +219,25 @@ function tbt_pic_gra_reg_read(addr as word,length as byte)as string
 		exit function
 	end if
 
-	si2c_start()
+	i2c.start()
 
-	si2c_write(PIC_CHIP_ADDR_W)
-	si2c_write(PIC_CMD_R)
+	i2c.write(PIC_CHIP_ADDR_W)
+	i2c.write(PIC_CMD_R)
 	
 	tmp=addr / 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 	tmp=addr or 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 
-	si2c_stop()
-	si2c_start()
-	si2c_write(PIC_CHIP_ADDR_R)
+	i2c.stop()
+	i2c.start()
+	i2c.write(PIC_CHIP_ADDR_R)
 	for tmp=1 to length-1
-		data=data+chr(si2c_read(true))
+		data=data+chr(i2c.read(ACK))
 	next tmp
-	data=data+chr(si2c_read(false))
+	data=data+chr(i2c.read(NACK))
 	tbt_pic_gra_reg_read=data
-	si2c_stop()
+	i2c.stop()
 end function
 
 
@@ -265,23 +252,23 @@ function tbt_pic_gra_reg_write(addr as word, data as string)as ok_ng
 	tbt_pic_gra_reg_write=NG
 	if data="" then exit function
 
-	si2c_start()
+	i2c.start()
 
-	si2c_write(PIC_CHIP_ADDR_W)
-	si2c_write(PIC_CMD_W)
+	i2c.write(PIC_CHIP_ADDR_W)
+	i2c.write(PIC_CMD_W)
 
 	tmp=addr/256
-	si2c_write(tmp)
+	i2c.write(tmp)
 	tmp=addr or 256
-	si2c_write(tmp)
+	i2c.write(tmp)
 
 	buf=""
 	for pos=1 to len(data)
 		buf=mid(data,pos,1)
-		si2c_write(asc(buf))
+		i2c.write(asc(buf))
 	next pos
 
-	si2c_stop()
+	i2c.stop()
 
 	tbt_pic_gra_reg_write=OK
 end function
@@ -654,7 +641,7 @@ sub tbt_pic_gra_config(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pin_enum, f 
 		exit sub
 	end if
 
-	si2c_get(tbt.i2c_num_pic)
+	i2c.num=tbt.i2c_num_pic
 
 	if tbt.pic_func(num)<>f then
 		if tbt.pic_func(num)=PIC_FUNC_PWM then
@@ -746,7 +733,7 @@ sub tbt_pic_gra_pwm_config_simple(byref tbt as tbt_pic_gra, ch as tbt_pic_gra_pw
 	rCCPRxL = (ccprxl shr 2)
 	rCCPxN =   &h0C  or  ((ccprxl and &h03) shl 4)
 	
-	si2c_get(tbt.i2c_num_pic)
+	i2c.num=tbt.i2c_num_pic
 	 
 	select case ch
 	
