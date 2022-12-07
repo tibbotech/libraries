@@ -205,7 +205,7 @@ sub date_set_datetime(byref dt_string as string)
 end sub
 
 function ftofixed(r as real, decimals as byte) as string
-	ftofixed = !fstr(r)
+	ftofixed = fstr(r)
 	dim pos as byte = instr(1,ftofixed, ".", 1)
 	if pos = 0  then
 		exit function
