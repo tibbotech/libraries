@@ -47,23 +47,15 @@ sub tbt30_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pi
 	#endif
 
 	tbt30_init_flag=TBT30_INIT_SIGNATURE
-	channel=si2c_register(signature, pin_data, pin_clk,use_ssi)
+	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
+	i2c.num = channel
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 
 	#if TBT30_DEBUG_PRINT=1
 		tbt30_debug_print("i2c num: "+str(channel))
 	#endif
-	if channel<4 then
-		ssi.channel=channel
-		ssi.enabled=NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap=pin_clk
-		ssi.dimap=pin_data
-		ssi.domap=pin_data
-		ssi.direction=PL_SSI_DIRECTION_LEFT
-		ssi.mode=PL_SSI_MODE_2
-		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled=YES
-	end if
 
 	#if TBT30_DEBUG_PRINT=1
 		tbt30_debug_print("----------")
@@ -104,16 +96,16 @@ function tbt30_get(byref humidity as word, byref temperature as word, channel as
 
 	tbt30_get=OK
 
-	si2c_get(channel)
+	i2c.num=channel
 	
 	'fetch humidity data
-	si2c_start()
-	si2c_write(TBT30_READ_ADDR)
-	data1=si2c_read(true)
-	data2=si2c_read(true)
-	data3=si2c_read(true)
-	data4=si2c_read(false)
-	si2c_stop()
+	i2c.start()
+	i2c.write(TBT30_READ_ADDR)
+	data1=i2c.read(ACK)
+	data2=i2c.read(ACK)
+	data3=i2c.read(ACK)
+	data4=i2c.read(NACK)
+	i2c.stop()
 
 	status=data1 and &h80
 	status=status/128
@@ -183,9 +175,9 @@ function tbt30_get(byref humidity as word, byref temperature as word, channel as
 	#endif
 
 	'send the measurement request
-	si2c_start()
-	si2c_write(TBT30_WRITE_ADDR)
-	si2c_stop()
+	i2c.start()
+	i2c.write(TBT30_WRITE_ADDR)
+	i2c.stop()
 
 '	tbt30_delay_msecond(50)
 

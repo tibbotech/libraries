@@ -34,36 +34,23 @@ function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 
 	tbt53_init_flag = TBT53_INIT_SIGNATURE
 	channel = si2c_register("TBT53", pin_data, pin_clk,use_ssi)
+	i2c.num = channel
+	i2c.sdamap=pin_data
+	i2c.sclmap=pin_clk
+	i2c.enabled=YES
 
-	if channel < 4 then
-		ssi.channel = channel
-		ssi.enabled = NO
-		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap = pin_clk
-		ssi.dimap = pin_data
-		ssi.domap = pin_data
-		ssi.direction = PL_SSI_DIRECTION_LEFT
-		ssi.mode = PL_SSI_MODE_2
-		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO
-		ssi.enabled = YES
-	else
-		if use_ssi = YES then
-			tbt53_init = NG
-		end if
-	end if
+	i2c.num=channel
+	i2c.start()
+	i2c.write(TBT53_WRITE_ADDR)
+	i2c.write(&h0C)
+	i2c.stop()
 
-	si2c_get(channel)
-	si2c_start()
-	si2c_write(TBT53_WRITE_ADDR)
-	si2c_write(&h0C)
-	si2c_stop()
-
-	si2c_start()
-	si2c_write(TBT53_READ_ADDR)
-	hi_byte = si2c_read(true)
-	lo_byte = si2c_read(true)
-	config = si2c_read(false)
-	si2c_stop()
+	i2c.start()
+	i2c.write(TBT53_READ_ADDR)
+	hi_byte = i2c.read(ACK)
+	lo_byte = i2c.read(ACK)
+	config = i2c.read(NACK)
+	i2c.stop()
 
 	#if TBT53_DEBUG_PRINT = 1
 		tbt53_debug_print("config : " + hex(config))
@@ -85,12 +72,12 @@ function tbt53_get_current(byref ma as real, channel as byte) as ok_ng
 	tbt53_get_current = NG
 	if tbt53_init_flag <> TBT53_INIT_SIGNATURE then exit function
 
-	si2c_get(channel)
-	si2c_start()
-	si2c_write(TBT53_READ_ADDR)
-	hi_byte = si2c_read(true)
-	lo_byte = si2c_read(true)
-	si2c_stop()
+	i2c.num=channel
+	i2c.start()
+	i2c.write(TBT53_READ_ADDR)
+	hi_byte = i2c.read(ACK)
+	lo_byte = i2c.read(ACK)
+	i2c.stop()
 
 	tmp = hi_byte * 256
 	tmp = tmp + lo_byte
@@ -114,12 +101,6 @@ function tbt53_get_current(byref ma as real, channel as byte) as ok_ng
 
 	tbt53_get_current = OK
 end function
-
-sub tbt53_th_release(channel as byte)
-	if tbt53_init_flag <> TBT53_INIT_SIGNATURE then exit sub
-	tbt53_init_flag = &hFFFF
-	si2c_release(channel)
-end sub
 
 #if TBT53_DEBUG_PRINT=1
 sub tbt53_debug_print(data as string)
