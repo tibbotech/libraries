@@ -2,7 +2,7 @@
 
 include "global.tbh"
 
-const CMD_ESC_CHAR = "@"
+const STGCMD_CMD_ESC_CHAR = "@"
 
 enum en_html_send_states
 	EN_HTML_GOP_RESULT,
@@ -23,7 +23,7 @@ public function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as str
 	dim stg_data as string
 	explicit_index=NO
 	if left(cmd_str,1)<>"D" then
-		x=instr(1,cmd_str,CMD_ESC_CHAR,1)
+		x=instr(1,cmd_str,STGCMD_CMD_ESC_CHAR,1)
 		if x>0 then
 			'yes, the sequence is included -- extract it
 			setting_name=mid(cmd_str,2,x-2)
