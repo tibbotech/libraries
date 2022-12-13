@@ -76,11 +76,6 @@
 	#define WLN_RESCAN_TMR_CTR_NO_CONNECT 140
 #endif
 '------------------------------------------------------------------------------
-enum pl_wln_check_association_retval
-	WLN_ASSOCIATION_RETVAL_NO,
-	WLN_ASSOCIATION_RETVAL_YES,
-	WLN_ASSOCIATION_RETVAL_INPROG
-end enum
 
 #if WLN_WPA
 	enum pl_wln_security_modes
@@ -124,7 +119,7 @@ declare function wln_get_info(info_element as wln_info_elements, byref extra_dat
 declare function wln_start(byref ap_name as string, security_mode as pl_wln_security_modes, byref key as string, domain as pl_wln_domains, active_scan as no_yes, scanfilter as pl_wln_scan_filter) as en_wln_status_codes
 declare function wln_change(byref ap_name as string,security_mode as pl_wln_security_modes,byref key as string) as en_wln_status_codes
 declare sub wln_stop()
-declare function wln_check_association() as pl_wln_check_association_retval
+declare function wln_check_association() as pl_wln_association_states
 declare sub wln_proc_timer()
 
 declare sub wln_proc_event(wln_event as pl_wln_events)
