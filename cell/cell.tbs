@@ -23,7 +23,7 @@ dim cell__at_cmd_exec_retry_param as byte = 0	'number of AT command execution re
 dim cell__at_retry_parse_max as byte
 dim cell__at_retry_exec_and_parse_max as byte
 
-dim cell__at_cgreg_dblchk_isEnabled as boolean = FALSE
+dim cell__at_cgreg_dblchk_isEnabled as boolean = false
 
 dim cell__status_revpol as no_yes
 dim cell__pwrkey_revpol as no_yes
@@ -48,13 +48,13 @@ dim cell__op_ppp_phase_bck as en_cell__op_ppp_phases
 dim cell__op_gps_phase as en_cell__op_gps_phases
 dim cell__op_parse_phase as en_cell__op_parse_phases
 
-dim cell__modem_init_startup as boolean = TRUE	'variable is NOT initialized anywhere (default: TRUE)
-dim cell__attempt_to_free_buffpages_via_modem_reset as boolean = FALSE
+dim cell__modem_init_startup as boolean = true	'variable is NOT initialized anywhere (default: true)
+dim cell__attempt_to_free_buffpages_via_modem_reset as boolean = false
 
-dim cell__modem_restart_isTrigg as boolean = FALSE
-dim cell__modem_stop_is_already_Trigg as boolean = FALSE
+dim cell__modem_restart_isTrigg as boolean = false
+dim cell__modem_stop_is_already_Trigg as boolean = false
 
-dim cell__sim7000_isDetected as boolean = FALSE
+dim cell__sim7000_isDetected as boolean = false
 
 dim cell__uptime as word
 dim cell__starttime as word
@@ -151,7 +151,7 @@ dim cell__pin as string(CELL__16b_LEN)
 
 	dim cell__parse_sms_message_phase_isON as boolean
 
-	dim cell__sms_msg_inputmode_isOn as boolean = FALSE
+	dim cell__sms_msg_inputmode_isOn as boolean = false
 #endif
 
 dim cell__at_cmd_storArray(CELL__ARRAY_LEN) as string	'array with 4 pages (<span style="color: gray;">1 page = 256 Bytes</span>)
@@ -196,82 +196,82 @@ dim cell__at_cmd_storArray_numof_cmds as word
 #endif
 
 #ifndef CELL__AT_REPLIED_WITH_RDY
-    #define CELL__AT_REPLIED_WITH_RDY ( INSTR(1, ser.getdata(255), CELL__RDY_CRLF, 1) <> 0 )	
+    #define CELL__AT_REPLIED_WITH_RDY ( instr(1, ser.getdata(255), CELL__RDY_CRLF, 1) <> 0 )	
 #endif	
 #ifndef CELL__AT_REPLIED_WITH_CGREG_0_1
-    #define CELL__AT_REPLIED_WITH_CGREG_0_1 ( INSTR(1, cell__reply, CELL__CGREG_0_1, 1) <> 0 )
+    #define CELL__AT_REPLIED_WITH_CGREG_0_1 ( instr(1, cell__reply, CELL__CGREG_0_1, 1) <> 0 )
 #endif
 #ifndef CELL__AT_REPLIED_WITH_CGREG_ANY
-    #define CELL__AT_REPLIED_WITH_CGREG_ANY ( INSTR(1, cell__reply, CELL__CGREG_ANY, 1) <> 0 )
+    #define CELL__AT_REPLIED_WITH_CGREG_ANY ( instr(1, cell__reply, CELL__CGREG_ANY, 1) <> 0 )
 #endif
 #ifndef CELL__AT_REPLIED_WITH_SIM7000
-    #define CELL__AT_REPLIED_WITH_SIM7000 ( INSTR(1, cell__reply, CELL__SIM7000, 1) <> 0 )
+    #define CELL__AT_REPLIED_WITH_SIM7000 ( instr(1, cell__reply, CELL__SIM7000, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_CPIN
-    #define CELL__AT_CMD_CONTAINS_CPIN ( INSTR(1, cell__at_cmd, CELL__AT_CPIN_Q, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CPIN ( instr(1, cell__at_cmd, CELL__AT_CPIN_Q, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_CGREG
-    #define CELL__AT_CMD_CONTAINS_CGREG ( INSTR(1, cell__at_cmd, CELL__AT_CGREG_Q, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CGREG ( instr(1, cell__at_cmd, CELL__AT_CGREG_Q, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_CGPADDR
-    #define CELL__AT_CMD_CONTAINS_CGPADDR ( INSTR(1, cell__at_cmd, CELL__AT_CGPADDR, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CGPADDR ( instr(1, cell__at_cmd, CELL__AT_CGPADDR, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_CBC
-    #define CELL__AT_CMD_CONTAINS_CBC ( INSTR(1, cell__at_cmd, CELL__AT_CBC, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CBC ( instr(1, cell__at_cmd, CELL__AT_CBC, 1) <> 0 )
 #endif
 
 
 
 #ifndef CELL__AT_CMD_CONTAINS_CMGS
-    #define CELL__AT_CMD_CONTAINS_CMGS ( INSTR(1, cell__at_cmd, CELL__CMGS, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CMGS ( instr(1, cell__at_cmd, CELL__CMGS, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_SUBSTITUTE_CHAR
-    #define CELL__AT_CMD_CONTAINS_SUBSTITUTE_CHAR ( INSTR(1, cell__at_cmd, CELL__SUBSTITUTE, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_SUBSTITUTE_CHAR ( instr(1, cell__at_cmd, CELL__SUBSTITUTE, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_CNMI
-    #define CELL__AT_CMD_CONTAINS_CNMI ( INSTR(1, cell__at_cmd, CELL__AT_CNMI, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CNMI ( instr(1, cell__at_cmd, CELL__AT_CNMI, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_CMGR
-    #define CELL__AT_CMD_CONTAINS_CMGR ( INSTR(1, cell__at_cmd, CELL__AT_CMGR, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CMGR ( instr(1, cell__at_cmd, CELL__AT_CMGR, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_CMGD
-    #define CELL__AT_CMD_CONTAINS_CMGD ( INSTR(1, cell__at_cmd, CELL__AT_CMGD, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_CMGD ( instr(1, cell__at_cmd, CELL__AT_CMGD, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_AT_PLUS
-    #define CELL__AT_CMD_CONTAINS_AT_PLUS ( INSTR(1, cell__at_cmd, CELL__AT_PLUS, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT_PLUS ( instr(1, cell__at_cmd, CELL__AT_PLUS, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_PLUS
-    #define CELL__AT_CMD_CONTAINS_PLUS ( INSTR(1, cell__at_cmd, CELL__PLUS, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_PLUS ( instr(1, cell__at_cmd, CELL__PLUS, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_AT
-    #define CELL__AT_CMD_CONTAINS_AT ( INSTR(1, cell__at_cmd, CELL__AT, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT ( instr(1, cell__at_cmd, CELL__AT, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_ATE1
-    #define CELL__AT_CMD_CONTAINS_ATE1 ( INSTR(1, cell__at_cmd, CELL__ATE1, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_ATE1 ( instr(1, cell__at_cmd, CELL__ATE1, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_TRIPLEPLUS
-    #define CELL__AT_CMD_CONTAINS_TRIPLEPLUS ( INSTR(1, cell__at_cmd, CELL__TRIPLEPLUS, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_TRIPLEPLUS ( instr(1, cell__at_cmd, CELL__TRIPLEPLUS, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_ATO
-    #define CELL__AT_CMD_CONTAINS_ATO ( INSTR(1, cell__at_cmd, CELL__ATO, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_ATO ( instr(1, cell__at_cmd, CELL__ATO, 1) <> 0 )
 #endif
 
 #ifndef CELL__AT_CMD_CONTAINS_AT_AMPERSAND_E1
-    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_E1 ( INSTR(1, cell__at_cmd, CELL__AT_AMPERSAND_E1, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_E1 ( instr(1, cell__at_cmd, CELL__AT_AMPERSAND_E1, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_AT_AMPERSAND_C0
-    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_C0 ( INSTR(1, cell__at_cmd, CELL__AT_AMPERSAND_C0, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_C0 ( instr(1, cell__at_cmd, CELL__AT_AMPERSAND_C0, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_AT_CPSMS_0
-    #define CELL__AT_CMD_CONTAINS_AT_CPSMS_0 ( INSTR(1, cell__at_cmd, CELL__AT_CPSMS_0, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT_CPSMS_0 ( instr(1, cell__at_cmd, CELL__AT_CPSMS_0, 1) <> 0 )
 #endif
 #ifndef CELL__AT_CMD_CONTAINS_AT_AMPERSAND_D0
-    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_D0 ( INSTR(1, cell__at_cmd, CELL__AT_AMPERSAND_D0, 1) <> 0 )
+    #define CELL__AT_CMD_CONTAINS_AT_AMPERSAND_D0 ( instr(1, cell__at_cmd, CELL__AT_AMPERSAND_D0, 1) <> 0 )
 #endif
 
 #ifndef CELL__SER_PORT_NUM_IS_CORRECT
@@ -279,7 +279,7 @@ dim cell__at_cmd_storArray_numof_cmds as word
 #endif
 
 #ifndef CELL__SIM_MODEL_IS_7000
-    #define CELL__SIM_MODEL_IS_7000 ( cell__sim7000_isDetected = TRUE )
+    #define CELL__SIM_MODEL_IS_7000 ( cell__sim7000_isDetected = true )
 #endif
 
 
@@ -309,27 +309,27 @@ function cell__start(byref pin as string(CELL__16b_LEN), byref apn as string,
     cell__apn = apn
     cell__username = username
     cell__password = password
-    cell__pap_credentials = CHR(LEN(cell__username)) + cell__username + CHR(LEN(cell__password)) + cell__password
+    cell__pap_credentials = chr(len(cell__username)) + cell__username + chr(len(cell__password)) + cell__password
 	
 	'Set pin-code
     cell__pin = pin
 
 	'Reset boolean
-	cell__modem_stop_is_already_Trigg = FALSE
+	cell__modem_stop_is_already_Trigg = false
 	
 
 	'Check if allocated buffer-size is sufficient
-    if cell__buffersize_isSufficient() = TRUE then	'allocated buffer-size is sufficient
+    if cell__buffersize_isSufficient() = true then	'allocated buffer-size is sufficient
 		'OUTPUT
 		cell__start = CELL__START_INITIATED
 
 		'Choose next-phase = cell__op_pwr_phase
-		if (cell__modem_restart_isTrigg = FALSE) then	'for all other cases (EXCEPT for a modem-restart)
+		if (cell__modem_restart_isTrigg = false) then	'for all other cases (EXCEPT for a modem-restart)
 			cell__op_pwr_phase = PHASE_PWR_RESET_ON
 			
 		else	'a modem-restart was requested
-			'REMARK: `cell__modem_restart_isTrigg = FALSE` is also set in subroutine `cell__stop`
-			cell__modem_restart_isTrigg = FALSE	'reset boolean to FALSE
+			'REMARK: `cell__modem_restart_isTrigg = false` is also set in subroutine `cell__stop`
+			cell__modem_restart_isTrigg = false	'reset boolean to false
 			
 			cell__op_pwr_phase = PHASE_PWR_PWRKEY_ON
 			
@@ -346,10 +346,10 @@ function cell__start(byref pin as string(CELL__16b_LEN), byref apn as string,
 		'Insufficient buffer-pages detected, then:
 		'1. Attempt to free-up buffer-pages via a RESET
 		'2. If a RESET did NOT solve the issue, then go into IDLE-mode
-		'REMARK: `cell__attempt_to_free_buffpages_via_modem_reset = FALSE` is set in subroutine `cell__stop`
-		if (cell__attempt_to_free_buffpages_via_modem_reset = FALSE) then
-			'Set boolean to TRUE
-			cell__attempt_to_free_buffpages_via_modem_reset = TRUE
+		'REMARK: `cell__attempt_to_free_buffpages_via_modem_reset = false` is set in subroutine `cell__stop`
+		if (cell__attempt_to_free_buffpages_via_modem_reset = false) then
+			'Set boolean to true
+			cell__attempt_to_free_buffpages_via_modem_reset = true
 			
 			'Initialize Modem
 			'Go to next-phase (e.g., PHASE_PWR_RESET_ON)
@@ -379,8 +379,8 @@ function cell__stop(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as e
     cell__pin = CELL__EMPTYSTRING
 	
 	'Reset boolean
-	cell__modem_restart_isTrigg = FALSE
-	cell__attempt_to_free_buffpages_via_modem_reset = FALSE
+	cell__modem_restart_isTrigg = false
+	cell__attempt_to_free_buffpages_via_modem_reset = false
 	
 	'Initialize Modem	
 	cell__init(PHASE_PWR_IDLE, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
@@ -416,7 +416,7 @@ function cell__buffersize_isSufficient() as boolean
 		buffpages_required_vs_free = str(required_buffpages) + ">" + str(free_buffpages)
 		
 		'Set boolean
-		cell__buffersize_isSufficient = FALSE
+		cell__buffersize_isSufficient = false
     else	'ENOUGH FREE buffer-pages
 		'Set phase
 		select_phase=CELL__START_BUFFER_SIZE_IS_SUFFICIENT
@@ -425,7 +425,7 @@ function cell__buffersize_isSufficient() as boolean
 		buffpages_required_vs_free = str(required_buffpages) + "<" + str(free_buffpages)
 	
 		'Set boolean
-		cell__buffersize_isSufficient = TRUE
+		cell__buffersize_isSufficient = true
     end if
 
 
@@ -451,10 +451,10 @@ sub cell__ltrim_crlf(byref inputdata as string)
 	'Find all leading CR and LF
 	i = 0
     c = 0
-    while i < LEN(inputdata)
+    while i < len(inputdata)
 		i = i + 1	'increment index	
 	
-        onechar = MID(inputdata, i, 1)	'Take one character from "inputdata" from LEFT to RIGHT
+        onechar = mid(inputdata, i, 1)	'Take one character from "inputdata" from LEFT to RIGHT
 		
         if onechar = CELL__CR OR onechar = CELL__LF then	'onechar is CR or LF
 			c = c + 1	'increment counter
@@ -463,7 +463,7 @@ sub cell__ltrim_crlf(byref inputdata as string)
         end if
     wend
 	
-    inputdata = RIGHT(inputdata, len(inputdata) - c )	'trim leading CRLF
+    inputdata = right(inputdata, len(inputdata) - c )	'trim leading CRLF
 end sub
 
 sub cell__rtrim_crlf(byref inputdata as string)
@@ -474,8 +474,8 @@ sub cell__rtrim_crlf(byref inputdata as string)
 	'Find Trailing CR and LF
 	i = 0
     c = 0
-    while i < LEN(inputdata)
-        onechar = MID(inputdata, (LEN(inputdata) - i), 1)	'Take one character from "inputdata" from RIGHT TO LEFT
+    while i < len(inputdata)
+        onechar = mid(inputdata, (len(inputdata) - i), 1)	'Take one character from "inputdata" from RIGHT TO LEFT
 		
         if onechar = CELL__CR OR onechar = CELL__LF OR onechar = CELL__DOLLAR then	'onechar is CR or LF or $
 			c = c + 1	'increment counter
@@ -486,14 +486,14 @@ sub cell__rtrim_crlf(byref inputdata as string)
 		i = i + 1	'increment index
     wend
 	
-    inputdata = LEFT(inputdata, len(inputdata) - c )	'trim trailing CRLF
+    inputdata = left(inputdata, len(inputdata) - c )	'trim trailing CRLF
 end sub
 
 sub cell__trim_lstring(byref inputdata as string, byref lstring as string(CELL__128b_LEN))
 	'check if `lstring` is found in the `inputdata`
-    if (INSTR(1, inputdata, lstring, 1) <> 0) then
-		'outputtext = RIGHT( inputdata, (length of inputdata - (length of lstring + position of lstring in inputdata - 1) ) )
-        inputdata = RIGHT( inputdata, ( LEN(inputdata) - ( LEN(lstring) + INSTR(1, inputdata, lstring, 1) - 1 ) ) )	'trim leading AT-command
+    if (instr(1, inputdata, lstring, 1) <> 0) then
+		'outputtext = right( inputdata, (length of inputdata - (length of lstring + position of lstring in inputdata - 1) ) )
+        inputdata = right( inputdata, ( len(inputdata) - ( len(lstring) + instr(1, inputdata, lstring, 1) - 1 ) ) )	'trim leading AT-command
     end if
 end sub
 
@@ -503,13 +503,13 @@ sub cell__substitute_char(byref inputdata as string, byref oldchar as string(CEL
 	
 	'Find CR and LF
 	i = 0
-    while i < LEN(inputdata)
+    while i < len(inputdata)
 		i = i + 1	'increment index
 		
-        onechar = MID(inputdata, i, 1)	'Take one character from "inputdata"
+        onechar = mid(inputdata, i, 1)	'Take one character from "inputdata"
 		
         if onechar = oldchar then	'match is found
-			inputdata = LEFT( inputdata, (i-1) ) + newchar + RIGHT( inputdata, LEN(inputdata)-i )	'compose new `inputdata` with `newchar`
+			inputdata = left( inputdata, (i-1) ) + newchar + right( inputdata, len(inputdata)-i )	'compose new `inputdata` with `newchar`
         end if
     wend
 end sub
@@ -520,11 +520,11 @@ function cell__get_string_between_2chars( byref inputdata as string, nth_occur a
     dim pos1, pos2 as byte
 
 	'Find position of the string between 2 commas
-    pos1 = INSTR( 1, inputdata, firstchar, nth_occur )	'Find position at the Nth-occurrence
-    pos2 = INSTR( (pos1 + 1) , inputdata, secondchar, 1 )	'Find the next position after the Nth-occurrence
+    pos1 = instr( 1, inputdata, firstchar, nth_occur )	'Find position at the Nth-occurrence
+    pos2 = instr( (pos1 + 1) , inputdata, secondchar, 1 )	'Find the next position after the Nth-occurrence
 	
 	'OUTPUT
-    cell__get_string_between_2chars = MID( inputdata, (pos1+1), (pos2-pos1-1) )	
+    cell__get_string_between_2chars = mid( inputdata, (pos1+1), (pos2-pos1-1) )	
 end function
 
 
@@ -963,7 +963,7 @@ sub cell__init(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cel
 
 	'A modem-restart was triggered from subroutine `cell__proc_sys_timer_unwanted_idle_mode`
 	'In this case do NOT reset the retry-parameters
-	if (cell__retry_in_progress = FALSE) then
+	if (cell__retry_in_progress = false) then
 		cell__modem_restart_retry_param = 0	'this parameter should only be initialized if NO RETRY is in progress
 	
 		cell__init_param_var_bool()	'parameters, variables, booleans
@@ -1002,7 +1002,7 @@ sub cell__deinit(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_c
 	
 			
 	#if CELL__AT_USERMODE_ISENABLED
-		cell__sms_msg_inputmode_isOn = FALSE
+		cell__sms_msg_inputmode_isOn = false
 	#endif
 	
 	
@@ -1042,7 +1042,7 @@ sub cell__init_param_var_bool()
 end sub
 
 sub cell__init_io()
-    if cell__modem_init_startup = TRUE then	'only execute this once (during initial modem startup)
+    if cell__modem_init_startup = true then	'only execute this once (during initial modem startup)
 		if CELL__MODEM_STATUS =  CELL__OFF then	'polarity does not have to be reversed
 			cell__reverse_polarity(STATUS, NO)
 			cell__reverse_polarity(PWRKEY, NO)
@@ -1063,7 +1063,7 @@ sub cell__init_io()
     io.enabled = YES	'output
 
 	'Initial SHDN state should be Active
-	'If FALSE, then set to Active
+	'If false, then set to Active
     if CELL__SHDN_STATE = cell__shdn_setto_off then
         CELL__SET_SHDN_ON	'then set SHDN line to Active (by default)
     end if
@@ -1293,9 +1293,9 @@ end sub
         cell__ppp_retry_param = 0 'PPP
 
 		'Booleans (yes/no)
-        cell__ppp_pap_isRequired = TRUE
-        cell__ppp_sender_confreq_isAck = FALSE
-        cell__ppp_sender_confreq_isAck = FALSE
+        cell__ppp_pap_isRequired = true
+        cell__ppp_sender_confreq_isAck = false
+        cell__ppp_sender_confreq_isAck = false
 		
 		'Identifiers (=sequence-number)
         cell__ppp_sender_id = 0
@@ -1350,10 +1350,10 @@ end sub
 
 sub cell__modem_restart(next_pwr_phase as en_cell__op_pwr_phases)
 	if (cell__modem_restart_retry_param < CELL__MODEM_RESTART_RETRY_MAX) then	
-		'Set boolean to TRUE (IMPORTANT)
+		'Set boolean to true (IMPORTANT)
 		'	If this boolean is not set to true, 
 		'	then the Modem will NOT power On after a power Off)
-		cell__modem_restart_isTrigg = TRUE
+		cell__modem_restart_isTrigg = true
 		
 		'INCREMENT
 		cell__modem_restart_retry_param = cell__modem_restart_retry_param + 1
@@ -1369,8 +1369,8 @@ sub cell__modem_restart(next_pwr_phase as en_cell__op_pwr_phases)
 		cell__deinit(next_pwr_phase, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
 		
 	else
-		'Set boolean to FALSE
-		cell__modem_restart_isTrigg = FALSE
+		'Set boolean to false
+		cell__modem_restart_isTrigg = false
 	
 		'Initialize parameters, variables and booleans
 		cell__init_param_var_bool()
@@ -1597,7 +1597,7 @@ end sub
 sub cell__pwrkey_retry()
     if cell__pwrkey_retry_param < CELL__POWER_ONOFF_RETRY_MAX then	'number of PWRKEY retries has NOT exceeded yet
 		#if CELL__AUTO_POLARITY_ADJUST_ISENABLED
-			if cell__modem_init_startup = TRUE then	'only execute this once (during initial modem startup)
+			if cell__modem_init_startup = true then	'only execute this once (during initial modem startup)
 				'REMARK: each time when subroutine `cell__reverse_polarity` is executed    ,...
 				'... parameter `cell__shdn_revpol, cell__reset_revpol, or cell__pwrkey_revpol` is updated
 				select case cell__pwrkey_retry_param
@@ -1625,7 +1625,7 @@ sub cell__pwrkey_retry()
 				end select
 			
 				'Initial SHDN state should be Active
-				'If FALSE, then set to Active
+				'If false, then set to Active
 				if CELL__SHDN_STATE = cell__shdn_setto_off  then
 					CELL__SET_SHDN_ON	'then set SHDN line to Active
 				end if
@@ -1633,7 +1633,7 @@ sub cell__pwrkey_retry()
 				'Set next phase to transit to (e.g. PHASE_PWR_RESET_ON)
 				cell__update_op_next_phases(PHASE_PWR_RESET_ON, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
 					
-			else	'cell__modem_init_startup = FALSE
+			else	'cell__modem_init_startup = false
 				'Set next phase to transit to (e.g. PHASE_PWR_PWRKEY_ON)
 				cell__update_op_next_phases(PHASE_PWR_PWRKEY_ON, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
 					
@@ -1662,7 +1662,7 @@ sub cell__powering_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase
 
 	cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
 
-	if (cell__modem_restart_isTrigg = TRUE) then	'modem restart was requested
+	if (cell__modem_restart_isTrigg = true) then	'modem restart was requested
 		#if CELL__DEBUGPRINT_PWR_ISENABLED
 			'Show message that Modem is Powering Off
 			cell__debugprint_pwr_phase(PHASE_PWR_POWERING_OFF, CELL__EMPTYSTRING)	'PRINT
@@ -1724,7 +1724,7 @@ sub cell__check_rdy_state(next_pwr_phase as en_cell__op_pwr_phases, next_at_phas
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the Serial-port to become RDY
 		if CELL__AT_REPLIED_WITH_RDY then	'serial-port is RDY
-			cell__ser_port_isRdy = TRUE	'set boolean to TRUE
+			cell__ser_port_isRdy = true	'set boolean to true
 			#if CELL__DEBUGPRINT_PWR_ISENABLED		
 				cell__debugprint_pwr_phase(PHASE_PWR_SERPORT_CHK_RDY_STATE, CELL__RDY)	'PRINT
 			#endif
@@ -1733,7 +1733,7 @@ sub cell__check_rdy_state(next_pwr_phase as en_cell__op_pwr_phases, next_at_phas
 			cell__update_op_next_phases(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, next_parse_phase)
 		end if	
 	else	'timeout has EXCEEDED, serial-port is NOT RDY
-		cell__ser_port_isRdy = FALSE	'set boolean to FALSE
+		cell__ser_port_isRdy = false	'set boolean to false
 		
 		'Set next phase to transit to (e.g. PHASE_PWR_MODEM_ONOFF)
 		cell__update_op_next_phases(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, next_parse_phase)
@@ -1746,8 +1746,8 @@ sub cell__modem_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as
 							next_parse_phase as en_cell__op_parse_phases)
     
 	
-	'IMPORTANT: set boolean to FALSE (this will prevent this section from triggering again)
-	cell__modem_init_startup = FALSE	
+	'IMPORTANT: set boolean to false (this will prevent this section from triggering again)
+	cell__modem_init_startup = false	
 	
 	if CELL__MODEM_STATUS = cell__status_setto_on then	'Modem is ON
 		#if CELL__DEBUGPRINT_PWR_ISENABLED
@@ -1774,9 +1774,9 @@ sub cell__modem_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as
 		#endif
 
 		'Possible scenarios:
-		'1. cell__modem_restart_isTrigg = TRUE: go to next-phase = PHASE_PWR_MODEM_RESTART_RETRY
+		'1. cell__modem_restart_isTrigg = true: go to next-phase = PHASE_PWR_MODEM_RESTART_RETRY
 		'2. for all other cases: set all phases to IDLE
-		if (cell__modem_restart_isTrigg = TRUE) then	'modem restart was requested
+		if (cell__modem_restart_isTrigg = true) then	'modem restart was requested
 			cell__update_op_next_phases(PHASE_PWR_MODEM_RESTART_RETRY, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
 		else
 			cell__update_op_next_phases(PHASE_PWR_IDLE, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
@@ -1812,7 +1812,7 @@ sub cell__ser_port_flush_specified_amountOf_data(garbage_datalen as byte)
 end sub
 sub cell__ser_port_flush_all()
 	'Define Macros
-	#define SERPORT_CONTAINS_DATA ( LEN(ser.peekdata(255)) <> 0 )
+	#define SERPORT_CONTAINS_DATA ( len(ser.peekdata(255)) <> 0 )
 	
 	while true
 		if ( SERPORT_CONTAINS_DATA ) then	'serial-port contains data
@@ -1836,7 +1836,7 @@ sub cell__sock_flush_all()
 	dim s as byte
 
 	'Define Macros
-	#define SOCK_CONTAINS_DATA ( LEN(sock.peekdata(255)) <> 0 )
+	#define SOCK_CONTAINS_DATA ( len(sock.peekdata(255)) <> 0 )
 	
 	for s=0 to CELL__SOCK_NUM_MAX
 		sock.num=s
@@ -1981,7 +1981,7 @@ end sub
 sub cell__at_usermode_send(atcmd as string)
 	'SMS RELATED
 	#if CELL__AT_USERMODE_ISENABLED
-		if (cell__sms_msg_inputmode_isOn = TRUE) then
+		if (cell__sms_msg_inputmode_isOn = true) then
 			atcmd = atcmd	'send the original input command
 			
 			GOTO SET_AND_SEND_HANDLER
@@ -2047,7 +2047,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
     else if ( atreply_checkitem = CELL__OK or atreply_checkitem = CELL__CONNECT_BAUDRATE or atreply_checkitem = CELL__CONNECT or atreply_checkitem = CELL__GREATERTHAN ) then	'AT replied with `OK` or `CONNECT`
 		'Sim7000 Handler
 		if (CELL__AT_REPLIED_WITH_SIM7000) then	'SIM7000 detected
-			cell__sim7000_isDetected = TRUE	'change boolean to TRUE
+			cell__sim7000_isDetected = true	'change boolean to true
 		end if
 
 		'Get Voltage
@@ -2115,16 +2115,16 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 				'... by running `cell__at_parse_message_retry`
 				cell__at_parse_message_retry(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, PHASE_PARSE_IDLE)
 			else	'match was found
-				'In case `CGREG: 0,1` has been replied, then set boolean to back to FALSE
-				if (cell__at_cgreg_dblchk_isEnabled = TRUE) then
-					cell__at_cgreg_dblchk_isEnabled = FALSE	'reset boolean
+				'In case `CGREG: 0,1` has been replied, then set boolean to back to false
+				if (cell__at_cgreg_dblchk_isEnabled = true) then
+					cell__at_cgreg_dblchk_isEnabled = false	'reset boolean
 				end if
 			end if
 
 #if CELL__AT_USERMODE_ISENABLED
 
 		else if (CELL__AT_CMD_CONTAINS_CMGS) then	'AT+CMGS command was executed (this indicates the beginning of the SMS-message mode)
-			cell__sms_msg_inputmode_isOn = TRUE
+			cell__sms_msg_inputmode_isOn = true
 
 			'Initialize parameters, variables and booleans
 			cell__init_param_var_bool()
@@ -2134,7 +2134,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 			cell__update_op_next_phases(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, PHASE_PARSE_IDLE)
 			
 		else if (CELL__AT_CMD_CONTAINS_SUBSTITUTE_CHAR) then	'char(26) was executed (this indicates the end of the SMS-message mode
-			cell__sms_msg_inputmode_isOn = FALSE
+			cell__sms_msg_inputmode_isOn = false
 			
 			#if CELL__DEBUGPRINT_AT_ISENABLED
 				cell__debugprint_at_phase(PHASE_SMS_SENT, CELL__SMS, CELL__EMPTYSTRING)
@@ -2156,7 +2156,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 			'	Let's assume that `auto-reply` has been configured, in case...
 			'...an SMS-message has been received, an auto-reply would be sent to the sender,...
 			'...AFTER THAT the next-phase should be set back to `PHASE_PARSE_SMS_MESSAGE`
-			if (cell__parse_sms_message_phase_isON = TRUE) then	'this part belongs to `AT+CNMI`
+			if (cell__parse_sms_message_phase_isON = true) then	'this part belongs to `AT+CNMI`
 				#if CELL__DEBUGPRINT_AT_ISENABLED
 					cell__debugprint_at_phase(PHASE_SMS_RDY_TO_RCV, CELL__SMS, CELL__EMPTYSTRING)	'PRINT
 				#endif
@@ -2173,7 +2173,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 			end if
 
 		else if (CELL__AT_CMD_CONTAINS_CNMI) then
-			cell__parse_sms_message_phase_isON = TRUE	'IMPORTANT: set to TRUE!!!
+			cell__parse_sms_message_phase_isON = true	'IMPORTANT: set to true!!!
 		
 			#if CELL__DEBUGPRINT_AT_ISENABLED
 				cell__debugprint_at_phase(PHASE_SMS_RDY_TO_RCV, CELL__SMS, CELL__EMPTYSTRING)	'PRINT		
@@ -2328,11 +2328,11 @@ sub cell__at_get_cleandata(byref atreply_checkitem as string(CELL__16b_LEN))
 			GOTO ATREPLY_CHECKITEM_HANDLER
 		else 
 			'SMS-message mode is On (which means whether an `SMS-message` OR `chr(26)` was sent)
-			if (cell__sms_msg_inputmode_isOn = TRUE) then
+			if (cell__sms_msg_inputmode_isOn = true) then
 				if NOT (CELL__AT_CMD_CONTAINS_SUBSTITUTE_CHAR) then	'an SMS-message was input
 					atreply_checkitem = CELL__SMS
 
-					good_datalen=LEN(cell__at_cmd)	'set data-length to be retrieved
+					good_datalen=len(cell__at_cmd)	'set data-length to be retrieved
 
 					GOTO GETDATA_HANDLER
 
@@ -2347,7 +2347,7 @@ sub cell__at_get_cleandata(byref atreply_checkitem as string(CELL__16b_LEN))
 
 
 ATCMD_CHECKITEM_HANDLER:
-	atcmd_part = INSTR(1, ser.peekdata(255), cell__at_cmd, 1)
+	atcmd_part = instr(1, ser.peekdata(255), cell__at_cmd, 1)
 
 
 ATREPLY_CHECKITEM_HANDLER:
@@ -2355,7 +2355,7 @@ ATREPLY_CHECKITEM_HANDLER:
     if atcmd_part > 0 then	'match was found
 		if (atreply_checkitem = CELL__EMPTYSTRING) then	'atreply_checkitem is NOT preset with value `CELL__SMS`
 			'Find LEADING CRLF
-			atreply_lead_crlf_startpos = INSTR(atcmd_part, ser.peekdata(255), CELL__CRLF, 1)
+			atreply_lead_crlf_startpos = instr(atcmd_part, ser.peekdata(255), CELL__CRLF, 1)
 			
 			'initial counter value
 			atreply_checkitem_num = 1
@@ -2387,7 +2387,7 @@ ATREPLY_CHECKITEM_HANDLER:
 				end select
 
 				'Find a match for the current `atreply_checkitem`
-				atreply_part = INSTR(atcmd_part, ser.peekdata(255), atreply_checkitem, 1)
+				atreply_part = instr(atcmd_part, ser.peekdata(255), atreply_checkitem, 1)
 				
 				if atreply_part > 0 then	'match was found
 					'FLUSH DATA
@@ -2435,7 +2435,7 @@ ATREPLY_CHECKITEM_HANDLER:
 TRAIL_CRLF_HANDLER:
 	'Since LEADING GARBAGAE DATA have been flushed previously, the data start-position=1.
 	'REMARK: to know the trailing CRLF is important since this marks the "END of the GOOD DATA"
-	atreply_trail_crlf_startpos = INSTR(1, ser.peekdata(255), CELL__CRLF, 1)
+	atreply_trail_crlf_startpos = instr(1, ser.peekdata(255), CELL__CRLF, 1)
 	good_datalen = atreply_trail_crlf_startpos - 1
 	
 	
@@ -2475,7 +2475,7 @@ sub cell__at_parse_message_retry(next_pwr_phase as en_cell__op_pwr_phases, next_
 	
 	'Choose the maximum retry value
 	#if CELL__AT_USERMODE_ISENABLED	
-		if (cell__sms_msg_inputmode_isOn = TRUE) then
+		if (cell__sms_msg_inputmode_isOn = true) then
 			cell__at_retry_parse_max = CELL__SMS_RETRY_MAX
 		else
 			cell__at_retry_parse_max = CELL__AT_RETRY_MAX
@@ -2565,8 +2565,8 @@ EXEC_AND_RETRY_HANDLER:
 			
 		else	'max. number of EXEC & PARSE retries EXCEEDED
 			if (CELL__AT_CMD_CONTAINS_CGREG) then
-				if (cell__at_cgreg_dblchk_isEnabled = TRUE) then	'
-					cell__at_cgreg_dblchk_isEnabled = FALSE
+				if (cell__at_cgreg_dblchk_isEnabled = true) then	'
+					cell__at_cgreg_dblchk_isEnabled = false
 					
 					EXIT SUB
 				end if
@@ -2617,8 +2617,8 @@ sub cell__at_get_voltage()
 	
     cell__reply = cell__get_string_between_2chars(cell__reply, 2, CELL__COMMA, CELL__DOT)	'get the voltage which should be between the 2nd and 3rd comma
 
-    trailing_data = RIGHT(cell__reply, 3)	'get the trailing part of `cell__reply`, which is 3 Bytes in length
-    leading_data = LEFT(cell__reply, LEN(cell__reply) - LEN(trailing_data))	'get the leading part of the `cell__reply`
+    trailing_data = right(cell__reply, 3)	'get the trailing part of `cell__reply`, which is 3 Bytes in length
+    leading_data = left(cell__reply, len(cell__reply) - len(trailing_data))	'get the leading part of the `cell__reply`
 
     cell__reply = leading_data + CELL__DOT + trailing_data + CELL__UNIT_VOLT	'append `V`
 
@@ -2661,13 +2661,13 @@ end sub
         dim data_lpos as byte
         dim data_rpos as byte
 		
-        data_lpos = INSTR(1, cell__at_cgpaddr_ip, CELL__COMMA, 1)	'find the position of the 1st comma in `cell__at_cgpaddr_ip` value
+        data_lpos = instr(1, cell__at_cgpaddr_ip, CELL__COMMA, 1)	'find the position of the 1st comma in `cell__at_cgpaddr_ip` value
 		
         if data_lpos > 0 then	'comma was found
-			data_rpos = INSTR(1, cell__at_cgpaddr_ip, CELL__4DOT_OK, 1)	'get the position of `....OK`
+			data_rpos = instr(1, cell__at_cgpaddr_ip, CELL__4DOT_OK, 1)	'get the position of `....OK`
 			
 			if data_rpos > 0 then	'`....OK` was found
-				cell__at_cgpaddr_ip = MID(cell__at_cgpaddr_ip, (data_lpos + 1), (data_rpos-data_lpos-1))	'strip off everything except for the IP-address
+				cell__at_cgpaddr_ip = mid(cell__at_cgpaddr_ip, (data_lpos + 1), (data_rpos-data_lpos-1))	'strip off everything except for the IP-address
 			else	'`....OK` was NOT found
 				cell__at_cgpaddr_ip = CELL__EMPTYSTRING
 			end if
@@ -2688,7 +2688,7 @@ end sub
 		
 		'Generate the FCS for the given PPP Packet Format
         for p = 1 to len(ppp_packet_format)	'cycle through each character of the PPP Packet Format
-            ppp_packet_format_item = ASC(MID(ppp_packet_format, p, 1))	'for each index p, get one character and convert to ASCII
+            ppp_packet_format_item = asc(mid(ppp_packet_format, p, 1))	'for each index p, get one character and convert to ASCII
 			
             cell__ppp_generate_fcs = (cell__ppp_generate_fcs XOR ppp_packet_format_item)	'exclusive-OR `cell__ppp_generate_fcs` with `ppp_packet_format_item`
 			
@@ -2732,16 +2732,16 @@ end sub
         dim ppp_packet_format_item as byte
 
         for p = 1 to len(ppp_packet_format)	'cycle through each character of the PPP Packet Format
-            ppp_packet_format_item = ASC(MID(ppp_packet_format, p, 1))	'for each index p, get one character and convert to ASCII
+            ppp_packet_format_item = asc(mid(ppp_packet_format, p, 1))	'for each index p, get one character and convert to ASCII
 			
 			'Insert an Escape Character in the following situations:
             select case ppp_packet_format_item	
                 case CELL__PPP_FLAG:	'character is a FLAG: 0x7E
-					ppp_packet_format = LEFT( ppp_packet_format, p-1 ) + chr(CELL__PPP_ESC_CHAR) + chr(&h5E) + RIGHT( ppp_packet_format, LEN(ppp_packet_format)-p ) 
+					ppp_packet_format = left( ppp_packet_format, p-1 ) + chr(CELL__PPP_ESC_CHAR) + chr(&h5E) + right( ppp_packet_format, len(ppp_packet_format)-p ) 
 						
 					p = p + 1	'IMPORTANT: skip this newly added char and go to the next one
                 case CELL__PPP_ESC_CHAR:	'character is an Escape Character: 0x7D
-					ppp_packet_format = LEFT( ppp_packet_format, p-1 ) + chr(CELL__PPP_ESC_CHAR) + chr(&h5D) + RIGHT( ppp_packet_format, LEN(ppp_packet_format)-p ) 
+					ppp_packet_format = left( ppp_packet_format, p-1 ) + chr(CELL__PPP_ESC_CHAR) + chr(&h5D) + right( ppp_packet_format, len(ppp_packet_format)-p ) 
 						
 					p = p + 1	'IMPORTANT: skip this newly added char and go to the next one
                 case else:
@@ -2749,10 +2749,10 @@ end sub
 						ppp_packet_format_item = (ppp_packet_format_item XOR &h20)	'first Exclusive-OR with 0x20
 							
 								'Insert an Escape Character and the XOR'ed `ppp_packet_format_item`
-						ppp_packet_format = LEFT( ppp_packet_format, p-1 ) 
+						ppp_packet_format = left( ppp_packet_format, p-1 ) 
 												+ chr(CELL__PPP_ESC_CHAR) 
 													+ chr(ppp_packet_format_item) 
-														+ RIGHT( ppp_packet_format, LEN(ppp_packet_format)-p )
+														+ right( ppp_packet_format, len(ppp_packet_format)-p )
 
 						p = p + 1	'IMPORTANT: skip this newly added char and go to the next one
 					end if
@@ -2850,7 +2850,7 @@ end sub
 			'	The result is therefore: chr(ppp_protocol SHR 8) + chr(ppp_protocol AND &hff)
 			'	PPP_length: 2 Bytes. When converting from Word to String, Protocol has to be splitted up into 2 parts (8-bits each).
 			'	The result is therefore: chr(ppp_length SHR 8) + chr(ppp_length AND &hff)
-            ppp_length = CELL__4b_LEN + LEN(data_packet_format)	'protocol (2 bytes) is NOT is included in the length
+            ppp_length = CELL__4b_LEN + len(data_packet_format)	'protocol (2 bytes) is NOT is included in the length
 			
             ppp_packet_format = chr(ppp_protocol SHR 8) + chr(ppp_protocol AND &hff)
 									+ chr(ppp_code) 
@@ -2962,8 +2962,8 @@ end sub
 			rindex = index*2 + 2
 		
 			'Get Checksum based on `lindex` and `rindex`
-			checksum_perhex_first = ASC(MID(icmp_packet_format, lindex, 1))
-			checksum_perhex_second = ASC(MID(icmp_packet_format, rindex, 1))
+			checksum_perhex_first = asc(mid(icmp_packet_format, lindex, 1))
+			checksum_perhex_second = asc(mid(icmp_packet_format, rindex, 1))
 			checksum_perhex_total = (checksum_perhex_first SHL 8) + (checksum_perhex_second AND &hFF)
 
 			'Add `checksum_perhex_total` to the total `cell__ppp_ping_generate_checksum`
@@ -2980,7 +2980,7 @@ end sub
 		
 		'Substract `cell__ppp_ping_generate_checksum` from 0xFFFF
 		'REMARK: ONLY do this when *SENDING* IMCP
-		if (icmp_isSent = TRUE) then
+		if (icmp_isSent = true) then
 			cell__ppp_ping_generate_checksum = (&hFFFF - cell__ppp_ping_generate_checksum)
 		end if
 
@@ -3001,10 +3001,10 @@ end sub
 		checksum_perhex_right_str = chr(checksum_perhex_right)
 		
 		'Overwrite Left Hex value into the `CELL__ICMP_HEADERCHECKSUM` at position = 11
-		INSERT(icmp_packet_format,11, checksum_perhex_left_str)
+		insert(icmp_packet_format,11, checksum_perhex_left_str)
 		
 		'Overwrite Right Hex value into `CELL__ICMP_HEADERCHECKSUM` at position = 12
-		INSERT(icmp_packet_format,12, checksum_perhex_right_str)
+		insert(icmp_packet_format,12, checksum_perhex_right_str)
 		
 	end sub
 	sub cell__ppp_ping_send(ppp_protocol as word, ppp_code as en_cell__op_ppp_codes, ppp_sender_id as byte, byref icmp_packet_format as string(CELL__32b_LEN),
@@ -3016,12 +3016,12 @@ end sub
 		dim checksum as dword
 		
 		'Overwrite the Source-IP and Destination-IP of `icmp_packet_format` with
-		INSERT(icmp_packet_format, CELL__ICMP_SRCIP_POSITION, cell__ppp_sender_ip)
-		INSERT(icmp_packet_format, CELL__ICMP_DSTIP_POSITION, DDVAL(CELL__PING_IP))	
+		insert(icmp_packet_format, CELL__ICMP_SRCIP_POSITION, cell__ppp_sender_ip)
+		insert(icmp_packet_format, CELL__ICMP_DSTIP_POSITION, ddval(CELL__PING_IP))	
 		
 		'Get the Frame Check Sequence
-		'Make sure to set parameter `icmp_isSent` to `TRUE`, because ICMP is going to be sent
-		checksum = cell__ppp_ping_generate_checksum(icmp_packet_format, TRUE)
+		'Make sure to set parameter `icmp_isSent` to `true`, because ICMP is going to be sent
+		checksum = cell__ppp_ping_generate_checksum(icmp_packet_format, true)
 
 		'Overwrite the `CELL__ICMP_HEADERCHECKSUM` at position=11 and position=12 with the Left and Right Hex Value of `checksum`
 		cell__ppp_ping_insert_checksum(icmp_packet_format, checksum)
@@ -3058,7 +3058,7 @@ end sub
         peer_datalen = 1
 
 		'Cycle through `peer_data` and handle one data config option at a time
-        while peer_config_option_pos < LEN(peer_data)
+        while peer_config_option_pos < len(peer_data)
             peer_datalen = asc(mid(peer_data, (peer_config_option_pos + 1), 1))	'Get data-length
             peer_config_option_type = mid(peer_data, peer_config_option_pos, 1)	'Get configuration option type
             peer_data_item = mid(peer_data, peer_config_option_pos, peer_datalen)	'Get ONE data packet
@@ -3068,12 +3068,12 @@ end sub
             sender_datalen = 1
 			
 			'Cycle through `sender_data` and handle one data config option at a time
-            while sender_config_option_pos < LEN(sender_data)
+            while sender_config_option_pos < len(sender_data)
                 sender_datalen = asc(mid(sender_data, (sender_config_option_pos + 1), 1))	'Get data-length
                 sender_config_option_type = mid(sender_data, sender_config_option_pos, 1)	'Get configuration option type
 			
 				'Compare the Decimal value of `peer_config_option_type` with `sender_config_option_type`
-                if ASC(peer_config_option_type) = ASC(sender_config_option_type) then	'match was found
+                if asc(peer_config_option_type) = asc(sender_config_option_type) then	'match was found
                 EXIT WHILE
                 end if
 			
@@ -3085,9 +3085,9 @@ end sub
             if code = PPP_CONFREJ then
                 sender_data_item = CELL__EMPTYSTRING	'because of the CONFREJ, data config option has to be EXCLUDED from the `sender_data`
             else if code = PPP_CONFREQ then
-                if peer_config_option_type = CHR(CONFIG_OPTION_MAGIC) then	'config option type is MAGIC NUMBER
+                if peer_config_option_type = chr(CONFIG_OPTION_MAGIC) then	'config option type is MAGIC NUMBER
 					'sender_this_data (4 bytes) = peer_this_data (first 2 Bytes) + 4 Bytes of random string data
-					sender_data_item = LEFT( peer_data_item, CELL__2b_LEN ) + random(CELL__4b_LEN)	'generate a random MAGIC NUMBER for `sender_data`
+					sender_data_item = left( peer_data_item, CELL__2b_LEN ) + random(CELL__4b_LEN)	'generate a random MAGIC NUMBER for `sender_data`
                 else	'for all other config option types
 					sender_data_item = peer_data_item
 				end if
@@ -3099,13 +3099,13 @@ end sub
             if sender_config_option_pos < 0 then	'prepend `sender_data_item`
 				sender_data = sender_data_item + sender_data
 				
-            else if sender_config_option_pos > LEN(sender_data) then	'append `sender_data_item`
+            else if sender_config_option_pos > len(sender_data) then	'append `sender_data_item`
 				sender_data = sender_data + sender_data_item 
 				
             else	'insert `sender_data_item`
-				sender_data = LEFT( sender_data, (sender_config_option_pos - 1) ) 
+				sender_data = left( sender_data, (sender_config_option_pos - 1) ) 
 								+ sender_data_item 
-									+ RIGHT( sender_data, (LEN(sender_data) - (sender_config_option_pos + sender_datalen - 1)) )				
+									+ right( sender_data, (len(sender_data) - (sender_config_option_pos + sender_datalen - 1)) )				
             end if
 
 			'Calculate the next `peer_config_option_pos`
@@ -3125,8 +3125,8 @@ end sub
         end if
 
 		'Define variables
-        dim ppp_protocoltype_lhex as word = ASC(LEFT(cell__reply, 1))*256
-        dim ppp_protocoltype_rhex as word = ASC(MID(cell__reply, 2, 1))
+        dim ppp_protocoltype_lhex as word = asc(left(cell__reply, 1))*256
+        dim ppp_protocoltype_rhex as word = asc(mid(cell__reply, 2, 1))
         dim ppp_protocoltype as word = ppp_protocoltype_lhex + ppp_protocoltype_rhex
 
 
@@ -3161,13 +3161,13 @@ end sub
 		
 		'Define Macros
         #define FINAL_FCS_ISGOOD ( fcs = CELL__PPP_GOOD_FINAL_FCS )
-        #define ADDRESS_FIELD_ISPRESENT ( ASC( LEFT(cell__reply, LEN(1)) ) = CELL__PPP_ADDR )
-        #define CONTROL_FIELD_ISPRESENT ( ASC( MID(cell__reply, 2, 1) ) = CELL__PPP_CTRL )
+        #define ADDRESS_FIELD_ISPRESENT ( asc( left(cell__reply, len(1)) ) = CELL__PPP_ADDR )
+        #define CONTROL_FIELD_ISPRESENT ( asc( mid(cell__reply, 2, 1) ) = CELL__PPP_CTRL )
 
-        #define PACKET_LENGTH_REGIST_LHEX ( ASC(MID(cell__reply, 5, 1))*256 )	'Left Hex-value
-        #define PACKET_LENGTH_REGIST_RHEX ( ASC(MID(cell__reply, 6, 1)) )	'Right Hex-value
+        #define PACKET_LENGTH_REGIST_LHEX ( asc(mid(cell__reply, 5, 1))*256 )	'Left Hex-value
+        #define PACKET_LENGTH_REGIST_RHEX ( asc(mid(cell__reply, 6, 1)) )	'Right Hex-value
         #define PACKET_LENGTH_REGIST (PACKET_LENGTH_REGIST_LHEX + PACKET_LENGTH_REGIST_RHEX)	'Total calculated length
-        #define PACKET_LENGTH_COUNTED ( LEN(cell__reply)-2 )	'Exclude Protocol field, thus 2 Bytes
+        #define PACKET_LENGTH_COUNTED ( len(cell__reply)-2 )	'Exclude Protocol field, thus 2 Bytes
 
 
 		'Initial value
@@ -3175,18 +3175,18 @@ end sub
 
 		'-------------------------------------------------------------------
 		'Step 1: get the complete received PPP message by checking for the:
-		'1. prepended string: CHR(&h7E) + CHR(&hFF) + CHR(&h7D) + CHR(&h23) (2 Bytes in length)
-		'2. appended Flag: CHR(&h7E) (4 bits in length)
+		'1. prepended string: chr(&h7E) + chr(&hFF) + chr(&h7D) + chr(&h23) (2 Bytes in length)
+		'2. appended Flag: chr(&h7E) (4 bits in length)
 		'-------------------------------------------------------------------
 		'Find the position of the prepended string (see 1.1)
-        rx_lpos = INSTR(1, ser.peekdata(255), CELL__PPP_PARSE_MSG_START_SIGN_STR, 1)
+        rx_lpos = instr(1, ser.peekdata(255), CELL__PPP_PARSE_MSG_START_SIGN_STR, 1)
 		
         if rx_lpos > 0 then	'prepended string were found
 			ser.getdata(rx_lpos - 1)	'Strip off all leading characters before `rx_lpos`
 				
 			'Find the position of the appended Flag (see 1.2)
 			'Start position is 3 because the prepended string is 2 Bytes in Length
-			rx_rpos = INSTR(3, ser.peekdata(255), CELL__PPP_PARSE_MSG_END_SIGN_STR, 1)
+			rx_rpos = instr(3, ser.peekdata(255), CELL__PPP_PARSE_MSG_END_SIGN_STR, 1)
 				
 			if rx_rpos > 0 then	'appended Flag was found
 				cell__rxlen = rx_rpos	'update global variable
@@ -3209,15 +3209,15 @@ end sub
 		'Replace 0x5D with 0x7D
 		'XOR characters other than the ones mentioned in the above
 		'-------------------------------------------------------------------
-        for p=1 to LEN(ppp_rcvd_msg)	'cycle through each character of `ppp_rcvd_msg`
-            ppp_rcvd_msg_item = ASC(MID(ppp_rcvd_msg, p, 1))	'for each index p, get one char and convert to ASCII
+        for p=1 to len(ppp_rcvd_msg)	'cycle through each character of `ppp_rcvd_msg`
+            ppp_rcvd_msg_item = asc(mid(ppp_rcvd_msg, p, 1))	'for each index p, get one char and convert to ASCII
 			
             if (ppp_rcvd_msg_item = CELL__PPP_ESC_CHAR) then	'escape character `0x7D` was found
 				'Skip the escape character `0x7D` by incrementing index by 1
 				p = p + 1
 					
 					'Get the next character
-				ppp_rcvd_msg_item = ASC(MID(ppp_rcvd_msg, p, 1))
+				ppp_rcvd_msg_item = asc(mid(ppp_rcvd_msg, p, 1))
 				
 				'Depending on the situation, process the `ppp_rcvd_msg_item`
 				select case ppp_rcvd_msg_item
@@ -3271,7 +3271,7 @@ NEXT_FOR_HANDLER:
 		
 		
 		'Step 4: Strip off the trailing FCS field (2 Byte)
-        cell__reply = LEFT( cell__reply, LEN(cell__reply)-2 )
+        cell__reply = left( cell__reply, len(cell__reply)-2 )
 		
 		
 		'Step 5: Check if the Address `0xFF` and Control `0x03` fields are present in the received PPP message
@@ -3309,7 +3309,7 @@ NEXT_FOR_HANDLER:
 		
 		
 		'Step 6: Strip off the leading Control (1 Byte) and Address fields (1 Byte)
-        cell__reply = RIGHT( cell__reply, LEN(cell__reply)-2 )
+        cell__reply = right( cell__reply, len(cell__reply)-2 )
 			
 		'The end result is a parsed message containing:
 		'+-------------------+------------------------------------------------------------------------------------------+   
@@ -3387,19 +3387,19 @@ NEXT_FOR_HANDLER:
 											next_ppp_phase as en_cell__op_ppp_phases,
 												next_gps_phase as en_cell__op_gps_phases, next_parse_phase as en_cell__op_parse_phases)
 		'Define Variables
-        dim ppp_peer_id as byte	= ASC(MID(cell__reply, 4, 1))	'identifier field (1 Byte) 
-        dim ppp_peer_data as string = RIGHT(cell__reply, LEN(cell__reply) - CELL__6b_LEN)	'peer's data field
-        dim ppp_sender_data as string = RIGHT(cell__ppp_sender, LEN(cell__ppp_sender) - CELL__6b_LEN)	'sender's data field
-        dim ppp_peer_code as byte = ASC(MID(cell__reply, 3, 1))	'peer's code
+        dim ppp_peer_id as byte	= asc(mid(cell__reply, 4, 1))	'identifier field (1 Byte) 
+        dim ppp_peer_data as string = right(cell__reply, len(cell__reply) - CELL__6b_LEN)	'peer's data field
+        dim ppp_sender_data as string = right(cell__ppp_sender, len(cell__ppp_sender) - CELL__6b_LEN)	'sender's data field
+        dim ppp_peer_code as byte = asc(mid(cell__reply, 3, 1))	'peer's code
         dim ppp_sender_code as en_cell__op_ppp_sender_codes	'sender's code
-        dim authentication_isPAP as word = INSTR(1, cell__reply, CELL__PPP_PROTO_PAP_STR, 1)	'check if the authentication is PAP
+        dim authentication_isPAP as word = instr(1, cell__reply, CELL__PPP_PROTO_PAP_STR, 1)	'check if the authentication is PAP
 			
 		'Handle *Peer*'s data based on *Peer*'s code
         select case ppp_peer_code
             case PPP_PEER_CONFACK:
 				'*Peer* has answered with a CONFACK to the *Sender*'s CONFREQ.
 				'Therefore this boolean can be set to YES
-				cell__ppp_sender_confreq_isAck = TRUE
+				cell__ppp_sender_confreq_isAck = true
 
             case PPP_PEER_CONFNAK:
 				'*Peer* has answered with a CONFNAK to the *Sender*'s CONFREQ.
@@ -3440,7 +3440,7 @@ NEXT_FOR_HANDLER:
 					case PPP_SENDER_CONFACK:
 						'*Sender* will answer with CONFACK to *Peer*'s CONFREQ.
 						'Therefore, this boolean can be sete to YES
-						cell__ppp_peer_confreq_isAck = TRUE
+						cell__ppp_peer_confreq_isAck = true
 								
 						'*Sender* will send a CONFACK using the unchanged `ppp_peer_data' for FINAL CONFIRMATION.
 						'Do not forget to use the *Peer*'s ID, because otherwise the *Peer* wouldn't know what the *Sender* is talking about.
@@ -3452,9 +3452,9 @@ NEXT_FOR_HANDLER:
 				case PPP_SENDER_CONFNAK:
 					if authentication_isPAP then	'only continue if the AGREED authentication is PAP already
 						'Set all booleans to YES
-						cell__ppp_sender_confreq_isAck = TRUE
-						cell__ppp_peer_confreq_isAck = TRUE
-						cell__ppp_pap_isRequired = TRUE
+						cell__ppp_sender_confreq_isAck = true
+						cell__ppp_peer_confreq_isAck = true
+						cell__ppp_pap_isRequired = true
 
 						'*Sender* will send a CONFACK using the unchanged `ppp_peer_data' for FINAL CONFIRMATION.
 						'Do not forget to use the *Peer*'s ID, because otherwise the *Peer* wouldn't know what the *Sender* is talking about.
@@ -3503,7 +3503,7 @@ NEXT_FOR_HANDLER:
 		'*Sender* has answered with a CONFACK to the *Peer*'s CONFREQ
 		'*Peer* has answered with a CONFACK to the *Sender*'s CONFREQ
 		'------------------------------------------------------------------
-		if (cell__ppp_sender_confreq_isAck = TRUE) AND (cell__ppp_peer_confreq_isAck = TRUE) then	
+		if (cell__ppp_sender_confreq_isAck = true) AND (cell__ppp_peer_confreq_isAck = true) then	
 
 				
 			'Set next phase to transit to (e.g. PHASE_PPP_PAP_NEGOTIATION or PHASE_PPP_IPCP_NEGOTIATION)
@@ -3527,7 +3527,7 @@ NEXT_FOR_HANDLER:
 
 
 		'Define Macros
-        #define DATA_LENGTH_IS_ACCEPTABLE ( parsed_message_copy_len <= LEN(parsed_message_copy) )	'data-length of each data does NOT exceed the length of all data
+        #define DATA_LENGTH_IS_ACCEPTABLE ( parsed_message_copy_len <= len(parsed_message_copy) )	'data-length of each data does NOT exceed the length of all data
         #define AUTHEN_PROTOCOL_IS_PAP ( authen_protocol = CELL__PPP_PROTO_PAP )	'Authentical Protocol matches PAP
         #define DATA_ISNOT_EMPTY ( parsed_message_copy <> CELL__EMPTYSTRING )
 
@@ -3540,11 +3540,11 @@ NEXT_FOR_HANDLER:
 
         while DATA_ISNOT_EMPTY	'cycle through `parsed_message_copy` until it's EMPTY
 			'Update the variables for each cycle
-            parsed_message_copy_len = ASC(MID(parsed_message_copy, 2, 1))
-            parsed_message_copy_next_pos = ASC(MID(parsed_message_copy, 2, 1)) + 1
-            config_option_type = ASC(LEFT(parsed_message_copy, 1))
-            authen_protocol_lhex = ASC(MID(parsed_message_copy, 3, 1))*256
-            authen_protocol_rhex = ASC(MID(parsed_message_copy, 4, 1))
+            parsed_message_copy_len = asc(mid(parsed_message_copy, 2, 1))
+            parsed_message_copy_next_pos = asc(mid(parsed_message_copy, 2, 1)) + 1
+            config_option_type = asc(left(parsed_message_copy, 1))
+            authen_protocol_lhex = asc(mid(parsed_message_copy, 3, 1))*256
+            authen_protocol_rhex = asc(mid(parsed_message_copy, 4, 1))
             authen_protocol = authen_protocol_lhex + authen_protocol_rhex
 
 			'Compare the `Registered` length with the `Counted` length
@@ -3579,7 +3579,7 @@ NEXT_FOR_HANDLER:
 						exit function
 					end if
 					
-					cell__ppp_pap_isRequired = TRUE
+					cell__ppp_pap_isRequired = true
 
                 case CONFIG_OPTION_MAGIC:	'Magic Number
 					'DO NOTHING
@@ -3606,7 +3606,7 @@ NEXT_FOR_HANDLER:
 			'Strip off current data packet, and move on to Next data packet'
 			'Note: if Next data packet is EMPTY then while-loop will stop.
 			'		This would also automaticaly mean thhat the `case else` is NOT touched.
-            parsed_message_copy = MID(parsed_message_copy, parsed_message_copy_next_pos, 255)
+            parsed_message_copy = mid(parsed_message_copy, parsed_message_copy_next_pos, 255)
         wend
 
 		'OUTPUT
@@ -3622,8 +3622,8 @@ NEXT_FOR_HANDLER:
 		
 		'RESET PPP-booleans
 		'REMARK: these Booleans will be re-used in subroutine `cell__ppp_proc_parsed_ipcp_message`
-		cell__ppp_sender_confreq_isAck = FALSE
-		cell__ppp_peer_confreq_isAck = FALSE
+		cell__ppp_sender_confreq_isAck = false
+		cell__ppp_peer_confreq_isAck = false
 		
 		
 		'PRINT
@@ -3634,7 +3634,7 @@ NEXT_FOR_HANDLER:
 		
 		'Set next phase to transit to (e.g. PHASE_PPP_PAP_NEGOTIATION or PHASE_PPP_IPCP_NEGOTIATION)
 		'ALL other phases should be set to IDLE
- 		if cell__ppp_pap_isRequired = TRUE then 'PAP is NOT required
+ 		if cell__ppp_pap_isRequired = true then 'PAP is NOT required
 			if next_ppp_phase = PHASE_PPP_DETERMINED_BY_SYSTEM then	'only continue if next_ppp_phase is set to `PHASE_PPP_DETERMINED_BY_SYSTEM`
 				next_ppp_phase = PHASE_PPP_PAP_NEGOTIATION	'set phase to PHASE_PPP_PAP_NEGOTIATION
 			end if													
@@ -3661,10 +3661,10 @@ NEXT_FOR_HANDLER:
         next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
         next_parse_phase as en_cell__op_parse_phases)
 		'Define Variables
-        dim ppp_protocoltype_lhex as word = ASC(LEFT(cell__reply, 1))*256	'protocol-type (left hex value)
-        dim ppp_protocoltype_rhex as word = ASC(MID(cell__reply, 2, 1))	'protocol-type (right hex value)
+        dim ppp_protocoltype_lhex as word = asc(left(cell__reply, 1))*256	'protocol-type (left hex value)
+        dim ppp_protocoltype_rhex as word = asc(mid(cell__reply, 2, 1))	'protocol-type (right hex value)
         dim ppp_protocoltype as word = ppp_protocoltype_lhex + ppp_protocoltype_rhex	'protocol-type (complete)
-        dim ppp_peer_code as byte = ASC(MID(cell__reply, 3, 1))	'peer's code value
+        dim ppp_peer_code as byte = asc(mid(cell__reply, 3, 1))	'peer's code value
 
 		'Handle *Peer*'s data based on the *Sender*'s code
         select case ppp_peer_code
@@ -3711,10 +3711,10 @@ NEXT_FOR_HANDLER:
 												next_parse_phase as en_cell__op_parse_phases)
 
 		'Define Variables
-        dim ppp_peer_id as byte	= ASC(MID(cell__reply, 4, 1))	'identifier field (1 Byte) 
-        dim ppp_peer_data as string = RIGHT(cell__reply, LEN(cell__reply) - CELL__6b_LEN)	'peer's data field
-        dim ppp_sender_data as string = RIGHT(cell__ppp_sender, LEN(cell__ppp_sender) - CELL__6b_LEN)	'sender's data field
-        dim ppp_peer_code as byte = ASC(MID(cell__reply, 3, 1))	'peer's code value
+        dim ppp_peer_id as byte	= asc(mid(cell__reply, 4, 1))	'identifier field (1 Byte) 
+        dim ppp_peer_data as string = right(cell__reply, len(cell__reply) - CELL__6b_LEN)	'peer's data field
+        dim ppp_sender_data as string = right(cell__ppp_sender, len(cell__ppp_sender) - CELL__6b_LEN)	'sender's data field
+        dim ppp_peer_code as byte = asc(mid(cell__reply, 3, 1))	'peer's code value
         dim ppp_sender_code as en_cell__op_ppp_sender_codes	'sender's code value
 
 		'Handle *Peer*'s data based on the *Peer*'s code
@@ -3723,11 +3723,11 @@ NEXT_FOR_HANDLER:
 				'*Peer* has answered with a CONFACK to the *Sender*'s CONFREQ.
 				'Note: 	this means that the *Sender* has sent a CONFREQ with a suggested valid ip-address 
 				'		to which the *Sender* would like to connect to.
-				cell__ppp_sender_confreq_isAck = TRUE
+				cell__ppp_sender_confreq_isAck = true
 
             case PPP_PEER_CONFNAK:
 				'*Peer* has answered with a CONFNAK to the *Sender*'s CONFREQ in which 
-				cell__ppp_sender_ip = RIGHT(ppp_peer_data, CELL__4b_LEN)	'get the remote ip-address to which the *Sender* can connect to
+				cell__ppp_sender_ip = right(ppp_peer_data, CELL__4b_LEN)	'get the remote ip-address to which the *Sender* can connect to
 
 					'Change the `ppp_sender_data` to the values as specified in the *Peer*'s CONFNAK 
 				cell__ppp_substitute_data(ppp_sender_data, ppp_peer_data, PPP_CONFNAK)
@@ -3769,7 +3769,7 @@ NEXT_FOR_HANDLER:
 											next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, next_parse_phase)
 					
 					'*Sender* has answered with a CONFACK to the *Peer*'s CONFREQ.
-					cell__ppp_peer_confreq_isAck = TRUE
+					cell__ppp_peer_confreq_isAck = true
 					
                 case PPP_SENDER_CONFNAK:
 					'Sender is NOT expected to send a CONFNAK
@@ -3796,7 +3796,7 @@ NEXT_FOR_HANDLER:
 		'*Sender* has answered with a CONFACK to the *Peer*'s CONFREQ
 		'*Peer* has answered with a CONFACK to the *Sender*'s CONFREQ
 		'------------------------------------------------------------------
-		if (cell__ppp_sender_confreq_isAck = TRUE) AND (cell__ppp_peer_confreq_isAck = TRUE) then	
+		if (cell__ppp_sender_confreq_isAck = true) AND (cell__ppp_peer_confreq_isAck = true) then	
 
 				
 			'Set next phase to transit to (e.g. PHASE_PPP_PAP_NEGOTIATION or PHASE_PPP_IPCP_NEGOTIATION)
@@ -3817,7 +3817,7 @@ NEXT_FOR_HANDLER:
         dim config_option_type as byte
 
 		'Define Macros
-        #define DATA_LENGTH_IS_ACCEPTABLE ( parsed_message_copy_len <= LEN(parsed_message_copy) )
+        #define DATA_LENGTH_IS_ACCEPTABLE ( parsed_message_copy_len <= len(parsed_message_copy) )
         #define DATA_IS_6BYTES_IN_LENGTH ( parsed_message_copy_len = CELL__6b_LEN )	'data-length of each data does NOT exceed the length of all data
         #define DATA_ISNOT_EMPTY ( parsed_message_copy <> CELL__EMPTYSTRING )
 
@@ -3830,9 +3830,9 @@ NEXT_FOR_HANDLER:
 
         while DATA_ISNOT_EMPTY	'cycle through `parsed_message_copy` until it's EMPTY
 			'Update the variables for each cycle
-            parsed_message_copy_len = ASC(MID(parsed_message_copy, 2, 1))
-            parsed_message_copy_next_pos = ASC(MID(parsed_message_copy, 2, 1)) + 1
-            config_option_type = ASC(LEFT(parsed_message_copy, 1))
+            parsed_message_copy_len = asc(mid(parsed_message_copy, 2, 1))
+            parsed_message_copy_next_pos = asc(mid(parsed_message_copy, 2, 1)) + 1
+            config_option_type = asc(left(parsed_message_copy, 1))
 			
 			'Compare the `Registered` length with the `Counted` length
             if NOT (DATA_LENGTH_IS_ACCEPTABLE) then	'no match was found
@@ -3856,11 +3856,11 @@ NEXT_FOR_HANDLER:
 					'Data-length is 6 Bytes
 					if code = PPP_CONFREQ then	'peer responded with a CONFREQ
 						'GET the IP-address to which the *Peer* can connect to which was assigned by the *Sender*
-						cell__ppp_peer_ip = RIGHT(parsed_message_copy, CELL__4b_LEN)
+						cell__ppp_peer_ip = right(parsed_message_copy, CELL__4b_LEN)
 						
 					else	'peer responded with anything else but a CONFREQ
 						'GET the IP-address to which the *Sender* can connect to which was assigned by the *Peer*
-						cell__ppp_sender_ip = RIGHT(parsed_message_copy, CELL__4b_LEN)
+						cell__ppp_sender_ip = right(parsed_message_copy, CELL__4b_LEN)
 						
 					end if
 				
@@ -3881,7 +3881,7 @@ NEXT_FOR_HANDLER:
 			'Strip off current data packet, and move on to Next data packet'
 			'Note: if Next data packet is EMPTY then while-loop will stop.
 			'		This would also automaticaly mean thhat the `case else` is NOT touched.
-            parsed_message_copy = MID(parsed_message_copy, parsed_message_copy_next_pos, 255)
+            parsed_message_copy = mid(parsed_message_copy, parsed_message_copy_next_pos, 255)
         wend
 
 		'THIS IS THE OUTPUT when there NO MATCH is found in the `case select` (in the above while loop)
@@ -3893,12 +3893,12 @@ NEXT_FOR_HANDLER:
 
 		'RESET Booleans
 		'REMARK: these Booleans will be re-used in subroutine `cell__ppp_proc_parsed_lcp_message`
-		cell__ppp_sender_confreq_isAck = FALSE
-		cell__ppp_peer_confreq_isAck = FALSE
+		cell__ppp_sender_confreq_isAck = false
+		cell__ppp_peer_confreq_isAck = false
 
 
 		'GET the Remote ip-address to which the *Sender* can connect to
-		cell__ppp_sender_ip = RIGHT(ppp_peer_data, CELL__4b_LEN)	
+		cell__ppp_sender_ip = right(ppp_peer_data, CELL__4b_LEN)	
 
 
 		'PRINT
@@ -3941,11 +3941,11 @@ NEXT_FOR_HANDLER:
 		cell__reply = mid(cell__reply, CODE_POSITION, 255)
 
 		'Get SOURCE-IP
-		source_ip = MID(cell__reply, 13, 4)
+		source_ip = mid(cell__reply, 13, 4)
 		
 		'Get the Frame Check Sequence (FCS)
-		'Make sure to set parameter `icmp_isSent` to `FALSE`, because ICMP is going to be received
-		checksum = cell__ppp_ping_generate_checksum(cell__reply, FALSE)
+		'Make sure to set parameter `icmp_isSent` to `false`, because ICMP is going to be received
+		checksum = cell__ppp_ping_generate_checksum(cell__reply, false)
 
 
 		'FIRST REQUIREMENT: FCS has to be equal to 0xFFFF
@@ -3954,7 +3954,7 @@ NEXT_FOR_HANDLER:
 			cell__ppp_ping_reply = CELL__NG
 			
 			'PRINT
-			cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
+			cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
 			
 			'CALLBACK
 			cell__callback_ppp_ping_failed()
@@ -3964,12 +3964,12 @@ NEXT_FOR_HANDLER:
 			
 		else	'FCS is EQUAL to 0xFFFF
 			'SECOND REQUIREMENT: SOURCE-IP, which is received via `cell__reply`, has to be equal to `CELL__PING_IP`
-			if source_ip <> DDVAL(CELL__PING_IP) then	'cell__reply is NOT equal to CELL__PING_IP
+			if source_ip <> ddval(CELL__PING_IP) then	'cell__reply is NOT equal to CELL__PING_IP
 				'OUTPUT
 				cell__ppp_ping_reply = CELL__NG
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, DDSTR(source_ip))
+				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
 
 				'CALLBACK
 				cell__callback_ppp_ping_failed()
@@ -3982,7 +3982,7 @@ NEXT_FOR_HANDLER:
 				cell__ppp_ping_reply = CELL__OK
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, DDSTR(source_ip))
+				cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, ddstr(source_ip))
 				
 				'Set next phase to transit to (e.g.,  PHASE_PPP_IPCP_CONNECT)
 				'***IMPORTANT: Make sure to set `next_parse_phase` to `PHASE_PARSE_IDLE`
@@ -4045,13 +4045,13 @@ NEXT_FOR_HANDLER:
 			
 		'SIV PROCESSING:
 		'FIRST: `PEEKDATA` and check if the string `GPGSV` are found in there
-        gps_gpgsv_pos = INSTR(1, ser.peekdata(CELL__128b_LEN), CELL__GPGSV, 1)
+        gps_gpgsv_pos = instr(1, ser.peekdata(CELL__128b_LEN), CELL__GPGSV, 1)
 			
 		'NEXT: If `GPGSV` was found, `PEEKDATA`and find the postion of `LF`
         if PEEKDATA_CONTAINS_GPGSV then	'match was found for `GPGSV`
 			FLUSHDATA_BEFORE_GPGSV	'FLUSH any data before string `$GPGSV`
 					
-			cell__rxlen = INSTR(1, ser.peekdata(CELL__128b_LEN), CELL__LF, 1)	'get the complete SIV-data length
+			cell__rxlen = instr(1, ser.peekdata(CELL__128b_LEN), CELL__LF, 1)	'get the complete SIV-data length
 
 			if PEEKDATA_CONTAINS_LF then	'LF was found, which means that SIV-data can be retrieved
 				if SIVDATA_ISEMPTY then	'we don't have any SIV-data
@@ -4083,13 +4083,13 @@ NEXT_FOR_HANDLER:
 
 		'POS PROCESSING:
 		'FIRST: `PEEKDATA` and check if the string `GPGGA` are found in there
-        gps_gpgga_pos = INSTR(1, ser.peekdata(CELL__128b_LEN), CELL__GPGGA, 1)	'get the complete POS-data length
+        gps_gpgga_pos = instr(1, ser.peekdata(CELL__128b_LEN), CELL__GPGGA, 1)	'get the complete POS-data length
 
 			'NEXT: If `GPGGA` was found, `PEEKDATA`and find the postion of `LF`
         if PEEKDATA_CONTAINS_GPGGA then	'match was found for `GPGSV`
 			FLUSHDATA_BEFORE_GPGGA	'FLUSH any data before string `$GPGGA`
 				
-			cell__rxlen = INSTR(1, ser.peekdata(CELL__128b_LEN), CELL__LF, 1)	
+			cell__rxlen = instr(1, ser.peekdata(CELL__128b_LEN), CELL__LF, 1)	
 
 			if PEEKDATA_CONTAINS_LF then	'LF was found, which means that POS-data can be retrieved
 				if POSDATA_ISEMPTY then	'we don't have any POS-data
@@ -4128,10 +4128,10 @@ NEXT_FOR_HANDLER:
         dim longtitude as string 'E or W
         dim tail_len as byte = 9	'tail is 9 bytes long
 			
-        #define LATITUDE_TAIL ( RIGHT(latitude, tail_len ) )
-        #define LATITUDE_HEAD ( LEFT(latitude, len(latitude) - tail_len) )
-        #define LONGTITUDE_TAIL ( RIGHT(longtitude, tail_len ) )
-        #define LONGTITUDE_HEAD ( LEFT(longtitude, len(longtitude) - tail_len) )
+        #define LATITUDE_TAIL ( right(latitude, tail_len ) )
+        #define LATITUDE_HEAD ( left(latitude, len(latitude) - tail_len) )
+        #define LONGTITUDE_TAIL ( right(longtitude, tail_len ) )
+        #define LONGTITUDE_HEAD ( left(longtitude, len(longtitude) - tail_len) )
         #define LATITUDE_DIRECTION ( cell__get_string_between_2chars(inputdata, 3, CELL__COMMA, CELL__COMMA) )	'North or South
         #define LONGTITUDE_DIRECTION ( cell__get_string_between_2chars(inputdata, 5, CELL__COMMA, CELL__COMMA) )	'East or West
 
@@ -4175,9 +4175,9 @@ NEXT_FOR_HANDLER:
 sub cell__at_usermode_cmd_input(byref atcmd as string)
 
 	'Define MACROS
-	#define ATCMD_LEN ( LEN(atcmd) )
+	#define ATCMD_LEN ( len(atcmd) )
 	#define CURR_STOR_ARRAY_PAGE ( cell__at_cmd_storArray(cell__at_cmd_storArray_index) )
-	#define CURR_STOR_ARRAY_PAGE__USED ( LEN(CURR_STOR_ARRAY_PAGE) )
+	#define CURR_STOR_ARRAY_PAGE__USED ( len(CURR_STOR_ARRAY_PAGE) )
 	#define CURR_STOR_ARRAY_PAGE__FREE ( CELL__BYTE_SIZE_MAX - CURR_STOR_ARRAY_PAGE__USED )
 	#define CURR_STOR_ARRAY_PAGE__CONTAINS_DATA (CURR_STOR_ARRAY_PAGE__USED > 0)
 	#define CURR_STOR_ARRAY_PAGE__IS_AVAILABLE ( CURR_STOR_ARRAY_PAGE__FREE > ATCMD_LEN )
@@ -4230,7 +4230,7 @@ sub cell__at_usermode_get_cmd_fifo()
 	
 	'Define MACROS
 	#define CURR_STOR_ARRAY_PAGE ( cell__at_cmd_storArray(cell__at_cmd_storArray_index) )
-	#define CURR_STOR_ARRAY_PAGE__USED ( LEN(CURR_STOR_ARRAY_PAGE) )
+	#define CURR_STOR_ARRAY_PAGE__USED ( len(CURR_STOR_ARRAY_PAGE) )
 	#define CURR_STOR_ARRAY_PAGE__CONTAINS_DATA (CURR_STOR_ARRAY_PAGE__USED > 0)
 	#define INDEX_NOT_EXCEEDED ( cell__at_cmd_storArray_index < ( countof(cell__at_cmd_storArray) - 1) )
 
@@ -4243,13 +4243,13 @@ START_HANDLER:
 	while true
 		if CURR_STOR_ARRAY_PAGE__CONTAINS_DATA then	'current array-page contains data
 			'Find the 1st occurrence of the `Record Separator`
-			rs_pos = INSTR(1, CURR_STOR_ARRAY_PAGE, CELL__RS, 1)
+			rs_pos = instr(1, CURR_STOR_ARRAY_PAGE, CELL__RS, 1)
 			
 			'Retrieve the OLDEST AT-command from `cell__at_cmd_stor`
 			if rs_pos <> 0 then	'there are multiple records of AT-commands, because `RS` was found
-				cell__at_cmd = LEFT( CURR_STOR_ARRAY_PAGE, (rs_pos - 1) )	'get the oldest data (which is on the most left-side)
+				cell__at_cmd = left( CURR_STOR_ARRAY_PAGE, (rs_pos - 1) )	'get the oldest data (which is on the most left-side)
 					
-				cell__at_cmd_storArray(cell__at_cmd_storArray_index) = RIGHT( CURR_STOR_ARRAY_PAGE, (CURR_STOR_ARRAY_PAGE__USED - rs_pos) )	'strip off the oldest data
+				cell__at_cmd_storArray(cell__at_cmd_storArray_index) = right( CURR_STOR_ARRAY_PAGE, (CURR_STOR_ARRAY_PAGE__USED - rs_pos) )	'strip off the oldest data
 			else	'rs_pos = 0 (it means that there is only 1 record)
 				cell__at_cmd = CURR_STOR_ARRAY_PAGE	'get the last data on current array-page
 						
@@ -4362,7 +4362,7 @@ end sub
 
 START_HANDLER:
 		'FIRSTLY: Get SMS-message length
-		dim sms_message_total_len as byte = LEN(sms_message_total)
+		dim sms_message_total_len as byte = len(sms_message_total)
 		dim sms_message_tobe_sent_len as byte = CELL__128b_LEN
 		
 		'THEN: Check if the SMS-message length is greater than 160 characters.
@@ -4377,7 +4377,7 @@ START_HANDLER:
 			'Loop until a SPACE followed by a character is found
 			while true
 				'Get the character at position `sms_message_tobe_sent_len`
-				sms_message_tobe_sent_lastchar = MID(sms_message_total, sms_message_tobe_sent_len, CELL__1b_LEN)
+				sms_message_tobe_sent_lastchar = mid(sms_message_total, sms_message_tobe_sent_len, CELL__1b_LEN)
 
 				'Check if the `sms_message_tobe_sent_lastchar` is a SPACE
 				'If that's the case, then an acceptable SMS-length has been found
@@ -4385,7 +4385,7 @@ START_HANDLER:
 					'Check if the `sms_message_tobe_sent_len` has reached the maximum allowed 160 bytes
 					if (sms_message_tobe_sent_len = CELL__160b_LEN) then	'maximum has been reached
 						'Get the SMS-message which is 160 bytes in length
-						sms_message_tobe_sent = LEFT(sms_message_total, sms_message_tobe_sent_len)
+						sms_message_tobe_sent = left(sms_message_total, sms_message_tobe_sent_len)
 					
 						EXIT WHILE
 					else	'maximum not reached yet, continue...
@@ -4393,7 +4393,7 @@ START_HANDLER:
 						sms_message_tobe_sent_len = sms_message_tobe_sent_len + 1
 						
 						'Get the character at position `sms_message_tobe_sent_len + 1`
-						sms_message_tobe_sent_char_after_lastchar = MID(sms_message_total, sms_message_tobe_sent_len, CELL__1b_LEN)
+						sms_message_tobe_sent_char_after_lastchar = mid(sms_message_total, sms_message_tobe_sent_len, CELL__1b_LEN)
 					
 						'Check if the `sms_message_tobe_sent_char_after_lastchar` is a SPACE
 						if (sms_message_tobe_sent_char_after_lastchar <> CELL__SPACE) then	'sms_message_tobe_sent_char_after_lastchar is NOT a SPACE
@@ -4401,14 +4401,14 @@ START_HANDLER:
 							sms_message_tobe_sent_len = sms_message_tobe_sent_len - 1
 						
 							'Get SMS-message which is `sms_message_tobe_sent_len` in length
-							sms_message_tobe_sent = LEFT(sms_message_total, sms_message_tobe_sent_len)	
+							sms_message_tobe_sent = left(sms_message_total, sms_message_tobe_sent_len)	
 							
 							EXIT WHILE
 						else	'sms_message_tobe_sent_char_after_lastchar is a SPACE
 							'Check if the `sms_message_tobe_sent_len` has reached the maximum allowed 160 bytes
 							if (sms_message_tobe_sent_len = CELL__160b_LEN) then	'maximum has been reached
 								'Get the SMS-message which is 160 bytes in length
-								sms_message_tobe_sent = LEFT(sms_message_total, sms_message_tobe_sent_len)
+								sms_message_tobe_sent = left(sms_message_total, sms_message_tobe_sent_len)
 							
 								EXIT WHILE
 							end if	'maximum not reached yet, continue...
@@ -4417,7 +4417,7 @@ START_HANDLER:
 				else	'sms_message_tobe_sent_lastchar is NOT a SPACE
 					if (sms_message_tobe_sent_len = CELL__160b_LEN) then	'SMS-message length can NOT exceed 160 bytes
 						'Get SMS-message which is 160 bytes in length
-						sms_message_tobe_sent = LEFT(sms_message_total, sms_message_tobe_sent_len)
+						sms_message_tobe_sent = left(sms_message_total, sms_message_tobe_sent_len)
 					
 						EXIT WHILE
 					end if
@@ -4451,7 +4451,7 @@ START_HANDLER:
 
 
 		'LASTLY: double-check if there are any `sms_message_total`s left (excluding `sms_message_tobe_sent`)
-		sms_message_total = RIGHT(sms_message_total, LEN(sms_message_total) - sms_message_tobe_sent_len)
+		sms_message_total = right(sms_message_total, len(sms_message_total) - sms_message_tobe_sent_len)
 		
 		'If the newly defined `sms_message_total` contains data then go back to `START_HANDLER`
 		if (sms_message_total <> CELL__EMPTYSTRING) then
@@ -4487,8 +4487,8 @@ START_HANDLER:
 
 	sub cell__at_usermode_sms_parse()
 		'Define MACROS
-		#define AT_REPLIED_WITH_CMTI ( INSTR(1, ser.peekdata(255), CELL__CMTI, 1) <> 0 )
-		#define AT_REPLIED_WITH_SMS_FULL ( INSTR(1, ser.peekdata(255), CELL__SMS_FULL, 1) <> 0 )
+		#define AT_REPLIED_WITH_CMTI ( instr(1, ser.peekdata(255), CELL__CMTI, 1) <> 0 )
+		#define AT_REPLIED_WITH_SMS_FULL ( instr(1, ser.peekdata(255), CELL__SMS_FULL, 1) <> 0 )
 
 		'Check if SMS-message has been received
 		if (AT_REPLIED_WITH_CMTI) then	'match was found
@@ -4578,9 +4578,9 @@ sub cell__isretry_inprogr_in_idlemode()
 	
 	'At this stage ALL Phases are set to IDLE.
 	'However, is modem really in IDLE-mode, or are there any ongoing retries?
-	'If TRUE, then Modem is Frozen and needs to be Restarted.
+	'If true, then Modem is Frozen and needs to be Restarted.
 	if (cell__isretry_elapsedtime > CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_TIMEOUT_MIN) then	'wait for at least a specified number of seconds
-		if ( cell__retry_in_progress() = TRUE ) then	'at least one retry-process is in progress
+		if ( cell__retry_in_progress() = true ) then	'at least one retry-process is in progress
 			if (cell__isretry_inprogr_in_idlemode_retry_param < CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_MAX) then
 				cell__isretry_starttime  = sys.timercount	'reset start timecounter
 			
@@ -4599,69 +4599,69 @@ end sub
 
 function cell__retry_in_progress() as boolean
 	'INITIAL value
-	cell__retry_in_progress = FALSE
+	cell__retry_in_progress = false
 	
 
 	'PWRKEY retry
 	if ( (cell__pwrkey_retry_param > 0) AND (cell__pwrkey_retry_param < CELL__POWER_ONOFF_RETRY_MAX) ) then
-		cell__retry_in_progress = TRUE
+		cell__retry_in_progress = true
 	end if
 	
 	'RESET retry
 	if ( (cell__reset_retry_param > 0) AND (cell__reset_retry_param < CELL__RESET_RETRY_MAX) ) then
-		cell__retry_in_progress = TRUE
+		cell__retry_in_progress = true
 	end if
 	
 	'SHDN retry
 	if ( (cell__shdn_retry_param > 0) AND (cell__shdn_retry_param < CELL__SHDN_RETRY_MAX) ) then
-		cell__retry_in_progress = TRUE
+		cell__retry_in_progress = true
 	end if
 	
 	'AT retry
 	#if CELL__AT_USERMODE_ISENABLED	
-		if (cell__sms_msg_inputmode_isOn = TRUE) then
+		if (cell__sms_msg_inputmode_isOn = true) then
 			if ( (cell__at_retry_param > 0) AND (cell__at_retry_param < CELL__SMS_RETRY_MAX) ) then
-				cell__retry_in_progress = TRUE
+				cell__retry_in_progress = true
 			end if
 		else
 			if ( (cell__at_retry_param > 0) AND (cell__at_retry_param < CELL__AT_RETRY_MAX) ) then
-				cell__retry_in_progress = TRUE
+				cell__retry_in_progress = true
 			end if
 		end if
 	#else
 		if ( (cell__at_retry_param > 0) AND (cell__at_retry_param < CELL__AT_RETRY_MAX) ) then
-			cell__retry_in_progress = TRUE
+			cell__retry_in_progress = true
 		end if
 	#endif
 	
 	'EXEC AT-CMD retry
 	if ( (cell__at_cmd_exec_retry_param > 0) AND (cell__at_cmd_exec_retry_param < CELL__AT_CMD_EXEC_RETRY_MAX) ) then
-		cell__retry_in_progress = TRUE
+		cell__retry_in_progress = true
 	end if
 	
 	'MODEM RESTART retry
 	if ( (cell__modem_restart_retry_param > 0) AND (cell__modem_restart_retry_param < CELL__MODEM_RESTART_RETRY_MAX) ) then
-		cell__retry_in_progress = TRUE
+		cell__retry_in_progress = true
 	end if
 end function
 function cell__all_phases_are_idle() as boolean
 	'INITIAL value
-	cell__all_phases_are_idle = TRUE
+	cell__all_phases_are_idle = true
 
 	if (cell__op_pwr_phase <> PHASE_PWR_IDLE) then
-		cell__all_phases_are_idle = FALSE
+		cell__all_phases_are_idle = false
 	end if
 	if (cell__op_at_phase <> PHASE_AT_IDLE) then
-		cell__all_phases_are_idle = FALSE
+		cell__all_phases_are_idle = false
 	end if
 	if (cell__op_ppp_phase <> PHASE_PPP_IDLE) then
-		cell__all_phases_are_idle = FALSE
+		cell__all_phases_are_idle = false
 	end if
 	if (cell__op_gps_phase <> PHASE_GPS_IDLE) then
-		cell__all_phases_are_idle = FALSE
+		cell__all_phases_are_idle = false
 	end if
 	if (cell__op_parse_phase <> PHASE_PARSE_IDLE) then
-		cell__all_phases_are_idle = FALSE
+		cell__all_phases_are_idle = false
 	end if
 end function
 
@@ -4746,7 +4746,7 @@ sub cell__pwr_proc_sys_timer()
 			'Option 1.1: bandtype = `1` or `3`, then go to phase `PHASE_AT_AT`.
 			'Option 1.2: bandtype = `2`, then go to phase `PHASE_AT_INIT` (force to go to this phase).
 			'Option 2: serial-port is NOT RDY, then go to phase `PHASE_AT_INIT`.
-			if (cell__ser_port_isRdy = TRUE) then	'serial-port is RDY
+			if (cell__ser_port_isRdy = true) then	'serial-port is RDY
 '				if (cell__bandtype = 2 ) then	'2: NB-IoT
 '					cell__op_at_phase = PHASE_AT_INIT
 '				else	'1: CATM1, 3: CATM1 and NB-IoT
@@ -4928,7 +4928,7 @@ sub cell__at_proc_sys_timer()
 '				end if
 			
 		case PHASE_AT_CGREG:
-			cell__at_cgreg_dblchk_isEnabled = TRUE
+			cell__at_cgreg_dblchk_isEnabled = true
 		
 			cell__at_cmd_exec(CELL__AT_CGREG_Q,
 								PHASE_PWR_DONOT_CHANGE, PHASE_AT_CGATT,

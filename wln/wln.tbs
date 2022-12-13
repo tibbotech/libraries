@@ -347,7 +347,7 @@ public function wln_change(byref ap_name as string,security_mode as pl_wln_secur
 
 	if wln_prepare_security(security_mode,key)<>WLN_STATUS_OK then goto wln_change_error
 
-	wln.disassociate
+	wln.disassociate()
 	exit function
 
 wln_change_error:

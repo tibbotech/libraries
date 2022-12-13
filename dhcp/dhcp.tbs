@@ -891,7 +891,7 @@ sub send_dhcp(byref obtained_ip as string(16),byref device_name as string(32), i
 	
 	'end of all options and send!
 	'We pad the packet for compatibility to certain DHCP server that conforms to BOOTP packet size
-	sock.setdata(s+CHR(255)+strgen(319-len(s),CHR(0)))	
+	sock.setdata(s+chr(255)+strgen(319-len(s),chr(0)))	
 	sock.send
 end sub
 

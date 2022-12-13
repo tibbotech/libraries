@@ -270,7 +270,7 @@ function si2c_read(acknak_request as boolean) as byte
 		io.num = si2c_sda(si2c_num)				'Select SSI_SDA line
 		io.enabled = YES							'Enable SSI_DO as output
 
-		if acknak_request=TRUE then				'Does user want to send an ack or not
+		if acknak_request=true then				'Does user want to send an ack or not
 			io.state = LOW						'Bring Low for ACK
 		else
 			io.state = HIGH						'Bring high for NACK

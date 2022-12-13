@@ -83,12 +83,12 @@ public function ui_input_box(
 	'prepare mask string
 	if mask="" then
 		for i=1 to len(edit_str)
-			mask=mask + CHR(&h20)		'adding space for unfilled part of the mask
+			mask=mask + chr(&h20)		'adding space for unfilled part of the mask
 		next i
 	end if
 	i=0
 	do
-		i=instr(i+1,mask,CHR(&h20),1)
+		i=instr(i+1,mask,chr(&h20),1)
 		if i=0 then exit do
 		ib_input_length=ib_input_length+1
 	loop while true
@@ -97,7 +97,7 @@ public function ui_input_box(
 	
 	'prepare sourcestr, sourcestr is the actual raw string(without mask characters) we are editing
 	for i=1 to len(edit_str)
-		if mid(mask,i,1)=CHR(&h20) then 
+		if mid(mask,i,1)=chr(&h20) then 
 			sourcestr=sourcestr+mid(edit_str,i,1)
 			if lcd_pos_index<initial_pos then ib_str_pos_increament(no)
 		end if
@@ -162,11 +162,11 @@ function ib_insert_format(edit_str as string(IB_MAX_LEN), mask_str as string(IB_
 	k=1
 	l=0
 	for i=1 to len(mask_str)
-		if mid(mask_str,i,1)=CHR(&h20) then
+		if mid(mask_str,i,1)=chr(&h20) then
 			if not(k > len(edit_str)) then
 				s1=s1 + mid(edit_str,k,1)
 			else
-				s1=s1 + CHR(&h20)
+				s1=s1 + chr(&h20)
 			end if
 			k=k+1
 		else
@@ -194,7 +194,7 @@ increment_pos:
     if sourcestr_index < len(sourcestr) then
 		sourcestr_index=sourcestr_index+1	
 		lcd_pos_index=lcd_pos_index + 1 
-		if mid(mask,lcd_pos_index,1) <> CHR(&h20) and not(lcd_pos_index > len(mask)) then
+		if mid(mask,lcd_pos_index,1) <> chr(&h20) and not(lcd_pos_index > len(mask)) then
 			lcd_pos_index=lcd_pos_index + 1
 		end if
 		if lcd_pos_index - display_start_index+1 > display_len then
@@ -217,7 +217,7 @@ sub ib_str_pos_decreament()
 	if lcd_pos_index > 0 then
 		lcd_pos_index=lcd_pos_index - 1 
 		sourcestr_index=sourcestr_index-1	
-		if mid(mask,lcd_pos_index,1) <> CHR(&h20) and lcd_pos_index > 0  then
+		if mid(mask,lcd_pos_index,1) <> chr(&h20) and lcd_pos_index > 0  then
 			lcd_pos_index=lcd_pos_index - 1
 		end if
 		if display_start_index > 0 then display_start_index=display_start_index-1
