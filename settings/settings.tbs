@@ -432,7 +432,7 @@ p2_too_large:
 			if len_of_str_rep>0 then
 				len_of_str_rep=len_of_str_rep-1
 			end if
-		case `T`:
+		case `T`,`M`:
 			j=4
 			len_of_str_rep=10
 		case `M`:
@@ -1400,7 +1400,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			stg_value=str(i)
 			goto lb1
 						
-		case "W","M":	'word- convert into value
+		case "W":	'word- convert into value
 			i=asc(left(stg_str,1))*256+asc(mid(stg_str,2,1))
 			stg_value=str(i)
 			goto lb1
@@ -1417,7 +1417,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			i=tmp_f
 			goto lb1
 		
-		case "T":	'DateTime- convert into value
+		case "T","M":	'DateTime- convert into value
 			dim tmp_t as dword=0
 			strtobin(tmp_t,stg_str,4)
 			stg_value=lstr(tmp_t)
@@ -1465,7 +1465,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			new_member_str=chr(i)
 			goto lb2
 
-		case "W","M":	'word- convert into value
+		case "W":	'word- convert into value
 			i=val(stg_value)
 			x=i/256
 			new_member_str=chr(x)+chr(i-x*256)
@@ -1482,7 +1482,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			i=len(new_member_str)-1
 			goto lb2
 		
-		case "T":   'DateTime
+		case "T","M":   'DateTime
 			dim dt as dword=stg_value
 			bintostr(new_member_str,dt,4)
 			goto lb2

@@ -480,7 +480,7 @@ public function tbl_start() as en_tbl_status_codes
 					exit function
 				end if
 			case `M`: ' Time
-				if p1>1440 then
+				if p1>86400 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 1440 for time type. It is now "+s)
 					#endif
@@ -1896,7 +1896,7 @@ public function tbl_record_find(
 		#endif				
 		case `B`:
 			s=chr(val(search_data))
-		case `W`,`M`:
+		case `W`:
 			w1=val(search_data)/256
 			w2=val(search_data) mod 256
 			s=chr(w1)+chr(w2)
@@ -1906,7 +1906,7 @@ public function tbl_record_find(
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
-		case `E`:
+		case `E`,`M`:
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
@@ -2203,7 +2203,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			field_value=str(asc(s))
 			if val(field_value)<p1 then goto tbl_invalid
 			if val(field_value)>p2 then goto tbl_invalid				
-		case `W`,`M`:	'word type
+		case `W`:	'word type
 			w1=asc(left(s,1))*256+asc(mid(s,2,1))
 			field_value=str(w1)
 			if val(field_value)<p1 then goto tbl_invalid
@@ -2220,7 +2220,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			field_value =lstr(d)
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
-		case `E`:	'unix timestamp
+		case `E`,`M`:	'unix timestamp
 			w2=asc(left(s,1))*256+asc(mid(s,2,1))
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
@@ -2260,7 +2260,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if val(field_value) < p1 then goto tbl_invalid
 			if val(field_value) > p2 then goto tbl_invalid
 			s=chr(val(field_value))
-		case `W`,`M`:
+		case `W`:
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
 			msb=val(field_value)/256
@@ -2276,7 +2276,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			w2=lval(field_value)/65536
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
-		case `E`: ' unix timestamp
+		case `E`,`M`: ' unix timestamp, time in seconds
 			if lval(field_value) < p1 then goto tbl_invalid
 			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
@@ -2414,11 +2414,11 @@ function tbl_get_field_size(field_index as word) as byte
 			end select
 	#endif
 	case `B`: sz=1
-	case `W`,`M`: sz=2
+	case `W`: sz=2
 	case `S`: sz=tbl_field_info(field_index).p2+1
 	case `U`: sz=4
 	case `F`: sz=4
-	case `E`: sz=4
+	case `E`,`M`: sz=4
 	case else: sz=0
 	end select
 	tbl_get_field_size=sz
