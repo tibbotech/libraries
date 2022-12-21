@@ -435,9 +435,6 @@ p2_too_large:
 		case `T`,`M`:
 			j=4
 			len_of_str_rep=10
-		case `M`:
-			j=2
-			len_of_str_rep=5
 		end select
 		
 		if len_of_str_rep>STG_MAX_SETTING_VALUE_LEN then
