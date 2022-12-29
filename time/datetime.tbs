@@ -240,6 +240,36 @@ function datetime_str_to_timestamp(byref datestr as string, byref format as stri
     datetime_str_to_timestamp=datetime_to_timestamp(days,mins,secs)
 end function
 
+sub datetime_astro(byref a as astro_struct)
+	'36526 is the number of days since 1900/1/1 to 2000/1/1 
+	'Excel Date counts 1900 as leap! So number used in noaa calcualtor is 44865
+	'this work is based on the NOAA 
+	const tpl = 0.0041666667  
+	dim days as dword = daycount(a.yy, a.mm, a.dd) + 36526   
+	a.jd=days+2415018.5+tpl-a.tz/24.0
+	a.jc=(a.jd-2451545.0)/36525.0
+	a.gmls=(280.46646+a.jc*(36000.76983 + a.jc*0.0003032)) mod 360
+	a.gmas=357.52911+a.jc*(35999.05029 - 0.0001537*a.jc)
+	a.ecceo=0.016708634-a.jc*(0.000042037+0.0000001267*a.jc)
+	a.seqcrt=sin(a.gmas)*(1.914602-a.jc*(0.004817+0.000014*a.jc))+sin(2*a.gmas)*(0.019993-0.000101*a.jc)+sin(3*a.gmas)*0.000289
+	a.stl=a.gmls+a.seqcrt
+	a.sta=a.gmas+a.seqcrt
+	a.sal=a.stl-0.00569-0.00478*sin(125.04-1934.136*a.jc)
+	a.moe=23+(26+((21.448-a.jc*(46.815+a.jc*(0.00059-a.jc*0.001813))))/60)/60
+	a.oc=a.moe+0.00256*cos(125.04-1934.136*a.jc)
+	a.rtasc=atan2(cos(a.oc)*sin(a.sal),cos(a.sal))
+	a.sdec=asin(sin(a.oc)*sin(a.sal))
+	a.y=tan(a.oc/2)*tan(a.oc/2)
+	a.eqtm=4*(a.y*sin(2*a.gmls) - 2*a.ecceo*sin(a.gmas) + 4*a.ecceo*a.y*sin(a.gmas)*cos(2*a.gmls) - 0.5*a.y*a.y*sin(4*a.gmls) - 1.25*a.ecceo*a.ecceo*sin(2*a.gmas))*180.0/3.14159265
+	a.hasr=acos(cos(90.833)/(cos(a.lat)*cos(a.sdec))-tan(a.lat)*tan(a.sdec))
+	a.solnoon=((720-4*a.lng-a.eqtm+a.tz*60)/1440)
+
+	'Sunrise/Solar Noon/Sunsetin seconds since midnight
+	a.sunrise=(a.solnoon-a.hasr*4/1440)*24*60*60
+	a.sunset=(a.solnoon+a.hasr*4/1440)*24*60*60
+	a.solnoon=a.solnoon*24*60*60
+end sub 
+
 function datetime_next_cron(next_cron as crontab) as dword
 	dim timestamp as dword = datetime_current_timestamp()
 	dim days as word=0
