@@ -316,7 +316,7 @@ public function tbl_start() as en_tbl_status_codes
 		tbl_item.field_num_offset=field_index
 		#if TBL_AGGREGATE_HASH
 			field_item.field_name ="MD5"
-			field_item.field_type=asc("U")
+			field_item.field_type=EN_TBL_FIELD_DWORD
 			field_item.key=no
 			field_item.p1=0
 			field_item.p2=4294967295 
@@ -328,7 +328,7 @@ public function tbl_start() as en_tbl_status_codes
 			field_index=field_index+1
 
 			field_item.field_name ="UID"
-			field_item.field_type=asc("U")
+			field_item.field_type=EN_TBL_FIELD_DWORD
 			field_item.key=yes
 			field_item.p1=0
 			field_item.p2=2147483647 
@@ -388,9 +388,11 @@ public function tbl_start() as en_tbl_status_codes
 		
 			select case s
 			#if TBL_TIME_TYPE_INCLUDED
-				case "S","B","W","U","T","F","E","M":
+				'case "S","B","W","U","T","F","E","M":
+				case EN_TBL_FIELD_STRING,EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTRING,EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_TIME:
 			#else
-				case "S","B","W","U","F","E","M":
+				'case "S","B","W","U","F","E","M":
+				case EN_TBL_FIELD_STRING,EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_TIME:
 			#endif
 			case else
 				#if TBL_TIME_TYPE_INCLUDED
@@ -424,7 +426,7 @@ public function tbl_start() as en_tbl_status_codes
 			
 			select case field_item.field_type
 			#if TBL_TIME_TYPE_INCLUDED			
-				case `T`: 
+				case EN_TBL_FIELD_TIMESTRING: 
 					if val(s)>6 then
 						#if TBL_DEBUG_PRINT
 							tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 6 for date/time type. It is now "+s)
@@ -434,7 +436,7 @@ public function tbl_start() as en_tbl_status_codes
 						exit function
 					end if
 			#endif			
-			case `B`: 
+			case EN_TBL_FIELD_BYTE: 
 				if p1>255 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 255 for byte type. It is now "+s)
@@ -443,7 +445,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function				
 				end if
-			case `W`: 
+			case EN_TBL_FIELD_WORD: 
 				if p1>65535 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 65535 for word type. It is now "+s)
@@ -452,7 +454,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function				
 				end if
-			case `U`:
+			case EN_TBL_FIELD_DWORD:
 				if p1>4294967295 then 
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 4294967295 for dword type. It is now "+s)
@@ -461,7 +463,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
 				end if				
-			case `S`:
+			case EN_TBL_FIELD_STRING:
 				if p1>TBL_MAX_FIELD_VALUE_LEN then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum length (P1 param) exceed maximum string field length for this record, please decrease p1 or increase TBL_MAX_RECORD_SIZE.")
@@ -470,7 +472,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
 				end if
-			case `E`: ' Timestamp
+			case EN_TBL_FIELD_TIMESTAMP: ' Timestamp
 				if p1>2147483647 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 2147483647 for datetime type. It is now "+s)
@@ -479,7 +481,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
 				end if
-			case `M`: ' Time
+			case EN_TBL_FIELD_TIME: ' Time
 				if p1>86400 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 1440 for time type. It is now "+s)
@@ -505,7 +507,7 @@ public function tbl_start() as en_tbl_status_codes
 			end if
 			
 			select case field_item.field_type
-			case `B`: 
+			case EN_TBL_FIELD_BYTE: 
 				if p2>255 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): maximum value (P2 param) can't exceed 255 for byte type. It is now "+s)
@@ -514,7 +516,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function				
 				end if
-			case `W`: 
+			case EN_TBL_FIELD_WORD: 
 				if p2>65535 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): maximum value (P2 param) can't exceed 65535 for word type. It is now "+s)
@@ -523,7 +525,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function			
 				end if
-			case `U`:
+			case EN_TBL_FIELD_DWORD:
 				if p2>4294967295 then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): maximum value (P2 param) can't exceed 4294967295 for dword type. It is now "+s)
@@ -532,7 +534,7 @@ public function tbl_start() as en_tbl_status_codes
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 					exit function
 				end if
-			case `S`:
+			case EN_TBL_FIELD_STRING:
 				if val(s)>TBL_MAX_FIELD_VALUE_LEN then
 					#if TBL_DEBUG_PRINT
 						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): maximum length (P2 param) exceed maximum string field length for this record, please decrease p2 or increase TBL_MAX_RECORD_SIZE.")
@@ -544,7 +546,7 @@ public function tbl_start() as en_tbl_status_codes
 			end select
 			field_item.p2=p2
 
-			if field_item.p2<field_item.p1 and field_item.field_type<>`T` then
+			if field_item.p2<field_item.p1 and field_item.field_type<>EN_TBL_FIELD_TIMESTRING then
 				#if TBL_DEBUG_PRINT
 					tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): P2 parameter (now "+lstr(field_item.p2)+") cannot be smaller than P1 parameter (now "+lstr(field_item.p1)+").")
 				#endif
@@ -570,7 +572,7 @@ public function tbl_start() as en_tbl_status_codes
 			
 			'verify the validity of the default value
 			select case field_item.field_type
-			case `U`:
+			case EN_TBL_FIELD_DWORD:
 				b=len(s)
 				if lval(s) > 4294967295 then
 					#if TBL_DEBUG_PRINT
@@ -581,7 +583,7 @@ public function tbl_start() as en_tbl_status_codes
 					exit function
 				end if
 				goto check_for_p1_p2
-			case `B`,`W`,`U`:
+			case EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD:
 check_for_p1_p2:
 				if s="^" then
 					dw=0
@@ -607,7 +609,7 @@ check_for_p1_p2:
 					exit function
 				end if
 			
-			case `S`:
+			case EN_TBL_FIELD_STRING:
 				if s="^" then
 					k=0
 				else
@@ -633,7 +635,7 @@ check_for_p1_p2:
 					exit function
 				end if
 			#if TBL_TIME_TYPE_INCLUDED
-				case `T`:
+				case EN_TBL_FIELD_TIMESTRING:
 					select case field_item.p1
 					case EN_TBL_DT_DATE:		'YYYYMMDD (year,month,date)
 						s=s+"000000"
@@ -1857,7 +1859,7 @@ public function tbl_record_find(
 		if tbl_field_find(field_name, field_index)=EN_TBL_STATUS_UNKNOWN_FIELD then goto tbl_unknown_fld
 		select case tbl_field_info(field_index).field_type
 		#if TBL_TIME_TYPE_INCLUDED		
-			case `T`:
+			case EN_TBL_FIELD_TIMESTRING:
 				select case tbl_field_info(field_index).p1
 				case EN_TBL_DT_DATE:
 					s=search_data+"000000"
@@ -1894,23 +1896,23 @@ public function tbl_record_find(
 					s=s+chr(w1)+chr(w2)
 				end select
 		#endif				
-		case `B`:
+		case EN_TBL_FIELD_BYTE:
 			s=chr(val(search_data))
-		case `W`:
+		case EN_TBL_FIELD_WORD:
 			w1=val(search_data)/256
 			w2=val(search_data) mod 256
 			s=chr(w1)+chr(w2)
-		case `S`:
+		case EN_TBL_FIELD_STRING:
 			s=chr(len(search_data))+search_data
-		case `U`:
+		case EN_TBL_FIELD_WORD:
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
-		case `E`,`M`:
+		case EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_DWORD:
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
-		case `F`:
+		case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
 			' dim tmp_f as float=0
 			' strtobin(tmp_f,search_data,4)
 			' s=ftofixed(tmp_f,3)
@@ -1927,7 +1929,7 @@ public function tbl_record_find(
 query:		
 		'extended partial equal string search
 		if find_method=PL_FD_FIND_PARTIAL_EQUAL then
-			if tbl_field_info(field_index).field_type<>`S` then
+			if tbl_field_info(field_index).field_type<>EN_TBL_FIELD_STRING then
 				goto tbl_not_found
 			end if
 			s=right(s,len(s)-1)
@@ -1935,7 +1937,7 @@ query:
 			find_method=PL_FD_FIND_EQUAL
 		end if
 		
-		if tbl_field_info(field_index).field_type=`F` then
+		if tbl_field_info(field_index).field_type=EN_TBL_FIELD_FLOAT then
 			dim query_num as float=strtof(search_data)
 			dim tbl_result as en_tbl_status_codes=EN_TBL_STATUS_OK
 			dim tmp_rec_num as word=-1
@@ -2180,7 +2182,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 		s=mid(tbl_record_string,fld_pos,fld_sz) 
 		select case tbl_field_info(field_index).field_type
 		#if TBL_TIME_TYPE_INCLUDED		
-			case `T`:	'time type
+			case EN_TBL_FIELD_TIMESTRING:	'time type
 				select case tbl_field_info(field_index).p1					
 				case EN_TBL_DT_TIME1:
 					s=chr(0)+chr(0)+s	'2 bytes mincount
@@ -2199,35 +2201,35 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 					field_value=s
 				end select
 			#endif
-		case `B`:	'byte type
+		case EN_TBL_FIELD_BYTE:	'byte type
 			field_value=str(asc(s))
 			if val(field_value)<p1 then goto tbl_invalid
 			if val(field_value)>p2 then goto tbl_invalid				
-		case `W`:	'word type
+		case EN_TBL_FIELD_WORD:	'word type
 			w1=asc(left(s,1))*256+asc(mid(s,2,1))
 			field_value=str(w1)
 			if val(field_value)<p1 then goto tbl_invalid
 			if val(field_value)>p2 then goto tbl_invalid				
-		case `S`:	'string type
+		case EN_TBL_FIELD_STRING:	'string type
 			b1=asc(left(s,1))
 			field_value=mid(s,2,b1)
 			if b1<p1 then goto tbl_invalid
 			if b1>p2 then goto tbl_invalid					
-		case `U`:	'unsign 32 bits
+		case EN_TBL_FIELD_DWORD:	'unsign 32 bits
 			w2=asc(left(s,1))*256+asc(mid(s,2,1))
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
 			field_value =lstr(d)
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
-		case `E`,`M`:	'unix timestamp
+		case EN_TBL_FIELD_TIMESTAMP:
 			w2=asc(left(s,1))*256+asc(mid(s,2,1))
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
 			field_value =lstr(d)
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
-		case `F`:
+		case EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT:
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
 			field_value=fstr(tmp_f)
@@ -2238,7 +2240,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 	else
 		select case tbl_field_info(field_index).field_type
 		#if TBL_TIME_TYPE_INCLUDED		
-			case `T`:
+			case EN_TBL_FIELD_TIMESTRING:
 				select case tbl_field_info(field_index).p1
 				case EN_TBL_DT_TIME1:
 					s="20000101"+field_value
@@ -2256,33 +2258,33 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 					if td_str_to_binstr(s)<>OK then goto tbl_invalid
 				end select
 		#endif				
-		case `B`:
+		case EN_TBL_FIELD_BYTE:
 			if val(field_value) < p1 then goto tbl_invalid
 			if val(field_value) > p2 then goto tbl_invalid
 			s=chr(val(field_value))
-		case `W`:
+		case EN_TBL_FIELD_WORD:
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
 			msb=val(field_value)/256
 			lsb=val(field_value) mod 256
 			s=chr(msb)+chr(lsb)
-		case `S`:
+		case EN_TBL_FIELD_STRING:
 			if len(field_value) < p1 then goto tbl_invalid
 			if len(field_value) > p2 then goto tbl_invalid
 			s=chr(len(field_value))+field_value+strgen(fld_sz-len(field_value)-1,chr(TBL_NULL))
-		case `U`:
+		case EN_TBL_FIELD_DWORD:
 			if lval(field_value) < p1 then goto tbl_invalid
 			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
-		case `E`,`M`: ' unix timestamp, time in seconds
+		case EN_TBL_FIELD_TIMESTAMP:
 			if lval(field_value) < p1 then goto tbl_invalid
 			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
-		case `F`:
+		case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
 			dim tmp_f as float=strtof(field_value)
 			if tmp_f < p1 then goto tbl_invalid
 			if tmp_f > p2 then goto tbl_invalid
@@ -2402,7 +2404,7 @@ function tbl_get_field_size(field_index as word) as byte
 
 	select case tbl_field_info(field_index).field_type 
 	#if TBL_TIME_TYPE_INCLUDED	
-		case `T`:
+		case EN_TBL_FIELD_TIMESTRING:
 			select case tbl_field_info(field_index).p1
 			case EN_TBL_DT_DATE: sz=2
 			case EN_TBL_DT_TIME1: sz=2
@@ -2413,12 +2415,11 @@ function tbl_get_field_size(field_index as word) as byte
 			case EN_TBL_DT_ALL: sz=7
 			end select
 	#endif
-	case `B`: sz=1
-	case `W`: sz=2
-	case `S`: sz=tbl_field_info(field_index).p2+1
-	case `U`: sz=4
-	case `F`: sz=4
-	case `E`,`M`: sz=4
+	case EN_TBL_FIELD_BYTE: sz=1
+	case EN_TBL_FIELD_WORD: sz=2
+	case EN_TBL_FIELD_STRING: sz=tbl_field_info(field_index).p2+1
+	case EN_TBL_FIELD_DWORD: sz=4
+	case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME,EN_TBL_FIELD_TIMESTAMP: sz=4
 	case else: sz=0
 	end select
 	tbl_get_field_size=sz
@@ -2878,7 +2879,7 @@ function tbl_set_md5() as dword
 		if tbl_field_info(i).field_name="" then exit for
 		if tbl_field_sg(tbl_field_info(i).field_name,sfldval,EN_TBL_GET)=EN_TBL_STATUS_OK then
 			#if TBL_TIME_TYPE_INCLUDED		
-				if tbl_field_info(i).field_type=`T` then 
+				if tbl_field_info(i).field_type=EN_TBL_FIELD_TIMESTRING then 
 					select case tbl_field_info(i).p1
 					case EN_TBL_DT_TIME1,EN_TBL_DT_TIME2,EN_TBL_DT_TIME3:
 						sfldval="20000101"+sfldval
@@ -2958,7 +2959,7 @@ function tbl_check_key_violation(byref key_ptr as word) as no_yes
 	if tbl_info(tbl_info_index).numkeyf>0 then
 		for i=lower_bound to lower_bound+tbl_info(tbl_info_index).numkeyf-1
 			sz=tbl_get_field_size(i)
-			if tbl_field_info(i+tbl_fld_offset).field_type=`S` then 
+			if tbl_field_info(i+tbl_fld_offset).field_type=EN_TBL_FIELD_STRING then 
 				temp=strgen(sz,chr(val(TBL_NULL)))
 				tbl_field_sg(tbl_field_info(i+tbl_fld_offset).field_name,sfldval,EN_TBL_GET)			
 				b=len(sfldval)
