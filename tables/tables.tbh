@@ -63,14 +63,14 @@ enum en_tbl_rdwr
 end enum
 
 enum en_tbl_field_type
-	EN_TBL_FIELD_BYTE        =66, 'B
-	EN_TBL_FIELD_TIMESTAMP   =69, 'E
-	EN_TBL_FIELD_FLOAT       =70, 'F
-	EN_TBL_FIELD_TIME        =77, 'M
-	EN_TBL_FIELD_STRING      =83, 'S
-	EN_TBL_FIELD_TIMESTRING  =84, 'M
+	EN_TBL_FIELD_BYTE           =66, 'B
+	EN_TBL_FIELD_TIMESTAMP =69, 'E
+	EN_TBL_FIELD_FLOAT          =70, 'F
+	EN_TBL_FIELD_TIME            =77, 'M
+	EN_TBL_FIELD_STRING        =83, 'S
+	EN_TBL_FIELD_TIMESTRING=84, 'M
 	EN_TBL_FIELD_DWORD       =85, 'U
-	EN_TBL_FIELD_WORD        =87  'W
+	EN_TBL_FIELD_WORD         =87 'W
 end enum
 
 enum en_tbl_status_codes	
@@ -124,7 +124,7 @@ end enum
 '--------------------------------------------------------------------------------
 type tbl_field_type
 	field_name as string(TBL_MAX_FIELD_NAME_LEN)
-	field_type as byte
+	field_type as en_tbl_field_type
 	p1 as long
 	p2 as long
 	key as no_yes
@@ -179,6 +179,7 @@ declare function tbl_schema_check(byref table_name_or_num as string) as en_tbl_s
 	declare function tbl_is_record_deleted(rec_num as word) as no_yes
 	declare function tbl_close(byref file_name as string)as en_tbl_status_codes '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	
+	declare function tbl_field_sg_raw(byref field_name as string, byref field_value as string) as en_tbl_status_codes
 	declare function tbl_field_sg(byref field_name as string,byref field_value as string,op as en_tbl_rdwr) as en_tbl_status_codes
 	declare function tbl_field_get(byref field_name as string) as string
 	declare sub tbl_field_set(byref field_name as string, byref field_value as string)

@@ -385,8 +385,8 @@ public function tbl_start() as en_tbl_status_codes
 				tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 				exit function
 			end if
-		
-			select case s
+			dim tmp_field_type as en_tbl_field_type=asc(s)
+			select case tmp_field_type
 			#if TBL_TIME_TYPE_INCLUDED
 				'case "S","B","W","U","T","F","E","M":
 				case EN_TBL_FIELD_STRING,EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTRING,EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_TIME:
@@ -1904,10 +1904,6 @@ public function tbl_record_find(
 			s=chr(w1)+chr(w2)
 		case EN_TBL_FIELD_STRING:
 			s=chr(len(search_data))+search_data
-		case EN_TBL_FIELD_WORD:
-			w1=lval(search_data)/65536
-			w2=lval(search_data) mod 65536
-			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
 		case EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_DWORD:
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
@@ -2149,6 +2145,17 @@ finish:
 	end if
 end function
 
+function tbl_field_sg_raw(byref field_name as string, byref field_value as string) as en_tbl_status_codes
+	dim i,field_index as word
+	dim fld_pos as byte=2
+	tbl_field_find(field_name, field_index)
+	for i=tbl_info(tbl_info_index).field_num_offset+1 to field_index
+		fld_pos=fld_pos+tbl_get_field_size(i-1)
+	next i
+	dim fld_sz as byte=tbl_get_field_size(field_index)
+	field_value=mid(tbl_record_string,fld_pos,fld_sz) 
+end function
+
 '------------------------------------------------------------------------------
 public function tbl_field_sg(byref field_name as string,byref field_value as string,op as en_tbl_rdwr) as en_tbl_status_codes
 'API procedure, a selected table is required, extract the field from recorder buffer(tbl_record_string) or puts the field into the recorder buffer.
@@ -2179,7 +2186,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 	p2=tbl_field_info(field_index).p2
 	fld_sz=tbl_get_field_size(field_index)
 	if op=EN_TBL_GET then
-		s=mid(tbl_record_string,fld_pos,fld_sz) 
+		tbl_field_sg_raw(field_name,s)
 		select case tbl_field_info(field_index).field_type
 		#if TBL_TIME_TYPE_INCLUDED		
 			case EN_TBL_FIELD_TIMESTRING:	'time type
@@ -2204,7 +2211,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 		case EN_TBL_FIELD_BYTE:	'byte type
 			field_value=str(asc(s))
 			if val(field_value)<p1 then goto tbl_invalid
-			if val(field_value)>p2 then goto tbl_invalid				
+			if val(field_value)>p2 then goto tbl_invalid
 		case EN_TBL_FIELD_WORD:	'word type
 			w1=asc(left(s,1))*256+asc(mid(s,2,1))
 			field_value=str(w1)
@@ -2215,14 +2222,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			field_value=mid(s,2,b1)
 			if b1<p1 then goto tbl_invalid
 			if b1>p2 then goto tbl_invalid					
-		case EN_TBL_FIELD_DWORD:	'unsign 32 bits
-			w2=asc(left(s,1))*256+asc(mid(s,2,1))
-			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
-			d=w2*65536+w3
-			field_value =lstr(d)
-			if lval(field_value)<p1 then goto tbl_invalid
-			if lval(field_value)>p2 then goto tbl_invalid
-		case EN_TBL_FIELD_TIMESTAMP:
+		case EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:	'unsign 32 bits
 			w2=asc(left(s,1))*256+asc(mid(s,2,1))
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
