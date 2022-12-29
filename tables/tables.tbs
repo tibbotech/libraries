@@ -2227,12 +2227,20 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
 			field_value =lstr(d)
+			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIMESTAMP then
+				p1=0
+				p2=2147483647
+			end if
 			if lval(field_value)<p1 then goto tbl_invalid
 			if lval(field_value)>p2 then goto tbl_invalid
 		case EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT:
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
 			field_value=fstr(tmp_f)
+			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
+				p1=0
+				p2=86400
+			end if
 			if tmp_f<p1 then goto tbl_invalid
 			if tmp_f>p2 then goto tbl_invalid
 		end select	
@@ -2272,13 +2280,11 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if len(field_value) < p1 then goto tbl_invalid
 			if len(field_value) > p2 then goto tbl_invalid
 			s=chr(len(field_value))+field_value+strgen(fld_sz-len(field_value)-1,chr(TBL_NULL))
-		case EN_TBL_FIELD_DWORD:
-			if lval(field_value) < p1 then goto tbl_invalid
-			if lval(field_value) > p2 then goto tbl_invalid
-			w2=lval(field_value)/65536
-			w3=lval(field_value) mod 65536
-			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
-		case EN_TBL_FIELD_TIMESTAMP:
+		case EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
+			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIMESTAMP then
+				p1=0
+				p2=2147483647
+			end if
 			if lval(field_value) < p1 then goto tbl_invalid
 			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
@@ -2286,6 +2292,10 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
 		case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
 			dim tmp_f as float=strtof(field_value)
+			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
+				p1=0
+				p2=86400
+			end if
 			if tmp_f < p1 then goto tbl_invalid
 			if tmp_f > p2 then goto tbl_invalid
 			bintostr(s,tmp_f,4)
