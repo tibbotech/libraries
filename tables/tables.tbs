@@ -385,7 +385,7 @@ public function tbl_start() as en_tbl_status_codes
 				tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
 				exit function
 			end if
-			dim tmp_field_type as en_tbl_field_type=asc(s)
+			dim tmp_field_type as en_tbl_field_types=asc(s)
 			select case tmp_field_type
 			#if TBL_TIME_TYPE_INCLUDED
 				'case "S","B","W","U","T","F","E","M":

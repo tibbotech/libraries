@@ -62,15 +62,15 @@ enum en_tbl_rdwr
 	EN_TBL_SET							'Write operation
 end enum
 
-enum en_tbl_field_type
+enum en_tbl_field_types
 	EN_TBL_FIELD_BYTE           =66, 'B
-	EN_TBL_FIELD_TIMESTAMP =69, 'E
+	EN_TBL_FIELD_TIMESTAMP      =69, 'E
 	EN_TBL_FIELD_FLOAT          =70, 'F
-	EN_TBL_FIELD_TIME            =77, 'M
-	EN_TBL_FIELD_STRING        =83, 'S
-	EN_TBL_FIELD_TIMESTRING=84, 'M
-	EN_TBL_FIELD_DWORD       =85, 'U
-	EN_TBL_FIELD_WORD         =87 'W
+	EN_TBL_FIELD_TIME           =77, 'M
+	EN_TBL_FIELD_STRING         =83, 'S
+	EN_TBL_FIELD_TIMESTRING     =84, 'M
+	EN_TBL_FIELD_DWORD          =85, 'U
+	EN_TBL_FIELD_WORD           =87  'W
 end enum
 
 enum en_tbl_status_codes	
@@ -124,7 +124,7 @@ end enum
 '--------------------------------------------------------------------------------
 type tbl_field_type
 	field_name as string(TBL_MAX_FIELD_NAME_LEN)
-	field_type as en_tbl_field_type
+	field_type as en_tbl_field_types
 	p1 as long
 	p2 as long
 	key as no_yes
