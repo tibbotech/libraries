@@ -1396,7 +1396,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 		stg_str=mid(stg_str,index*stg_sdr(num).member_size+1,stg_sdr(num).member_size)	
 				
 		'make sure this member has a valid value
-		select case chr(stg_sdr(num).stype)
+		select case stg_sdr(num).stype
 		case EN_STG_TYPE_BYTE:	'byte- convert into value
 			i=asc(stg_str)
 			stg_value=str(i)
@@ -1412,14 +1412,14 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			i=asc(left(stg_str,1))
 			goto lb1
 		
-		case EN_STG_TYPE_FLOAT:
+		case EN_STG_TYPE_FLOAT,EN_STG_TYPE_TIME:
 			dim tmp_f as float=0
 			strtobin(tmp_f,stg_str,4)
 			stg_value=ftofixed(tmp_f,3)
 			i=tmp_f
 			goto lb1
 		
-		case EN_STG_TYPE_TIMESTAMP,EN_STG_TYPE_TIME:	'DateTime- convert into value
+		case EN_STG_TYPE_TIMESTAMP:	'DateTime- convert into value
 			dim tmp_t as dword=0
 			strtobin(tmp_t,stg_str,4)
 			stg_value=lstr(tmp_t)
@@ -1473,7 +1473,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			new_member_str=chr(x)+chr(i-x*256)
 			goto lb2
 
-		case EN_STG_TYPE_FLOAT:
+		case EN_STG_TYPE_FLOAT,EN_STG_TYPE_TIME:
 			dim ff as float=stg_value
 			bintostr(new_member_str,ff,4)
 			i=ff
@@ -1484,7 +1484,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			i=len(new_member_str)-1
 			goto lb2
 		
-		case EN_STG_TYPE_TIMESTAMP,EN_STG_TYPE_TIME:   'DateTime
+		case EN_STG_TYPE_TIMESTAMP:   'DateTime
 			dim dt as dword=stg_value
 			bintostr(new_member_str,dt,4)
 			goto lb2
