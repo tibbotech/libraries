@@ -114,6 +114,16 @@ type struct_stg_timestamp
 	ts_milsec as word
 end type
 
+enum en_stg_types
+	EN_STG_TYPE_BYTE        =66, 'B
+	EN_STG_TYPE_DOTDECIMAL  =68, 'D
+	EN_STG_TYPE_FLOAT       =70, 'F
+	EN_STG_TYPE_TIME        =77, 'M
+	EN_STG_TYPE_STRING      =83, 'S
+	EN_STG_TYPE_TIMESTAMP   =84, 'T
+	EN_STG_TYPE_WORD        =87, 'W
+end enum
+
 '--------------------------------------------------------------------------------
 declare function stg_start() as en_stg_status_codes
 declare function stg_start_no_init() as en_stg_status_codes

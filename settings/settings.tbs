@@ -16,7 +16,7 @@ const STG_INIT_SIGNATURE=&hB5A2
 type en_sdr_type
 	name as string(STG_MAX_SETTING_NAME_LEN) 'name
 	storage as byte
-	stype as byte
+	stype as en_stg_types
 	members as byte
 	p1 as long
 	p2 as long
@@ -283,13 +283,13 @@ public function stg_start_with_params(init as no_yes) as en_stg_status_codes
 
 		if len(s)<>1 then goto unknown_setting_type
 		select case asc(s)
-		case `B`
-		case `W`
-		case `S`
-		case `D`
-		case `F`
-		case `T`
-		case `M`
+		case EN_STG_TYPE_BYTE
+		case EN_STG_TYPE_WORD
+		case EN_STG_TYPE_STRING
+		case EN_STG_TYPE_DOTDECIMAL
+		case EN_STG_TYPE_FLOAT
+		case EN_STG_TYPE_TIMESTAMP
+		case EN_STG_TYPE_TIME
 		case else
 unknown_setting_type:
 			#if STG_DEBUG_PRINT
@@ -345,15 +345,17 @@ unknown_setting_type:
 		end if
 		
 		select case stg_sdr(stg_sdr_member).stype
-		case `B`:
+		case EN_STG_TYPE_BYTE:
 			if p1>255 then goto p1_too_large
 
-		case `W`:
+		case EN_STG_TYPE_WORD:
 			if p1>65535 then goto p1_too_large
 
-		case `S`:
+		case EN_STG_TYPE_STRING:
 			if p1>254 then goto p1_too_large
-		case `D`:
+		case EN_STG_TYPE_TIMESTAMP, EN_STG_TYPE_TIME:
+			p1=0
+		case EN_STG_TYPE_DOTDECIMAL:
 			if p1>63 then
 p1_too_large:
 				#if STG_DEBUG_PRINT
@@ -380,16 +382,19 @@ p1_too_large:
 		end if
 				
 		select case stg_sdr(stg_sdr_member).stype
-		case `B`:
+		case EN_STG_TYPE_BYTE:
 			if p2>255 then goto p2_too_large
 
-		case `W`:
+		case EN_STG_TYPE_WORD:
 			if p2>65535 then goto p2_too_large
 
-		case `S`:
+		case EN_STG_TYPE_STRING:
 			if p2>254 then goto p2_too_large
-		
-		case `D`:
+		case EN_STG_TYPE_TIMESTAMP:
+			p2=2147483647
+		case EN_STG_TYPE_TIME:
+			p2=86400
+		case EN_STG_TYPE_DOTDECIMAL:
 			if p2>63 then
 p2_too_large:
 				#if STG_DEBUG_PRINT
@@ -414,25 +419,25 @@ p2_too_large:
 
 		'calculate how much space this setting will need in memory
 		select case stg_sdr(stg_sdr_member).stype
-		case `B`:
+		case EN_STG_TYPE_BYTE:
 			j=1
 			len_of_str_rep=3
-		case `W`:
+		case EN_STG_TYPE_WORD:
 			j=2
 			len_of_str_rep=5
-		case `F`:
+		case EN_STG_TYPE_FLOAT:
 			j=4
 			len_of_str_rep=4
-		case `S`:
+		case EN_STG_TYPE_STRING:
 			j=stg_sdr(stg_sdr_member).p2+1
 			len_of_str_rep=stg_sdr(stg_sdr_member).p2
-		case `D`
+		case EN_STG_TYPE_DOTDECIMAL
 			j=stg_sdr(stg_sdr_member).p2+1
 			len_of_str_rep=stg_sdr(stg_sdr_member).p2*4
 			if len_of_str_rep>0 then
 				len_of_str_rep=len_of_str_rep-1
 			end if
-		case `T`,`M`:
+		case EN_STG_TYPE_TIMESTAMP,EN_STG_TYPE_TIME:
 			j=4
 			len_of_str_rep=10
 		end select
@@ -462,13 +467,13 @@ p2_too_large:
 			#if STG_DEBUG_PRINT
 				
 				select case stg_sdr(stg_sdr_member).stype
-				case `B`:
+				case EN_STG_TYPE_BYTE:
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): only up to "+str(254-x)+" members are possible for this word setting, you now have "+str(stg_sdr(stg_sdr_member).members)+".")
-				case `W`:
+				case EN_STG_TYPE_WORD:
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): only up to "+str((254-x)/2)+" members are possible for this word setting, you now have "+str(stg_sdr(stg_sdr_member).members)+".")
-				case `S`:
+				case EN_STG_TYPE_STRING:
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): with P2="+str(stg_sdr(stg_sdr_member).p2)+", only up to "+str((254-x)/(stg_sdr(stg_sdr_member).p2+1))+" members are possible for this string setting, you now have "+str(stg_sdr(stg_sdr_member).members)+".")
-				case `D`:
+				case EN_STG_TYPE_DOTDECIMAL:
 					stg_debugprint("ERROR (setting '"+stg_sdr(stg_sdr_member).name+"'): with P2="+str(stg_sdr(stg_sdr_member).p2)+", only up to "+str((254-x)/(stg_sdr(stg_sdr_member).p2+1))+" members are possible for this dot-decimal setting, you now have "+str(stg_sdr(stg_sdr_member).members)+".")
 				end select
 			#endif
@@ -539,7 +544,7 @@ unknown_init_mode:
 			end if
 
 			select case stg_sdr(stg_sdr_member).stype
-			case `B`:
+			case EN_STG_TYPE_BYTE:
 				j=val(left(s,pos-1))
 				if left(s,pos-1)="^" then
 					j=0
@@ -563,7 +568,7 @@ unknown_init_mode:
 					exit function
 				end if
 			
-			case `W`:
+			case EN_STG_TYPE_WORD:
 				l=lval(left(s,pos-1))
 				if left(s,pos-1)="^" then
 					l=0
@@ -587,7 +592,7 @@ unknown_init_mode:
 					exit function
 				end if
 
-			case `S`:
+			case EN_STG_TYPE_STRING:
 				j=len(left(s,pos-1))
 				if left(s,pos-1)="^" then
 					j=0
@@ -611,7 +616,7 @@ unknown_init_mode:
 					exit function
 				end if
 			
-			case `D`:
+			case EN_STG_TYPE_DOTDECIMAL:
 				j=len(ddval(left(s,pos-1)))
 				if left(s,pos-1)="^" then
 					j=0
@@ -1392,29 +1397,29 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 				
 		'make sure this member has a valid value
 		select case chr(stg_sdr(num).stype)
-		case "B":	'byte- convert into value
+		case EN_STG_TYPE_BYTE:	'byte- convert into value
 			i=asc(stg_str)
 			stg_value=str(i)
 			goto lb1
 						
-		case "W":	'word- convert into value
+		case EN_STG_TYPE_WORD:	'word- convert into value
 			i=asc(left(stg_str,1))*256+asc(mid(stg_str,2,1))
 			stg_value=str(i)
 			goto lb1
 
-		case "S":	'string- take length
+		case EN_STG_TYPE_STRING:	'string- take length
 			stg_value=mid(stg_str,2,asc(left(stg_str,1)))
 			i=asc(left(stg_str,1))
 			goto lb1
 		
-		case "F":
+		case EN_STG_TYPE_FLOAT:
 			dim tmp_f as float=0
 			strtobin(tmp_f,stg_str,4)
 			stg_value=ftofixed(tmp_f,3)
 			i=tmp_f
 			goto lb1
 		
-		case "T","M":	'DateTime- convert into value
+		case EN_STG_TYPE_TIMESTAMP,EN_STG_TYPE_TIME:	'DateTime- convert into value
 			dim tmp_t as dword=0
 			strtobin(tmp_t,stg_str,4)
 			stg_value=lstr(tmp_t)
@@ -1456,35 +1461,35 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 	#endif
 
 		'Branch according to the setting type and verify new value
-		select case chr(stg_sdr(num).stype)
-		case "B":	'byte- convert into value
+		select case stg_sdr(num).stype
+		case EN_STG_TYPE_BYTE:	'byte- convert into value
 			i=val(stg_value)
 			new_member_str=chr(i)
 			goto lb2
 
-		case "W":	'word- convert into value
+		case EN_STG_TYPE_WORD:	'word- convert into value
 			i=val(stg_value)
 			x=i/256
 			new_member_str=chr(x)+chr(i-x*256)
 			goto lb2
 
-		case "F":
+		case EN_STG_TYPE_FLOAT:
 			dim ff as float=stg_value
 			bintostr(new_member_str,ff,4)
 			i=ff
 			goto lb2
 
-		case "S":	'string
+		case EN_STG_TYPE_STRING:	'string
 			new_member_str=chr(len(stg_value))+stg_value
 			i=len(new_member_str)-1
 			goto lb2
 		
-		case "T","M":   'DateTime
+		case EN_STG_TYPE_TIMESTAMP,EN_STG_TYPE_TIME:   'DateTime
 			dim dt as dword=stg_value
 			bintostr(new_member_str,dt,4)
 			goto lb2
 
-		case else:	'dot-decimal string- take length
+		case EN_STG_TYPE_DOTDECIMAL:	'dot-decimal string- take length
 			new_member_str=ddval(stg_value)
 			new_member_str=chr(len(new_member_str))+new_member_str
 			i=len(new_member_str)-1
