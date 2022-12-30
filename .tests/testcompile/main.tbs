@@ -1,0 +1,136 @@
+include "global.tbh"
+
+'sock 11: tibbit 09 
+'sock 12: tibbit 18 
+
+
+
+dim device_net_ip as string(16)
+dim device_net_mask as string(16)
+dim device_net_gateway as string(16)
+dim interface_ready(MAX_NUM_INTERFACES) as no_yes
+dim current_interface as pl_sock_interfaces
+dim APP_TIMEZONE as en_td_timezones
+dim upgrade_socket_http as byte=255
+
+dim SNTP_socket as byte
+dim var_poll_timer as dword
+dim var1 as float=0.0
+dim stg1 as dword=0
+
+dim table_find_result_index as word
+
+
+sub on_sys_init()
+    boot()
+end sub
+
+
+sub on_net_link_change()
+
+    if net.linkstate=PL_NET_LINKSTAT_NOLINK then
+        interface_set(PL_SOCK_INTERFACE_NET,NO)
+    else
+        interface_set(PL_SOCK_INTERFACE_NET,YES)
+    end if
+
+end sub
+
+
+sub on_sock_postdata()
+
+if upload_started=false then
+    device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
+    upload_started=true
+else
+    device_firmware_upload_update()
+end if
+
+end sub
+
+
+sub on_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+
+if sock.num=upgrade_socket_http AND newstatesimple=PL_SSTS_CLOSED then
+    while sock.varlen <> 0
+        if upload_started=false then
+            device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
+            upload_started=true
+        else
+            device_firmware_upload_update()
+        end if
+    wend
+    upgrade_socket_http=255
+end if
+	sntp_proc_sock_event(newstate)
+
+end sub
+
+
+sub on_sock_data_arrival()
+	sntp_proc_data()
+
+end sub
+
+
+sub on_sys_timer()
+	sntp_proc_timer()
+
+    if sys.timercountms >= var_poll_timer then
+        var_poll_timer = sys.timercountms + 1000
+        
+
+        var_var1_update()
+
+        var_stg1_update()
+    end if
+
+end sub
+
+
+sub on_button_pressed()
+
+
+dim time_now as dword = datetime_current_timestamp()
+
+
+    tbl_select("T1","T1")
+    table_find_result_index = 1
+    tbl_record_find_sorted(EN_TBL_RECORD_ACTIVE,lstr(time_now),"TS",table_find_result_index,true,PL_FD_FIND_GREATER_EQUAL)
+    if table_find_result_index<>0 then
+        tbl_record_sg(table_find_result_index,EN_TBL_GET)
+        T1_found_lc7hmobsjp7rjjxb7yd(table_find_result_index,tbl_field_get("TS"),tbl_field_get("F"),tbl_field_get("T"))
+    else
+        
+
+    sys.debugprint("not found")
+    
+    end if
+
+    tbl_select("T1","T1")
+    table_find_result_index = 1
+    tbl_record_find_sorted(EN_TBL_RECORD_ACTIVE,"100","F",table_find_result_index,false,PL_FD_FIND_LESSER)
+    if table_find_result_index<>0 then
+        tbl_record_sg(table_find_result_index,EN_TBL_GET)
+        T1_found_lc8nacbg4t8xik9c3n6(table_find_result_index,tbl_field_get("TS"),tbl_field_get("F"),tbl_field_get("T"))
+    else
+        
+
+    sys.debugprint("not found")
+    
+    end if
+
+    tbl_select("T1","T1")
+    table_find_result_index = 1
+    tbl_record_find_sorted(EN_TBL_RECORD_ACTIVE,str((datetime_timestamp_mins(time_now) * 60)),"T",table_find_result_index,false,PL_FD_FIND_GREATER_EQUAL)
+    if table_find_result_index<>0 then
+        tbl_record_sg(table_find_result_index,EN_TBL_GET)
+        T1_found_lc8u2erzuad9ypwd6s(table_find_result_index,tbl_field_get("TS"),tbl_field_get("F"),tbl_field_get("T"))
+    else
+        
+
+    sys.debugprint("not found")
+    
+    end if
+
+end sub

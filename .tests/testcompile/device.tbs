@@ -1,0 +1,507 @@
+include "global.tbh"
+
+
+
+
+function datetime_timestamp_mins(timestamp as dword) as dword
+    dim days as word = 0
+    dim mins as word = 0
+    dim secs as byte = 0
+    dim mins_offset as word=0
+    datetime_from_timestamp(timestamp, days, mins, secs)
+    td_get_tzone_offset(APP_TIMEZONE,mins_offset)
+    datetime_timestamp_mins=mins+mins_offset
+end function
+
+function datetime_mins_to_timestamp(mins as word) as dword
+    dim datetime_days,datetime_minutes as word
+    dim datetime_secs as byte
+    dim timestamp as dword=datetime_current_timestamp()
+    datetime_from_timestamp(timestamp,datetime_days,datetime_minutes,datetime_secs)
+    datetime_minutes=mins
+    td_local_to_gmt(datetime_days,datetime_minutes,APP_TIMEZONE,PL_OFF)
+    datetime_mins_to_timestamp=datetime_to_timestamp(datetime_days,datetime_minutes,0)
+end function
+
+
+sub callback_stg_error(byref stg_name_or_num as string,index as byte,status as en_stg_status_codes)
+    
+end sub
+        
+
+sub callback_stg_pre_get(byref stg_name_or_num as string,index as byte,byref stg_value as string)
+    
+end sub
+        
+
+sub callback_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
+    
+
+if stg_name_or_num="stg1" then
+    stg1=strtof(stg_value)
+    
+    
+end if
+end sub
+        
+
+function callback_stg_vm_read(address as word) as byte
+    
+end function
+        
+
+sub callback_stg_vm_write(data_to_write as byte, address as word)
+    
+end sub
+
+sub interface_set(interface as pl_sock_interfaces, state as no_yes)
+    dim best_interface as pl_sock_interfaces=PL_SOCK_INTERFACE_NET
+    if state = yes then
+        interface_ready(interface) = yes
+    else
+        interface_ready(interface) = no
+    end if
+    if interface_ready(PL_SOCK_INTERFACE_NET) = yes then
+        best_interface = PL_SOCK_INTERFACE_NET
+    else
+        #IF WLN_AVAILABLE
+            
+            if interface_ready(PL_SOCK_INTERFACE_WLN) = yes then
+                best_interface = PL_SOCK_INTERFACE_WLN
+            end if
+        #ENDIF
+        #IF CELLULAR_AVAILABLE
+            if interface_ready(PL_SOCK_INTERFACE_PPP) = yes then
+                best_interface = PL_SOCK_INTERFACE_PPP
+            end if
+        #ENDIF
+    end if
+    
+    change_current_interface(best_interface)
+end sub
+
+
+sub close_interface_sockets(interface as pl_sock_interfaces)
+    dim f,sock_num_bup as byte
+    dim i as word
+
+    sock_num_bup=sock.num
+
+    for f=0 to sock.numofsock-1
+        sock.num=f
+        if sock.targetinterface=interface then
+            sock.close()
+            sock.discard()
+        end if
+    next f
+
+    i=sys.timercount
+
+    wait_close_interface_sockets:
+    for f=0 to sock.numofsock-1
+        sock.num=f
+        if sock.targetinterface=interface and sock.statesimple<>PL_SSTS_CLOSED and sys.timercount-i<5 and sys.timercount>=i then
+            goto wait_close_interface_sockets
+        end if
+    next f
+
+    sock.num=sock_num_bup
+
+end sub
+ 
+
+sub change_current_interface(new_interface as pl_sock_interfaces)
+    if current_interface<>new_interface then
+        
+        
+        sock.inconenabledmaster=NO
+        close_interface_sockets(current_interface)
+
+        current_interface=new_interface        
+        
+        select case current_interface
+            case PL_SOCK_INTERFACE_NET: sys.debugprint("Set current interface to Ethernet\r\n") 
+        
+            case PL_SOCK_INTERFACE_WLN: sys.debugprint("Set current interface to Wi-Fi\r\n")
+        
+            case PL_SOCK_INTERFACE_PPP: sys.debugprint("Set current interface to GPRS\r\n")
+        end select
+        sock.inconenabledmaster=YES
+        if new_interface <> PL_SOCK_INTERFACE_NULL then
+            
+
+    sntp_start(current_interface,SNTP_SERVER, 0, SNTP_socket)
+        end if
+    end if
+end sub
+
+sub on_firmware_update_start(byref current_fw_upg_state as pl_upg_state_t) 
+    
+end sub
+
+sub on_firmware_update_data_received(byref current_fw_upg_state as pl_upg_state_t) 
+    
+end sub
+
+sub on_firmware_update_percent_change(byref current_fw_upg_state as pl_upg_state_t) 
+    
+    sys.debugprint(str(current_fw_upg_state.fw_percent)+"%\r\n")
+end sub
+
+sub on_firmware_update_file_complete(byref current_fw_upg_state as pl_upg_state_t)
+    
+end sub
+
+sub on_firmware_update_complete(byref current_fw_upg_state as pl_upg_state_t)
+    
+    sys.debugprint("All files have been downloaded.\r\n")
+        
+    dim i as integer
+    dim module_type as pl_wln_module_types
+
+        
+    if current_fw_upg_state.fw_fail_reason <> PL_FW_FAIL_NONE then
+        sys.debugprint("There was a failure return this to the browser.\r\n")
+    end if
+
+    sys.debugprint("All files have been downloaded.\r\n")
+
+    if current_fw_upg_state.state <> PL_FW_UPG_COMPLETE then
+        exit sub
+    end if
+
+    pat.play("B~", PL_PAT_CANINT)
+
+    'i = get_firmware_index(WA2000_MON)
+    'if i >= 0 then
+    '   upgrade_WA2000_firmware(WA2000_MON, i)
+    'end if
+
+    i = get_firmware_index(WA2000_APP)
+
+    i =  get_firmware_index(UNCOMPRESSED_TIOS_APP)  
+    if i >= 0  then 
+    fd.copyfirmware(current_fw_upg_state.fw_lengths(i)/256+1)
+    end if
+
+    i=  get_firmware_index(COMPRESSED_TIOS_APP) 
+    if i >= 0  then 
+        fd.copyfirmwarelzo(YES)
+    end if
+
+    i =  get_firmware_index(UNCOMPRESSED_TIOS)  
+    if i >= 0  then 
+        fd.copyfirmware(current_fw_upg_state.fw_lengths(i)/256+1)
+    end if
+
+    i =  get_firmware_index(TIOS_MON)  
+    if i >= 0  then 
+        'fd.copymonitor()
+    end if
+
+    sys.reboot()
+end sub
+
+
+sub callback_sntp_failure(sntp_status as en_sntp_status_codes)
+    
+end sub
+        
+
+sub callback_sntp_ok(byref w_days as word,byref w_mins as word,byref b_seconds as byte)
+    td_gmt_to_local(w_days,w_mins,APP_TIMEZONE,PL_OFF)
+    rtc.setdata(w_days,w_mins,b_seconds)
+    
+end sub
+        
+
+sub callback_sntp_pre_buffrq(required_buff_pages as byte)
+    
+end sub
+        
+
+function web_get_url_params(byref http_req_string as string, byref argument as string) as string
+    dim x, y as byte
+    x = instr(1, http_req_string, argument+"=",1)
+    if (x = 0) then
+    web_get_url_params = ""
+        exit function
+    end if
+    x = x + len(argument+"=")
+    y = instr(x, http_req_string, "&",1)
+    if (y = 0) then
+        y = instr(x, http_req_string, " ",1)
+        if (y = 0) then
+            y = len(argument+"=")
+        end if
+    end if
+    web_get_url_params = mid(http_req_string, x, y - x)
+end function
+
+sub callback_stgcmd_buzz_command()
+    
+end sub
+        
+
+function var_var1_update() as float
+    
+end function
+            
+
+sub var_var1_set(value as float)
+    
+    dim value_old as float = var1
+    
+    
+    
+    var1=value
+    if value_old <> var1 then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> var1 changed from " + fstr(value_old) + " to " +  fstr(var1) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_stg1_update() as dword
+    
+end function
+            
+
+sub var_stg1_set(value as dword)
+    stg_set("stg1", 0, lstr(value))
+end sub
+            
+
+sub callback_tbl_error(status as en_tbl_status_codes)
+    
+end sub
+        
+
+function callback_tbl_fail_to_open(byref filename as string, status as pl_fd_status_codes, filenum as byte) as no_yes
+    
+end function
+        
+
+sub callback_tbl_field_error(byref file_name as string,byref field_name as string,tbl_result as en_tbl_status_codes)
+    
+end sub
+        
+
+sub callback_tbl_modified(byref file_name as string, modified_operation as en_tbl_modified_operation)
+    
+end sub
+        
+
+const MAX_NUM_ROWS = 1000
+
+function tbl_sort_compare(byref a as string, byref b as string, field_type as en_tbl_field_type) as short
+    dim a1 as dword=0
+    dim b1 as dword=0
+    dim w1,w2,w3 as word
+    dim d as dword
+    select case field_type
+        case EN_TBL_FIELD_BYTE:
+            a1=asc(a)
+            b1=asc(b)
+        case EN_TBL_FIELD_WORD:
+            a1=asc(left(a,1))*256+asc(mid(a,2,1))
+            b1=asc(left(b,1))*256+asc(mid(b,2,1))
+        case EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
+            w2=asc(left(a,1))*256+asc(mid(a,2,1))
+            w3=asc(mid(a,3,1))*256+asc(mid(a,4,1))
+            a1=w2*65536+w3
+            w2=asc(left(b,1))*256+asc(mid(b,2,1))
+            w3=asc(mid(b,3,1))*256+asc(mid(b,4,1))
+            b1=w2*65536+w3
+        end select
+    select case field_type
+        case EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
+            if a1>b1 then
+                tbl_sort_compare=1
+            else if a1=b1 then
+                tbl_sort_compare=0
+            else
+                tbl_sort_compare=-1
+            end if
+        case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
+            dim a1 as float=0
+            dim b1 as float=0
+            strtobin(a1,a,4)
+            strtobin(b1,b,4)
+            if a1>b1 then
+                tbl_sort_compare=1
+            else if a1=b1 then
+                tbl_sort_compare=0
+            else
+                tbl_sort_compare=-1
+            end if
+        case else:
+            tbl_sort_compare=0
+    end select
+end function
+
+function tbl_record_find_sorted(
+    record_type as en_tbl_record_states,                        'If the search includes the records that are marked as deleted.
+    byref search_data as string,                                'Searching criteria data.
+    byref field_name as string,                                 'Searching criteria name.
+    byref rec_num as word,                                      'Starting record number, also returns the first found record number
+    wraparound as boolean,                                      'Wrap around
+    find_method as pl_fd_find_modes) as en_tbl_status_codes     'find method (equal, greater, lesser, etc.)
+
+    dim num_records as word=0
+    dim count as word = 0
+    dim w1,w2,w3,w4 as word
+    tbl_get_num_records(num_records, no)
+    if num_records=0 then
+        rec_num=0
+        exit function
+    end if
+
+    dim search_val as string = ""
+    dim tmp_rec as word=0
+    dim index as integer = -1
+    'sort
+    dim values(MAX_NUM_ROWS) as string(4)
+    dim indices(MAX_NUM_ROWS) as word
+    dim i as integer
+    dim key as string(4)
+    dim key2 as word
+    dim j as integer
+    count = num_records
+    i=1
+    count=0
+
+    dim field_type as en_tbl_field_type=EN_TBL_FIELD_FLOAT
+    dim field_index as string=0
+    dim field_metadata as tbl_field_type
+    dim num_of_fld as byte = tbl_get_num_fields(tbl_get_file_name())
+    for j = 0 to num_of_fld-1
+        tbl_get_field_info(tbl_get_file_name(),j,field_metadata)
+        if field_metadata.field_name=field_name then
+            field_type=field_metadata.field_type
+            select case field_type
+                case EN_TBL_FIELD_BYTE:
+                    search_val=chr(val(search_data))
+                case EN_TBL_FIELD_WORD:
+                    w1=val(search_data)/256
+                    w2=val(search_data) mod 256
+                    search_val=chr(w1)+chr(w2)
+                case EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_DWORD:
+                    w2=lval(search_data)/65536
+                    w3=lval(search_data) mod 65536
+                    search_val=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
+                case EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT:
+                    dim tmp_f as float=strtof(search_data)
+                    bintostr(search_val,tmp_f,4)
+            end select
+    end if
+    next j
+
+    while count < num_records
+        if tbl_is_record_deleted(i)=NO then
+            tbl_record_sg(i,EN_TBL_GET)
+            indices(count)=i
+            tbl_field_sg_raw(field_name,values(count))
+            count=count+1
+        end if
+        i=i+1
+    wend
+    for i=1 to num_records-1
+        key=values(i)
+        key2=indices(i)
+        j = i - 1
+        dim result as short=tbl_sort_compare(values(j),key,field_type)
+        while (j >= 0 AND result=1)
+            values(j + 1) = values(j)
+            indices(j + 1) = indices(j)
+            j = j - 1
+        wend
+        values(j + 1) = key
+        indices(j + 1) = key2
+    next i
+    'find in array
+    
+    index=-1
+    count=0
+    dim start_i, end_i, iteration_step as integer
+    start_i=0
+    end_i=num_records
+    iteration_step=1
+    if find_method=PL_FD_FIND_LESSER OR find_method=PL_FD_FIND_LESSER_EQUAL then
+        start_i=num_records-1
+        end_i=-1
+        iteration_step=-1
+    end if
+    i=start_i
+    while i <> end_i
+        dim sort_result as short=tbl_sort_compare(values(i),search_val,field_type)
+        dim found_index as integer=-1
+        select case find_method
+        case PL_FD_FIND_GREATER_EQUAL:
+            if sort_result=1 OR sort_result=0 then
+                found_index=i
+            end if
+        case PL_FD_FIND_GREATER
+            if sort_result=1 then
+                found_index=i
+            end if
+        case PL_FD_FIND_LESSER:
+            if sort_result=-1 then
+                found_index=i
+            end if
+        case PL_FD_FIND_LESSER_EQUAL:
+            if sort_result=-1 OR sort_result=0 then
+                found_index=i
+            end if
+        end select
+        if found_index<>-1 then
+            count=count+1
+            if count=rec_num then
+                index=found_index
+                exit while
+            end if
+        end if
+        i=i+iteration_step
+    wend
+    'if found, return index
+    if index <> -1 then
+        rec_num=indices(index)
+    else
+    'if not found and wrap around, return first sorted item
+        if wraparound then
+            select case find_method
+            case PL_FD_FIND_GREATER_EQUAL,PL_FD_FIND_GREATER:
+                rec_num=indices(0)
+            case PL_FD_FIND_LESSER,PL_FD_FIND_LESSER_EQUAL:
+                rec_num=indices(num_records-1)
+            end select
+        else
+            rec_num=0
+        end if
+    end if
+end function
+
+sub T1_found_lc7hmobsjp7rjjxb7yd(row_index as word,byref TS as float,byref F as float,byref T as float)
+    
+
+    sys.debugprint(datetime_timestamp_to_string(TS,"YYYY-MM-DD hh:mm:ss")+" " + fstr(F))
+    
+end sub
+
+sub T1_found_lc8nacbg4t8xik9c3n6(row_index as word,byref TS as float,byref F as float,byref T as float)
+    
+
+    sys.debugprint("FF " + datetime_timestamp_to_string(TS,"YYYY-MM-DD hh:mm:ss")+" " + fstr(F))
+    
+end sub
+
+sub T1_found_lc8u2erzuad9ypwd6s(row_index as word,byref TS as float,byref F as float,byref T as float)
+    
+
+    sys.debugprint("T " + datetime_timestamp_to_string(datetime_mins_to_timestamp(T / 60),"hh:mm"))
+    
+end sub
