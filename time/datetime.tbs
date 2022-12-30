@@ -362,4 +362,3 @@ function datetime_next_cron(next_cron as crontab) as dword
 	
 	datetime_next_cron=timestamp
 end function
-No newline at end of file
