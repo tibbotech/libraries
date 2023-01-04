@@ -62,7 +62,6 @@ declare sub close_interface_sockets(interface as pl_sock_interfaces)
 declare upgrade_socket_http as byte
 
 declare SNTP_socket as byte
-declare function web_get_url_params(byref http_req_string as string, byref argument as string) as string
 declare var_poll_timer as dword
 declare var1 as float
 

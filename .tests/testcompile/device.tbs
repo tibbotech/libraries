@@ -218,25 +218,6 @@ end sub
 sub callback_sntp_pre_buffrq(required_buff_pages as byte)
     
 end sub
-        
-
-function web_get_url_params(byref http_req_string as string, byref argument as string) as string
-    dim x, y as byte
-    x = instr(1, http_req_string, argument+"=",1)
-    if (x = 0) then
-    web_get_url_params = ""
-        exit function
-    end if
-    x = x + len(argument+"=")
-    y = instr(x, http_req_string, "&",1)
-    if (y = 0) then
-        y = instr(x, http_req_string, " ",1)
-        if (y = 0) then
-            y = len(argument+"=")
-        end if
-    end if
-    web_get_url_params = mid(http_req_string, x, y - x)
-end function
 
 sub callback_stgcmd_buzz_command()
     
