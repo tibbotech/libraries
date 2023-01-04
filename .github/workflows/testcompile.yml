@@ -8,8 +8,7 @@ jobs:
       GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}
     container: 
       image: tibbotech/tidewine:latest
-      volumes:
-        - $GITHUB_WORKSPACE:/TIDEProjects/
+      options: -v ${GITHUB_WORKSPACE}/:/TIDEProjects/
     steps:
       - uses: actions/checkout@v3
       - name: Compile
