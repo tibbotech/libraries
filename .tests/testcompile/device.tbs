@@ -298,7 +298,7 @@ end sub
 
 const MAX_NUM_ROWS = 1000
 
-function tbl_sort_compare(byref a as string, byref b as string, field_type as en_tbl_field_type) as short
+function tbl_sort_compare(byref a as string, byref b as string, field_type as en_tbl_field_types) as short
     dim a1 as dword=0
     dim b1 as dword=0
     dim w1,w2,w3 as word
@@ -375,7 +375,7 @@ function tbl_record_find_sorted(
     i=1
     count=0
 
-    dim field_type as en_tbl_field_type=EN_TBL_FIELD_FLOAT
+    dim field_type as en_tbl_field_types=EN_TBL_FIELD_FLOAT
     dim field_index as string=0
     dim field_metadata as tbl_field_type
     dim num_of_fld as byte = tbl_get_num_fields(tbl_get_file_name())

@@ -1,0 +1,4 @@
+.tests/**/tmp/
+.tests/**/*.tpc
+.tests/**/*.tpusr
+.tests/**/tide
