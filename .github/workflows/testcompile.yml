@@ -4,13 +4,9 @@ name: Run Test
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}
     container: 
       image: tibbotech/tidewine:latest
-      volumes:
-        - /github/workflow/:/TIDEProjects/
     steps:
-      - uses: actions/checkout@v3
       - name: Compile
-        run: wine /home/tibbo/.wine/drive_c/Program\ Files/Tibbo/TIDE/Bin/tmake.exe \"C:\\users\\tibbo\\TIDEProjects\\.tests\\testcompile\\tblsortts.tpr\" -p \"C:\\users\\tibbo\\TIDEProjects\\.tests\\Platforms\" -r
+        uses: actions/checkout@v2
+        run: ln -s ${GITHUB_WORKSPACE} /TIDEProjects && wine /home/tibbo/.wine/drive_c/Program\ Files/Tibbo/TIDE/Bin/tmake.exe \"C:\\users\\tibbo\\TIDEProjects\\.tests\\testcompile\\tblsortts.tpr\" -p \"C:\\users\\tibbo\\TIDEProjects\\.tests\\Platforms\" -r
