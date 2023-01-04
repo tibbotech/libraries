@@ -2,12 +2,12 @@
 include "global.tbh"
 
 dim params as string=sock.gethttprqstring(255)
-dim endpoint as string=web_get_url_params(params, "e")
-dim session as string=web_get_url_params(params, "s")
+dim endpoint as string=http_server_find_param(params, "e")
+dim session as string=http_server_find_param(params, "s")
 
 select case endpoint
     case "i": 'information
-        dim action as string=web_get_url_params(params, "action")
+        dim action as string=http_server_find_param(params, "action")
         select case action
             case "get":
                 dim firmwareVersion as string=mid(sys.version, 2,len(sys.version) - 2)
@@ -29,7 +29,7 @@ select case endpoint
                 sock.setdata("}")
                 sock.send()
             case "edit_t":
-                dim timestamp as dword=web_get_url_params(params, "t")
+                dim timestamp as dword=http_server_find_param(params, "t")
                 dim days, minutes as word
                 dim secs as byte
                 datetime_from_timestamp(timestamp, days, minutes, secs)
@@ -37,7 +37,7 @@ select case endpoint
                 sock.setdata("'time':'" + lstr(timestamp) + "'")
                 sock.send()
             case "edit_tz":
-                dim new_tz_offset as en_td_timezones=web_get_url_params(params, "tz")
+                dim new_tz_offset as en_td_timezones=http_server_find_param(params, "tz")
                 datetime_tz_offset= new_tz_offset
                 APP_TIMEZONE = new_tz_offset
                 sock.setdata("'timezone_offset':'" + str(APP_TIMEZONE) + "'")
@@ -47,9 +47,9 @@ select case endpoint
         end select
 
     case "v": 'variable
-        dim variable as string=web_get_url_params(params, "variable")
-        dim action as string=web_get_url_params(params, "action")
-        dim value as string=web_get_url_params(params, "value")
+        dim variable as string=http_server_find_param(params, "variable")
+        dim action as string=http_server_find_param(params, "action")
+        dim value as string=http_server_find_param(params, "value")
         if action="get" then
         
 dim var_value as string = ""
@@ -69,7 +69,7 @@ end select
 
         end if
     case "s": 'Settings / LUIS
-        dim action as string=web_get_url_params(params, "a")
+        dim action as string=http_server_find_param(params, "a")
         select case action
         case "def": 'settings.xtxt and sdf.xtxt
             #ifdef DASHBOARD_SETTINGS_FILE
@@ -88,7 +88,7 @@ end select
         case "cmd": 'send command
         #ifdef DASHBOARD_SETTINGS_FILE
         #IFDEF STG_MAX_SETTING_NAME_LEN
-            dim cmd_str as string=web_get_url_params(params, "cmd")
+            dim cmd_str as string=http_server_find_param(params, "cmd")
             dim result as string
             dim x,y as byte
             const LUIS_MAX_CMD_LEN = STG_MAX_SETTING_VALUE_LEN + STG_MAX_SETTING_NAME_LEN + 3
@@ -107,36 +107,36 @@ end select
 
     case "t": 'tables
     #IF TABLES_WEB_ENABLED
-        dim action as string=tbl_web_get_url_params(params,"a")
+        dim action as string=tbl_http_server_find_param(params,"a")
         dim result as string=""
         select case action
         case "get":
-            dim table_type as string=tbl_web_get_url_params(params, "type")
+            dim table_type as string=tbl_http_server_find_param(params, "type")
             tbl_web_get_tables(table_type)
         case "rows":
-            table_name=tbl_web_get_url_params(params,"table")
-            dim count as word=val(tbl_web_get_url_params(params,"count"))
-            dim offset as word=val(tbl_web_get_url_params(params,"offset")) + 1
+            table_name=tbl_http_server_find_param(params,"table")
+            dim count as word=val(tbl_http_server_find_param(params,"count"))
+            dim offset as word=val(tbl_http_server_find_param(params,"offset")) + 1
             tbl_web_get_rows(table_name)
         case "add":
-            table_name=tbl_web_get_url_params(params,"table")
-            dim row as string=tbl_web_get_url_params(params,"row")
+            table_name=tbl_http_server_find_param(params,"table")
+            dim row as string=tbl_http_server_find_param(params,"row")
             result=tbl_web_add_row(table_name,row)
         case "delete":
-            table_name=tbl_web_get_url_params(params,"table")
-            dim row as word=val(tbl_web_get_url_params(params,"row"))
+            table_name=tbl_http_server_find_param(params,"table")
+            dim row as word=val(tbl_http_server_find_param(params,"row"))
             tbl_web_delete_row(table_name,row)
         case "clear":
-            table_name=tbl_web_get_url_params(params,"table")
+            table_name=tbl_http_server_find_param(params,"table")
             result=tbl_web_clear_table(table_name)
         case "edit":
-            table_name=tbl_web_get_url_params(params,"table")
-            dim row as string=tbl_web_get_url_params(params,"row")
-            dim index as word=val(tbl_web_get_url_params(params,"index"))
+            table_name=tbl_http_server_find_param(params,"table")
+            dim row as string=tbl_http_server_find_param(params,"row")
+            dim index as word=val(tbl_http_server_find_param(params,"index"))
             result=tbl_web_edit_row(table_name,index,row)
         case "get_field_default":
-            table_name=tbl_web_get_url_params(params,"table")
-            dim field_name as string=tbl_web_get_url_params(params,"field_name")
+            table_name=tbl_http_server_find_param(params,"table")
+            dim field_name as string=tbl_http_server_find_param(params,"field_name")
             result=tbl_web_get_field_def(table_name,field_name)
         case else:
             
@@ -146,8 +146,8 @@ end select
     #ENDIF
 
     case "f": 'RPC functions
-        dim variable as string=web_get_url_params(params, "variable")
-        dim value as string=web_get_url_params(params, "value")
+        dim variable as string=http_server_find_param(params, "variable")
+        dim value as string=http_server_find_param(params, "value")
         
 select case variable
     
