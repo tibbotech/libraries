@@ -6,8 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     container: 
       image: tibbotech/tidewine:latest
+      env: GITHUB_WORKSPACE=${GITHUB_WORKSPACE}
       volumes:
-        - ${GITHUB_WORKSPACE}:/TIDEProjects/
+        - $GITHUB_WORKSPACE:/TIDEProjects/
     steps:
       - uses: actions/checkout@v3
       - name: Compile
