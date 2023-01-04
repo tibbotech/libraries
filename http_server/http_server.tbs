@@ -31,7 +31,7 @@ function http_server_auth() as boolean
     end if
 end function
 
-function http_server_find_paramaaa(byref http_req_string as string, byref argument as string) as string
+function http_server_find_param(byref http_req_string as string, byref argument as string) as string
     dim x, y as byte
     x = instr(1, http_req_string, argument+"=",1)
     if (x = 0) then
