@@ -7,6 +7,6 @@ jobs:
     container: 
       image: tibbotech/tidewine:latest
     steps:
+      - uses: actions/checkout@v3
       - name: Compile
-        uses: actions/checkout@v2
         run: ln -s ${GITHUB_WORKSPACE} /TIDEProjects && wine /home/tibbo/.wine/drive_c/Program\ Files/Tibbo/TIDE/Bin/tmake.exe \"C:\\users\\tibbo\\TIDEProjects\\.tests\\testcompile\\tblsortts.tpr\" -p \"C:\\users\\tibbo\\TIDEProjects\\.tests\\Platforms\" -r
