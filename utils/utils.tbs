@@ -216,3 +216,9 @@ function ftofixed(r as real, decimals as byte) as string
 		ftofixed=ftostr(r,FTOSTR_MODE_AUTO,pos+decimals-1)
 	end if
 end function
+
+sub time_delay_ms(delay_ms as word)
+	dim target as dword=sys.timercountms + delay_ms
+	while sys.timercountms < target
+	wend
+end sub
