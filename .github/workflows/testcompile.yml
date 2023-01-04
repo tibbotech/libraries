@@ -4,6 +4,8 @@ name: Run Test
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}
     container: 
       image: tibbotech/tidewine:latest
       volumes:
