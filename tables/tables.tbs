@@ -1908,11 +1908,11 @@ public function tbl_record_find(
 			w1=lval(search_data)/65536
 			w2=lval(search_data) mod 65536
 			s=chr(w1/256)+chr(w1 mod 256)+chr(w2/256)+chr(w2 mod 256)
-		case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
-			' dim tmp_f as float=0
-			' strtobin(tmp_f,search_data,4)
-			' s=ftofixed(tmp_f,3)
-			' s=chr(val(search_data))
+		case EN_TBL_FIELD_TIME:
+			dim tmp_f as float=search_data
+			dim remainder as byte=tmp_f MOD 60
+			tmp_f=tmp_f-remainder
+			bintostr(s,tmp_f,4)
 		end select
 
 		for i=tbl_info(tbl_info_index).field_num_offset to field_index
@@ -2295,6 +2295,8 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
 				p1=0
 				p2=86400
+				dim remainder as byte=tmp_f MOD 60
+				tmp_f = tmp_f - remainder
 			end if
 			if tmp_f < p1 then goto tbl_invalid
 			if tmp_f > p2 then goto tbl_invalid
