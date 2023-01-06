@@ -343,7 +343,8 @@ end function
 
 '------------------------------------------------------------------------------ 
 public function td_local_to_gmt(byref day_count as word, byref min_count as word, timezone as en_td_timezones, dst as off_on) as ok_ng
-	dim minute_offset, wtemp1 as word
+	dim minute_offset as integer
+	dim wtemp1 as word
 	
 	'calculate daylight saving time
 	if dst=PL_ON then
@@ -385,7 +386,8 @@ end function
 
 '------------------------------------------------------------------------------ 
 public function td_gmt_to_local(byref day_count as word, byref min_count as word, timezone as en_td_timezones, dst as off_on) as ok_ng
-	dim minute_offset, wtemp1 as word
+	dim minute_offset as integer
+	dim wtemp1 as word
 	
 	'calculate daylight saving time
 	if dst=PL_ON then
