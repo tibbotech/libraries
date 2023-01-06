@@ -364,6 +364,9 @@ function datetime_next_cron(next_cron as crontab) as dword
 			dim curr_timestamp as dword
 			dim minutes_offset as word
 			td_get_tzone_offset(datetime_tz_offset, minutes_offset)
+			if datetime_tz_offset < TD_TIMEZONE_GMT then
+				minutes_offset = minutes_offset * -1
+			end if
 			timestamp = timestamp - (60*60*c_hour) - (60*c_mins)
 			a.dd = c_date
 			a.mm = c_month
