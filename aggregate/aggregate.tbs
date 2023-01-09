@@ -992,7 +992,7 @@ next_fld:
 		s=chr(AGG_COMMAND_START)+"M"+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+"E"+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+stemp1+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+agg_items(agg_stored_event_flag(agg_event_item_index).agg_item_index).item_name+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+event_level+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+chr(AGG_COMMAND_PARAMETERS_SEPARATOR)+chr(AGG_ELEMENT_START)+"R"+chr(AGG_ELEMENT_NAME_VALUE_SEPARATOR)+s+chr(AGG_ELEMENT_END)+chr(AGG_COMMAND_END)
 		agg_data_send(s)
 		sock.notifysent(0) 
-		agg_event_in_proc=yes
+		agg_event_in_proc=YES
 		agg_cur_event_rec_num=rec_num
 	#endif
 end sub

@@ -98,7 +98,7 @@ public function ui_list_box(
 				option=mid(listbox_data,pos1,pos2-pos1)
 				i=pos1
 				if pos1=1 or pos2=0 then
-					lcd_print_msg(SYS_ERROR_REBOOT,x_coord,y_coord,list_width,list_height,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,yes)
+					lcd_print_msg(SYS_ERROR_REBOOT,x_coord,y_coord,list_width,list_height,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,YES)
 					goto err
 				end if			
 			end if
@@ -252,7 +252,7 @@ public function ui_list_box_ext(
 				option=mid(listbox_data,pos1,pos2-pos1)
 				i=pos1
 				if pos1=1 or pos2=0 then
-					lcd_print_msg(SYS_ERROR_REBOOT,x_coord,y_coord,list_width,list_height,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,yes)
+					lcd_print_msg(SYS_ERROR_REBOOT,x_coord,y_coord,list_width,list_height,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,YES)
 					goto err
 				end if			
 			end if
@@ -304,7 +304,7 @@ LCD_UNLOCK
 err:	
 	list_box_result=LIST_BOX_RESULT_TIMEOUT
 wait:
-	doevents
+	doevents()
 	device_lb_interrupt()	'allow user to executes other procedures while inside the list box
 	if lb_interrupt_flag=YES then
 		goto timeout_exit

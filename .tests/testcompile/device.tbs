@@ -56,22 +56,22 @@ end sub
 
 sub interface_set(interface as pl_sock_interfaces, state as no_yes)
     dim best_interface as pl_sock_interfaces=PL_SOCK_INTERFACE_NET
-    if state = yes then
-        interface_ready(interface) = yes
+    if state = YES then
+        interface_ready(interface) = YES
     else
         interface_ready(interface) = no
     end if
-    if interface_ready(PL_SOCK_INTERFACE_NET) = yes then
+    if interface_ready(PL_SOCK_INTERFACE_NET) = YES then
         best_interface = PL_SOCK_INTERFACE_NET
     else
         #IF WLN_AVAILABLE
             
-            if interface_ready(PL_SOCK_INTERFACE_WLN) = yes then
+            if interface_ready(PL_SOCK_INTERFACE_WLN) = YES then
                 best_interface = PL_SOCK_INTERFACE_WLN
             end if
         #ENDIF
         #IF CELLULAR_AVAILABLE
-            if interface_ready(PL_SOCK_INTERFACE_PPP) = yes then
+            if interface_ready(PL_SOCK_INTERFACE_PPP) = YES then
                 best_interface = PL_SOCK_INTERFACE_PPP
             end if
         #ENDIF

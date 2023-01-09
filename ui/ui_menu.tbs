@@ -100,9 +100,9 @@ public function ui_menu(
 LCD_LOCK
 		'-------------------	Print menu on LCD	--------------------
 	device_menu_pre(x_coord,y_coord,width,height,menu_states,menu_descriptor_file,access_level,timeout)	
-	ui_menu_display(yes)
-	ui_menu_cursor_display(LCD_CURSORCOLOR, yes)
-	ui_menu_scroll(yes)
+	ui_menu_display(YES)
+	ui_menu_cursor_display(LCD_CURSORCOLOR, YES)
+	ui_menu_scroll(YES)
 	
 LCD_UNLOCK	
 
@@ -154,9 +154,9 @@ end function
 sub menu_fade()
 	lcd.forecolor=LCD_DISABLE_FORECOLOR
 LCD_LOCK	
-	ui_menu_display(no)
-	ui_menu_scroll(yes)
-	ui_menu_cursor_display(LCD_DISABLE_FORECOLOR, yes)
+	ui_menu_display(NO)
+	ui_menu_scroll(YES)
+	ui_menu_cursor_display(LCD_DISABLE_FORECOLOR, YES)
 LCD_UNLOCK	
 	lcd.forecolor=LCD_FORECOLOR
 end sub
@@ -340,7 +340,7 @@ sub ui_menu_up()
 		menu_start_index=menu_start_index - 1
 		ui_menu_string_parse(menu_start_index,MENU_KEY_UP)
 LCD_LOCK
-		ui_menu_display(yes)
+		ui_menu_display(YES)
 LCD_UNLOCK
 	else
 #if MENU_CURSOR_STYLE > 0	
@@ -350,7 +350,7 @@ LCD_UNLOCK
 	end if
 	if menu_prev_start=menu_start_index then exit sub
 	if menu_start_index=menu_item_count-MENU_DISPLAY_ITEM_PER_LVL-1 or menu_start_index=0 then 
-		ui_menu_scroll(yes)
+		ui_menu_scroll(YES)
 	end if	
 end sub
 
@@ -372,12 +372,12 @@ sub ui_menu_down()
 		menu_start_index=menu_item_index - menu_display_index
 		ui_menu_string_parse(menu_start_index,MENU_KEY_DOWN)
 LCD_LOCK
-		ui_menu_display(yes)
+		ui_menu_display(YES)
 LCD_UNLOCK
 	end if
 	if menu_prev_start=menu_start_index then exit sub
 	if menu_start_index=menu_item_count-MENU_DISPLAY_ITEM_PER_LVL or menu_start_index=1 then 
-		ui_menu_scroll(yes)
+		ui_menu_scroll(YES)
 	end if
 end sub
 
@@ -416,7 +416,7 @@ function ui_menu_call_lb(byref item_data as string(60)) as ui_list_box_results
 		end if
 		ui_menu_call_lb=lb_result
 	else
-		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),no,0)
+		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),NO,0)
 	end if
 end function
 
@@ -481,7 +481,7 @@ function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_
 		ui_menu_call_ib=ib_result
 		cached_ib_str=edit_str 
 	else
-		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),no,0)
+		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),NO,0)
 	end if
 end function
 
@@ -500,9 +500,9 @@ sub ui_menu_out()
 		mb_popped=YES
 		confirm_key=device_mb_get_key(MBK_YES)
 		cancel_key=device_mb_get_key(MBK_NO)
-		return_key=ui_msg_box(EXIT_MENU,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,confirm_key+cancel_key,no,0)
+		return_key=ui_msg_box(EXIT_MENU,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,confirm_key+cancel_key,NO,0)
 		if instr(1,confirm_key,chr(return_key),1)> 0 then
-			ui_menu_exit_flag=yes
+			ui_menu_exit_flag=YES
 			exit sub
 		end if
 	end if 
@@ -519,14 +519,14 @@ sub ui_menu_out()
 	menu_start_index=menu_item_index - menu_display_index
 	ui_menu_string_parse(menu_start_index,MENU_KEY_OUT)
 LCD_LOCK
-	if mb_popped=yes then
+	if mb_popped=YES then
 		lcd_clear(MSG_BOX_X-SCROLL_BORDER,MSG_BOX_Y-SCROLL_BORDER,MSG_BOX_W+SCROLL_BORDER*2,MSG_BOX_H+SCROLL_BORDER*2)
 		device_menu_pre("","","","","","","","")
 	end if
 	lcd_clear(menu_pos_x, menu_pos_y-UM_VER_SPACING/2-SCROLL_BORDER-1, menu_width -SCROLL_BAR_WIDTH-SCROLL_BORDER*2, menu_height+UM_VER_SPACING+SCROLL_BORDER-10)
-	ui_menu_display(yes)
-	ui_menu_cursor_display(LCD_CURSORCOLOR, yes)
-	ui_menu_scroll(yes)
+	ui_menu_display(YES)
+	ui_menu_cursor_display(LCD_CURSORCOLOR, YES)
+	ui_menu_scroll(YES)
 	device_move_cursor(menu_addr_array(menu_item_index),ui_menu_desc_file)
 LCD_UNLOCK
 	if kp.enabled=NO then kp.enabled=YES
@@ -555,7 +555,7 @@ sub ui_menu_in()
 		ui_menu_addr_fill(i)
 		ui_menu_string_parse(0,MENU_KEY_IN)
 		if ui_menu_string="" then
-			ui_msg_box(EMPTY_FOLDER,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",no,STD_INPUT_WAIT_TIME)
+			ui_msg_box(EMPTY_FOLDER,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,STD_INPUT_WAIT_TIME)
 			device_menu_pre("","","","","","","","")
 			ui_menu_out
 		else 
@@ -565,9 +565,9 @@ sub ui_menu_in()
 			menu_item_index=0
 LCD_LOCK
 			lcd_clear(menu_pos_x, menu_pos_y-UM_VER_SPACING/2-SCROLL_BORDER-1, menu_width -SCROLL_BAR_WIDTH-SCROLL_BORDER*2, menu_height+UM_VER_SPACING+SCROLL_BORDER-4)
-			ui_menu_display(yes)
-			ui_menu_cursor_display(LCD_CURSORCOLOR, yes)
-			ui_menu_scroll(yes)
+			ui_menu_display(YES)
+			ui_menu_cursor_display(LCD_CURSORCOLOR, YES)
+			ui_menu_scroll(YES)
 LCD_UNLOCK
 			device_move_cursor(menu_addr_array(menu_item_index),ui_menu_desc_file)
 		end if
@@ -596,7 +596,7 @@ print_ib:
 		menu_fade
 		ib_result=ui_menu_call_ib(item_data,reprint)
 		if ib_result=INPUT_BOX_RESULT_FAIL then 
-			ui_msg_box(SYS_SETTING_VALUE_INVALID,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",no,0)
+			ui_msg_box(SYS_SETTING_VALUE_INVALID,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,0)
 			reprint=YES
 			goto print_ib
 		end if
@@ -615,7 +615,7 @@ print_ib:
 		ui_menu_out
 	#endif		
 	case else
-		ui_msg_box(INVALID_INPUT,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",no,STD_INPUT_WAIT_TIME)
+		ui_msg_box(INVALID_INPUT,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,STD_INPUT_WAIT_TIME)
 		device_menu_pre("","","","","","","","")
 		ui_menu_out
 	end select
@@ -689,12 +689,12 @@ sub ui_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 		select case ks
 		case MENU_KEY_UP:
 			ui_menu_up
-			ui_menu_cursor_display(LCD_CURSORCOLOR, no)
-			ui_menu_scroll(no)
+			ui_menu_cursor_display(LCD_CURSORCOLOR, NO)
+			ui_menu_scroll(NO)
 		case MENU_KEY_DOWN:
 			ui_menu_down
-			ui_menu_cursor_display(LCD_CURSORCOLOR, no)
-			ui_menu_scroll(no)
+			ui_menu_cursor_display(LCD_CURSORCOLOR, NO)
+			ui_menu_scroll(NO)
 		case MENU_KEY_OUT:
 			ui_menu_out		
 		case MENU_KEY_IN:

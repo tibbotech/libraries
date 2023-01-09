@@ -99,10 +99,10 @@ sub lcd_display_button(F1_ADD as word,
 	end if
 
 	LCD_LOCK
-	if F1_on=yes then lcd.bmp(romfile.offset,x-13,y,F1_ADD,0,40,31)
-	if F2_on=yes then lcd.bmp(romfile.offset,x+w,y,F2_ADD,0,40,31)
-	if F3_on=yes then lcd.bmp(romfile.offset,x+w*2,y,F3_ADD,0,40,31)
-	if F4_on=yes then lcd.bmp(romfile.offset,x+w*3+10,y,F4_ADD,0,40,31)
+	if F1_on=YES then lcd.bmp(romfile.offset,x-13,y,F1_ADD,0,40,31)
+	if F2_on=YES then lcd.bmp(romfile.offset,x+w,y,F2_ADD,0,40,31)
+	if F3_on=YES then lcd.bmp(romfile.offset,x+w*2,y,F3_ADD,0,40,31)
+	if F4_on=YES then lcd.bmp(romfile.offset,x+w*3+10,y,F4_ADD,0,40,31)
 	LCD_UNLOCK
 	lcd.forecolor=LCD_FORECOLOR
 	lcd.backcolor=LCD_BACKCOLOR
@@ -184,7 +184,7 @@ sub device_menu_pre(
 	timeout as byte				'if no respond from the keypad within the time defined by "timeout", exit the menu and return to the previous screen. If timeout=0, no time out applies
 	)
 
-	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",YES,NO)
 	lcd.forecolor=BG_BLUE
 	lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
 end sub
@@ -215,7 +215,7 @@ sub device_input_box_pre(
 	input_length as byte			'the maximum number of characters
 )
 
-	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_NUM_XOFFSET,BMP_LEFT_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_NUM_XOFFSET,BMP_LEFT_XOFFSET,BMP_ENTER_XOFFSET,"0000",YES,NO)
 	lcd.forecolor=LCD_INPUTBOX_BACKCOLOR
 	lcd.fill(INPUT_BOX_X,INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
 	lcd.forecolor=LCD_INPUTBOX_FORECOLOR
@@ -252,7 +252,7 @@ sub device_list_box_pre(
 	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the list box and return to the previous screen. If timeout=0, no time out applies
 	)
 	
-	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",yes,no)
+	lcd_display_button(BMP_CANCEL_XOFFSET,BMP_UP_XOFFSET,BMP_DOWN_XOFFSET,BMP_ENTER_XOFFSET,"0000",YES,NO)
 end sub
 
 '------------------------------------------------------------------------------
