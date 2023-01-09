@@ -788,7 +788,7 @@ sub pppoe_open_sock(sock_mode as pppoe_sock_modes)
 	sock.connect
 	i=sys.timercount
 	while sock.statesimple<>PL_SSTS_EST  and sys.timercount-i<3 and sys.timercount>=i
-		doevents() 'very important
+		doevents 'very important
 	wend
 end sub
 

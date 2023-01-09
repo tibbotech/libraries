@@ -304,7 +304,7 @@ LCD_UNLOCK
 err:	
 	list_box_result=LIST_BOX_RESULT_TIMEOUT
 wait:
-	doevents()
+	doevents
 	device_lb_interrupt()	'allow user to executes other procedures while inside the list box
 	if lb_interrupt_flag=YES then
 		goto timeout_exit

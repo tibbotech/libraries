@@ -100,7 +100,7 @@ sub tbl_web_get_rows(byref table as string)
 		tbl_get_num_records(tbl_rows_all,YES)
 		tmp_data=str(tbl_rows)+"\r\n"
 		while sock.txfree < len(tmp_data)
-			doevents()
+			doevents
 		wend
 		sock.setdata(tmp_data)
 		sock.send()
@@ -135,7 +135,7 @@ sub tbl_web_get_rows(byref table as string)
 						tmp_data=tmp_data+"\r\n"
 					end if
 					while sock.txfree < len(tmp_data)
-						doevents()
+						doevents
 					wend
 					sock.setdata(tmp_data)
 					sock.send()
