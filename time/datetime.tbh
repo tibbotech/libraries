@@ -13,6 +13,8 @@ enum en_datetime_rdwr
 end enum
 
 declare datetime_tz_offset as en_td_timezones
+declare datetime_lat as float
+declare datetime_lng as float
 declare datetime_convert_err as ok_ng
 declare datetime_format_err as ok_ng
 
@@ -23,6 +25,7 @@ type crontab
 	month as string(10)
 	day_of_week as string(12)
 	next_timestamp as dword
+	astro as string(3)
 end type
 
 type astro_struct  

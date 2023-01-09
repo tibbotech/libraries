@@ -6,7 +6,8 @@ const datetime_seconds_since_epoch = 946684800
 dim datetime_tz_offset as en_td_timezones 'Time Zone Off Set, You will need to change this according to your time zone
 dim datetime_convert_err as ok_ng
 dim datetime_format_err as ok_ng
-
+dim datetime_lat as float
+dim datetime_lng as float
 
 function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
 	datetime_to_timestamp = datetime_seconds_since_epoch
@@ -246,7 +247,7 @@ sub datetime_astro(byref a as astro_struct)
 	'this work is based on the NOAA 
 	const tpl = 0.0041666667  
 	dim days as dword = daycount(a.yy, a.mm, a.dd) + 36526   
-	a.jd=days+2415018.5+tpl-a.tz/24.0
+	a.jd=days+2415018.5+tpl-a.tz/60/24.0
 	a.jc=(a.jd-2451545.0)/36525.0
 	a.gmls=(280.46646+a.jc*(36000.76983 + a.jc*0.0003032)) mod 360
 	a.gmas=357.52911+a.jc*(35999.05029 - 0.0001537*a.jc)
@@ -262,7 +263,7 @@ sub datetime_astro(byref a as astro_struct)
 	a.y=tan(a.oc/2)*tan(a.oc/2)
 	a.eqtm=4*(a.y*sin(2*a.gmls) - 2*a.ecceo*sin(a.gmas) + 4*a.ecceo*a.y*sin(a.gmas)*cos(2*a.gmls) - 0.5*a.y*a.y*sin(4*a.gmls) - 1.25*a.ecceo*a.ecceo*sin(2*a.gmas))*180.0/3.14159265
 	a.hasr=acos(cos(90.833)/(cos(a.lat)*cos(a.sdec))-tan(a.lat)*tan(a.sdec))
-	a.solnoon=((720-4*a.lng-a.eqtm+a.tz*60)/1440)
+	a.solnoon=((720-4*a.lng-a.eqtm+a.tz)/1440)
 
 	'Sunrise/Solar Noon/Sunsetin seconds since midnight
 	a.sunrise=(a.solnoon-a.hasr*4/1440)*24*60*60
@@ -342,15 +343,51 @@ function datetime_next_cron(next_cron as crontab) as dword
 			end if
 		end if
 		
-		if next_cron.hour <> 255 AND next_cron.hour <> c_hour AND skip = false then
-			skip = true
-			timestamp=timestamp + (60*60*1)
-			timestamp=timestamp - (60*c_mins)
+		if next_cron.astro = 255 then 
+			
+			if next_cron.hour <> 255 AND next_cron.hour <> c_hour AND skip = false then
+				skip = true
+				timestamp=timestamp + (60*60*1)
+				timestamp=timestamp - (60*c_mins)
+			end if
+			
+			if next_cron.minute <> 255 AND next_cron.minute <> c_mins AND skip = false then
+				skip = true
+				timestamp=timestamp + (60*1)
+			end if				
+			
 		end if
 		
-		if next_cron.minute <> 255 AND next_cron.minute <> c_mins AND skip = false then
-			skip = true
-			timestamp=timestamp + (60*1)
+		if next_cron.astro <> 255 AND skip = false then
+			dim a as astro_struct
+			dim found as boolean=false
+			dim curr_timestamp as dword
+			dim minutes_offset as integer
+			td_get_tzone_offset(datetime_tz_offset, minutes_offset)
+			timestamp = timestamp - (60*60*c_hour) - (60*c_mins)
+			a.dd = c_date
+			a.mm = c_month
+			a.yy = year(days)
+			a.tz = minutes_offset
+			a.lat = datetime_lat
+			a.lng = datetime_lng
+			datetime_astro(a)
+			curr_timestamp = datetime_current_timestamp()
+			
+			if timestamp + a.sunrise > curr_timestamp AND instr(1, next_cron.astro, "r", 1) > 0 then
+				timestamp = timestamp + a.sunrise
+				found = true
+			end if
+			
+			if timestamp + a.sunset > curr_timestamp AND instr(1, next_cron.astro, "s", 1) > 0 and found <> true then
+				timestamp = timestamp + a.sunset
+				found = true
+			end if
+			
+			if found <> true then
+				timestamp = timestamp + 86400
+				skip = true
+			end if
 		end if
 		
 		if skip=false then
