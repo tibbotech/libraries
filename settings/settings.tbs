@@ -1415,7 +1415,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 		case EN_STG_TYPE_FLOAT,EN_STG_TYPE_TIME:
 			dim tmp_f as float=0
 			strtobin(tmp_f,stg_str,4)
-			stg_value=ftofixed(tmp_f,3)
+			stg_value=fstr(tmp_f)
 			i=tmp_f
 			goto lb1
 		
