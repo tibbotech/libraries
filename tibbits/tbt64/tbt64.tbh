@@ -1,0 +1,13 @@
+#define TBT_PWM_ADDR_W &h00
+#define TBT_PWM_ADDR_R &h01
+
+declare sub tbtPWM_start()
+declare function tbtPWM_init(signature as string, i2c_id as byte, data_pin as byte, clk_pin as byte, rst_pin as byte, fault_pin as byte, byref tbt_channel as byte, use_ssi as no_yes)as ok_ng
+declare function tbtPWM_check_fault(tbt_channel as byte) as boolean
+declare function tbtPWM_set_range(range as byte, tbt_channel as byte) as ok_ng
+declare function tbtPWM_set_frequency(frequency as word, channel as byte, tbt_channel as byte) as ok_ng
+declare function tbtPWM_set_duty(duty as byte, channel as byte, tbt_channel as byte) as ok_ng
+declare function tbtPWM_set_enable(enable as boolean, channel as byte, tbt_channel as byte) as ok_ng
+declare function tbtPWM_get_fault(channel as byte, tbt_channel as byte) as byte
+declare function tbtPWM_set_i2c_id(new_id as byte, tbt_channel as byte) as ok_ng
+declare function tbtPWM_read_all(tbt_channel as byte) as string
