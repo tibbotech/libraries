@@ -1,0 +1,352 @@
+'***********************************************************************************************************
+'			Tibbit #64-1 #64-2  PWM
+'***********************************************************************************************************
+
+include "global.tbh"
+
+#define TBT_PWM_MAX_NUM_OF_SOCKS	4
+
+#define I2C_SLAVE           &h00
+#define I2C_ID_MSB          &h01
+#define I2C_ID_LSB          &h02
+#define I2C_LOCK            &h03
+#define I2C_FW_VERSION_1    &h04
+#define I2C_FW_VERSION_2    &h05
+#define I2C_SIGNATURE_1     &h06
+#define I2C_SIGNATURE_2     &h07
+#define I2C_FREQ_RANGE      &h08
+#define I2C_RESERVED_1      &h09
+#define I2C_RESERVED_2      &h0A
+#define I2C_CH1_FREQ_MSB    &h0B
+#define I2C_CH1_FREQ_LSB    &h0C
+#define I2C_CH1_DUTY        &h0D
+#define I2C_CH1_ENABLE      &h0E
+#define I2C_CH1_FAULT       &h0F
+#define I2C_CH2_FREQ_MSB    &h10
+#define I2C_CH2_FREQ_LSB    &h11
+#define I2C_CH2_DUTY        &h12
+#define I2C_CH2_ENABLE      &h13
+#define I2C_CH2_FAULT       &h14
+#define I2C_CH3_FREQ_MSB    &h15
+#define I2C_CH3_FREQ_LSB    &h16
+#define I2C_CH3_DUTY        &h17
+#define I2C_CH3_ENABLE      &h18
+#define I2C_CH3_FAULT       &h19
+
+type tbtPWM_type
+	channel as byte
+	i2c_id as byte
+	fault_line as byte
+	reset_line as byte
+end type
+
+dim tbtPWM_list(TBT_PWM_MAX_NUM_OF_SOCKS) as tbtPWM_type
+dim tbtPWM_start_called as boolean = false
+
+sub tbtPWM_start()
+	dim b as byte
+	for b = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		tbtPWM_list(b).channel = 255
+		tbtPWM_list(b).i2c_id = 255
+		tbtPWM_list(b).fault_line = 255
+		tbtPWM_list(b).reset_line = 255
+	next b
+	tbtPWM_start_called = true
+end sub
+
+function tbtPWM_init(signature as string, i2c_id as byte, data_pin as byte, clk_pin as byte, rst_pin as byte, fault_pin as byte, byref tbt_channel as byte, use_ssi as no_yes) as ok_ng
+
+	dim index as byte
+	
+	if tbtPWM_start_called = false then
+		tbtPWM_start
+	end if
+	' USE SuperI2C
+	
+	tbtPWM_init = NG
+	tbt_channel = 255
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel = 255 then
+			' Add new PWM tibbit
+			index = i
+			tbt_channel = si2c_register(signature, data_pin, clk_pin, use_ssi)
+			tbtPWM_list(i).channel = tbt_channel
+			tbtPWM_list(i).i2c_id = i2c_id
+			tbtPWM_list(i).fault_line = fault_pin
+			tbtPWM_list(i).reset_line = rst_pin
+			exit for
+		end if
+	next i
+	 
+	if tbt_channel = 255 then
+		' No empty fields in tibbit list 
+		sys.debugprint("Increase TBT_PWM_MAX_NUM_OF_SOCKS")
+		exit function
+	end if
+	
+	' Init IO lines
+	io.num = rst_pin 
+	io.enabled = YES
+	io.state = HIGH
+	io.num = fault_pin
+	io.enabled = NO
+	io.state  = HIGH
+	
+	dim tmr as dword
+	' RESET tibbit
+	io.num = rst_pin 
+	io.state = LOW
+	tmr = sys.timercountms
+	while (sys.timercountms - tmr < 10)
+	wend
+	io.state = HIGH
+	tmr = sys.timercountms
+	while (sys.timercountms - tmr < 100)
+	wend
+	
+	' Check tibbit presents
+	si2c_get(tbt_channel)
+
+	dim tibbit as word
+	dim ver as word
+	dim sign as word
+	dim addr as byte
+	
+	si2c_start()
+	si2c_write(tbtPWM_list(index).i2c_id OR TBT_PWM_ADDR_W)
+	si2c_write(I2C_SLAVE) 'I2C_ID_MSB
+	' Restart I2C and read
+	si2c_start()
+	si2c_write(tbtPWM_list(index).i2c_id OR TBT_PWM_ADDR_R)
+	addr = si2c_read(true)
+	tibbit = si2c_read(true) shl 8
+	tibbit = tibbit + si2c_read(true)
+	si2c_read(true)	' Lock register read
+	ver = si2c_read(true) shl 8
+	ver = ver + si2c_read(true)
+	sign = si2c_read(true) shl 8
+	sign = sign + si2c_read(false)
+	si2c_stop()
+
+	' Check tibbit type
+	if tibbit <> &h0641 and tibbit <> &h0642 then exit function
+	
+	' Check signature
+	if sign <> &hAA55 then exit function
+	
+	' Check version
+	if ver = 1 then
+		' 0.1 version is there
+		tbtPWM_init = OK
+	else
+		' Unknown version
+	end if
+
+end function
+
+function tbtPWM_check_fault(tbt_channel as byte) as boolean
+
+	tbtPWM_check_fault = true
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				if io.lineget(tbtPWM_list(i).fault_line) = HIGH then
+					tbtPWM_check_fault = false
+					exit function
+				end if
+				exit for
+			end if
+		end if
+	next i
+
+end function
+
+function tbtPWM_set_range(range as byte, tbt_channel as byte) as ok_ng
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write(I2C_FREQ_RANGE)
+				si2c_write(range)
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+
+	tbtPWM_set_range = OK
+	
+end function
+
+function tbtPWM_set_frequency(frequency as word, channel as byte, tbt_channel as byte) as ok_ng
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write((channel * 5) + I2C_CH1_FREQ_MSB)
+				si2c_write(frequency shr 8)
+				si2c_write(frequency and &h00FF)
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+	
+	if tbtPWM_check_fault(tbt_channel) then
+		tbtPWM_set_frequency = NG
+	else
+		tbtPWM_set_frequency = OK
+	end if
+
+end function
+
+function tbtPWM_set_duty(duty as byte, channel as byte, tbt_channel as byte) as ok_ng
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write((channel * 5) + I2C_CH1_DUTY)
+				si2c_write(duty)
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+	
+	if tbtPWM_check_fault(tbt_channel) then
+		tbtPWM_set_duty = NG
+	else
+		tbtPWM_set_duty = OK
+	end if
+
+end function
+
+function tbtPWM_set_enable(enable as boolean, channel as byte, tbt_channel as byte) as ok_ng
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write((channel * 5) + I2C_CH1_ENABLE)
+				si2c_write(enable)
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+	
+	if tbtPWM_check_fault(tbt_channel) then
+		tbtPWM_set_enable = NG
+	else
+		tbtPWM_set_enable = OK
+	end if
+
+end function
+
+function tbtPWM_get_fault(channel as byte, tbt_channel as byte) as byte
+
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write((channel * 5) + I2C_CH1_FAULT)
+				' Restart I2C and read
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_R)
+				tbtPWM_get_fault = si2c_read(false)
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+	
+end function
+
+function tbtPWM_set_i2c_id(new_id as byte, tbt_channel as byte) as ok_ng
+	
+	tbtPWM_set_i2c_id = NG
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				' UnLock I2C ID write
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write(I2C_LOCK)
+				si2c_write(&hAA)	' Unlock value
+				si2c_stop()
+				' Set new I2C ID
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write(I2C_SLAVE)
+				si2c_write(new_id)
+				si2c_stop()
+				tbtPWM_list(i).i2c_id = new_id and &hFE
+				' Lock write
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write(I2C_LOCK)
+				si2c_write(&h00)	' Lock value
+				si2c_stop()
+				
+				tbtPWM_set_i2c_id = OK
+				
+				exit for
+			end if
+		end if
+	next i
+	
+end function
+
+function tbtPWM_read_all(tbt_channel as byte) as string
+	
+	tbtPWM_read_all = ""
+	
+	dim i as byte
+	for i = 0 to TBT_PWM_MAX_NUM_OF_SOCKS - 1
+		if tbtPWM_list(i).channel <> 255 then
+			if tbtPWM_list(i).channel = tbt_channel then
+				si2c_get(tbt_channel)
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
+				si2c_write(0)
+
+				si2c_start()
+				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_R)
+				
+				for i = 0 to &h18
+					tbtPWM_read_all = tbtPWM_read_all + chr(si2c_read(true))
+				next i
+				
+				tbtPWM_read_all = tbtPWM_read_all + chr(si2c_read(false))
+				si2c_stop()
+				exit for
+			end if
+		end if
+	next i
+	
+end function
