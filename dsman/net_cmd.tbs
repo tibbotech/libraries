@@ -65,7 +65,7 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim stg_data as string(32)
 	dim x,pos,pos2,f as byte
 	dim cmd_src_valid as no_yes
-	dim index as byte
+	dim index as byte=0
 	dim s2 as string(64)
 	dim reply_str as string(MAX_NET_RPL_LEN)
 	dim ip_change_needed as no_yes
