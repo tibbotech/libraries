@@ -400,7 +400,8 @@ function modbus_master_get_request(byref request_item as modbus_request_item) as
 		data = data + chr(request_item.count shr 8)
 		data = data + chr(request_item.count and &HFF)
 	else
-		data = data + request_item.data
+		data = data + chr(lval(request_item.data) shr 8)
+		data = data + chr(lval(request_item.data) and &HFF)
 	end if
 	
 	if request_item.protocol=modbus_RTU then
@@ -457,7 +458,12 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		end if
 		modbusUnitId = asc(mid(data, 1, 1))
 		modbusFunction = asc(mid(data, 2, 1))
-		length = asc(mid(data, 3, 1))
+		select case modbusFunction
+		case PresetSingleRegister:
+			length = 3
+		case else:
+			length = asc(mid(data, 3, 1))
+		end select
 		str_modbus = mid(data, 3, length+1)
 		if len(data) < 5 + length then
 			exit sub
