@@ -461,10 +461,11 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		select case modbusFunction
 		case PresetSingleRegister:
 			length = 3
+			str_modbus = mid(data, 4, 5)
 		case else:
 			length = asc(mid(data, 3, 1))
+			str_modbus = mid(data, 3, length+1)
 		end select
-		str_modbus = mid(data, 3, length+1)
 		if len(data) < 5 + length then
 			exit sub
 		end if
