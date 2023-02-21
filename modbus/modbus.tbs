@@ -4,6 +4,7 @@ declare sub modbus_tcp_send(socket as byte, transactionId as word, protocolId as
 declare sub modbus_queue_add(request_item as modbus_request_item)
 declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
+declare sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
 declare sub modbus_master_send_next()
 declare sub modbus_debug_print(byref message as string)
 declare function modbus_get_input_register(register as word) as word
@@ -361,13 +362,15 @@ sub modbus_master_send_next()
 end sub
 
 sub modbus_proc_timer()
+	dim request_item as modbus_request_item
 	if modbus_queue_start <> -1 then
 		if modbus_request_queue(modbus_queue_start).timestamp = 0 then
 			modbus_master_send_next()
 		else
 			if sys.timercountms > modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT then
 				modbus_debug_print("modbus timeout for device " + str(modbus_request_queue(modbus_queue_start).device_id))
-				modbus_queue_pop()
+				request_item = modbus_queue_pop()
+				callback_modbus_slave_reply_timeout(request_item)
 				modbus_master_send_next()
 			end if
 		end if
