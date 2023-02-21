@@ -463,6 +463,7 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		modbusFunction = asc(mid(data, 2, 1))
 		select case modbusFunction
 		case PresetSingleRegister:
+		case WriteSingleCoil:
 			length = 3
 			str_modbus = mid(data, 4, 5)
 		case else:
