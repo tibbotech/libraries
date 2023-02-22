@@ -62,7 +62,7 @@ end sub
 '-------------------------------------------------------------
 public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim ss as string (1)
-	dim stg_data as string(32)
+	dim stg_data as string(MAX_NET_CMD_LEN)
 	dim x,pos,pos2,f as byte
 	dim cmd_src_valid as no_yes
 	dim index as byte=0
@@ -76,7 +76,7 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim i as word
 	dim ser_num as string(8)
 	dim s as string(MAX_NET_CMD_LEN)
-	dim cmd_data as string(32)
+	dim cmd_data as string(MAX_NET_CMD_LEN)
 	dim cmd_bcast as no_yes
 	dim w as word
 	
