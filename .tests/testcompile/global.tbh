@@ -38,6 +38,8 @@ include "../../stgcmd/stgcmd.tbh"
 include "../../filenum/filenum.tbh"
 include "../../tables/tables.tbh"
 include "../../tables/tables_web.tbh"
+include "../../modbus/modbus.tbh"
+include "../../mqtt/mqtt.tbh"
 
 
 'DECLARATIONS--------------------------------------------------------

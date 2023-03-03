@@ -486,3 +486,39 @@ sub T1_found_lc8u2erzuad9ypwd6s(row_index as word,byref TS as float,byref F as f
     sys.debugprint("T " + datetime_timestamp_to_string(datetime_mins_to_timestamp(T / 60),"hh:mm"))
     
 end sub
+
+function modbus_callback_ReadCoilStatus(address as word) as boolean
+
+end function
+
+function modbus_callback_ReadInputStatus(address as word) as boolean
+
+end function
+
+function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte 
+
+end function
+
+function modbus_callback_ReadHoldingRegister(address as word) as word
+
+end function
+
+function modbus_callback_ReadInputRegister(address as word) as word
+
+end function
+
+sub callback_mqtt_connect_ok()
+
+end sub
+
+sub callback_mqtt_connect_lost()
+
+end sub
+
+sub callback_mqtt_sub_ok()
+
+end sub
+	
+sub callback_mqtt_notif(byref topic as string,byref data as string,remaining_bytes as dword)
+
+end sub
