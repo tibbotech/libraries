@@ -522,3 +522,24 @@ end sub
 sub callback_mqtt_notif(byref topic as string,byref data as string,remaining_bytes as dword)
 
 end sub
+
+sub callback_dns_failure(status as en_dns_status_codes)
+    
+end sub
+        
+sub callback_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+    
+    mqtt_dns_answer_acquired(return_type, return_string)
+end sub
+        
+sub callback_dns_ok()
+    
+end sub
+        
+sub callback_dns_pre_buffrq(num_of_pages_required as byte)
+    
+end sub
+        
+sub callback_dns_buff_released()
+    
+end sub
