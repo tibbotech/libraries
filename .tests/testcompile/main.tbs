@@ -17,6 +17,7 @@ dim SNTP_socket as byte
 dim var_poll_timer as dword
 dim var1 as float=0.0
 dim stg1 as dword=0
+dim modbus_slave_id as byte=1
 
 dim table_find_result_index as word
 
