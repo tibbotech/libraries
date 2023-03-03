@@ -59,7 +59,6 @@ dim _crc_table_lo as byte(256) = {
 }
 
 '	Define MODBUS UnitID for TCP
-'#define MODBUSUNITID 1
 
 function modbus_initialize() as boolean
 	
@@ -133,9 +132,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		data=str_modbus
 	end if
 
-#ifdef MODBUSUNITID
-	if modbusUnitId = MODBUSUNITID then
-#endif
+	if modbusUnitId = modbus_slave_id then
 
 		select case modbusFunction
 		case ReadCoilStatus:				' Read DO
@@ -285,10 +282,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			end if
 			
 		end select
-
-#ifdef MODBUSUNITID
 	end if
-#endif
 	wend
 
 end sub
