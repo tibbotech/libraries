@@ -507,6 +507,10 @@ function modbus_callback_ReadInputRegister(address as word) as word
 
 end function
 
+function modbus_callback_set_holding_register(address as word, data as string) as boolean
+
+end function
+
 sub callback_mqtt_connect_ok()
 
 end sub
