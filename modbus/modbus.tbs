@@ -235,7 +235,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		
 		case PresetSingleRegister:			' Write AO
 			modbusStartReference = asc(mid(data, 1, 1)) * 256 + asc(mid(data, 2, 1))
-			modbusValue = mid(data,3,2)
+			modbusValue = asc(mid(data, 3, 1)) * 256 + asc(mid(data, 4, 1))
 			if modbus_callback_set_holding_register(modbusStartReference, modbusValue) = true then
 				modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, mid(data, 1, 4))
 			end if
@@ -277,7 +277,8 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			' Check length 
 			if modbusCount * 2 = len(data) - 5 then
 				for i = 1 to modbusCount
-					modbus_callback_set_holding_register(modbusStartReference, mid(data,6 + (i - 1) * 2,2))
+					modbusValue = asc(mid(data, 6 + (i - 1) * 2, 1)) * 256 + asc(mid(data, 6 + (i - 1) * 2 + 1, 1))
+					modbus_callback_set_holding_register(modbusStartReference, modbusValue)
 					modbusStartReference = modbusStartReference + 1
 				next i
 				modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, mid(data, 1, 4))

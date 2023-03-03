@@ -507,7 +507,7 @@ function modbus_callback_ReadInputRegister(address as word) as word
 
 end function
 
-function modbus_callback_set_holding_register(address as word, data as string) as boolean
+function modbus_callback_set_holding_register(address as word, data as word) as boolean
 
 end function
 
