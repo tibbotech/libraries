@@ -54,36 +54,9 @@ function luis_start(byref bt_name as string) as en_luis_status_codes
 	#if LUIS_DEBUG_PRINT
 		luis_debugprint("---START---")
 	#endif
-	
-	if wln.enabled = NO then
-		#if PLATFORM_ID <> WM2000
-			wln_init()
-		#endif
-		wln.boot(0)
-	else
-		#if LUIS_DEBUG_PRINT
-			luis_debugprint("WA2000 module already enabled")
-		#endif
-	end if
-	
-	if wln.enabled = NO then
-		#if LUIS_DEBUG_PRINT
-			luis_debugprint("WA2000 module failed to start")
-		#endif
-		luis_init_flag=0
-		luis_start=EN_LUIS_BT_FAILURE
-	else
-		if bt.enabled=NO then
-			bt.name=bt_name
-			bt.emulation=PL_WLN_BT_EMULATION_MODE_MICROCHIP
-			bt.txbuffrq(LUIS_BT_TX_BUF_SIZE)
-			bt.rxbuffrq(LUIS_BT_RX_BUF_SIZE)
-			sys.buffalloc()
-			bt.enable()
-		end if
-	end if
-	
-	luis_chunk_size=bt.txfree
+		
+	bt.name=bt_name
+	luis_chunk_size=223
 	
 	romfile.open(LUIS_HTML_FILE)
 	if romfile.pointer32<>1 then
