@@ -104,7 +104,6 @@ sub luis_on_bt_event(bt_event as enum pl_bt_events)
 			luis_debugprint("Bluetooth enabled")
 			luis_debugprint("Connect to device named " + bt.name + " from the LUIS mobile app")
 		#endif
-		bt.advertise = YES
 		callback_luis_bt_enabled()
 	case PL_BT_EVENT_DISABLED:
 		#if LUIS_DEBUG_PRINT
