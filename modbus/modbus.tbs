@@ -104,17 +104,17 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		length = asc(mid(data, 5, 1)) * 256 + asc(mid(data, 6, 1))
 	else
 		if len(data) <= 5 then exit sub
+		select case modbusFunction
+			case WriteMultipleCoils,PresetMultipleRegisters:
+				length=asc(mid(data,7,2)) + 9
+			case else:
+				length=8
+		end select
 	end if
 	
 	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
 	modbusFunction = asc(mid(data, prefix_len + 2, 1))
 	
-'	select case modbusFunction
-'		case WriteMultipleCoils,PresetMultipleRegisters:
-'			length=asc(mid(data,7,2)) + 9
-'		case else:
-'			length=8
-'	end select
 	
 	if len(data) < prefix_len + length then
 			exit sub
