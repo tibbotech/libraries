@@ -84,6 +84,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	dim FloatAsDWord as dword
 	dim modbusBits as byte
 	dim crc,tmpcrc as word=0
+	dim prefix_len as byte=0
 	dim data as string = modbus_slave_recv_buffer + recv_data
 	modbus_slave_recv_buffer = data
 	if len(modbus_slave_recv_buffer)=255 then
@@ -93,34 +94,34 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	
 	while len(modbus_slave_recv_buffer) <> 0
 	data = modbus_slave_recv_buffer
+	
 	if protocol=modbus_TCP then
+		prefix_len = 6
 		if len(data) < 8 then exit sub
 		transactionId = asc(mid(data, 1, 1)) * 256 + asc(mid(data, 2, 1))
 		protocolId = asc(mid(data, 3, 1)) * 256 + asc(mid(data, 4, 1))
 		if protocolId <> 0 then exit sub
 		length = asc(mid(data, 5, 1)) * 256 + asc(mid(data, 6, 1))
-		modbusUnitId = asc(mid(data, 7, 1))
-		modbusFunction = asc(mid(data, 8, 1))
-		if len(data) < 6 + length then
-			exit sub
-		end if
-		data=mid(data,9,length)
-		dim ss as byte=6+length+1
-		modbus_slave_recv_buffer = mid(modbus_slave_recv_buffer,ss,255)
 	else
 		if len(data) <= 5 then exit sub
-		modbusUnitId = asc(mid(data, 1, 1))
-		modbusFunction = asc(mid(data, 2, 1))
-		select case modbusFunction
-			case WriteMultipleCoils,PresetMultipleRegisters:
-				length=asc(mid(data,7,2)) + 9
-			case else:
-				length=8
-		end select
-		if len(data) < length then
+	end if
+	
+	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
+	modbusFunction = asc(mid(data, prefix_len + 2, 1))
+	
+'	select case modbusFunction
+'		case WriteMultipleCoils,PresetMultipleRegisters:
+'			length=asc(mid(data,7,2)) + 9
+'		case else:
+'			length=8
+'	end select
+	
+	if len(data) < prefix_len + length then
 			exit sub
-		end if
-		str_modbus=mid(data,3,len(data)-4)
+	end if
+	
+	if protocol=modbus_RTU then
+		str_modbus=mid(data, prefix_len + 3,len(data)-4)
 		crc=asc(mid(data, len(data) - 1, 1)) * 256 + asc(mid(data, len(data), 1))
 		dim tmpstr as string=mid(data,1,len(data)-2)
 		tmpcrc=modbus_crc16(tmpstr, len(tmpstr))
@@ -130,9 +131,13 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		dim remaining as byte = len(data) - (len(tmpstr)+2)
 		modbus_slave_recv_buffer = mid(data,len(tmpstr) + 3,remaining)
 		data=str_modbus
+	else
+		data=mid(data, prefix_len + 3,length)
+		dim ss as byte=6+length+1
+		modbus_slave_recv_buffer = mid(modbus_slave_recv_buffer,ss,255)
 	end if
 
-	if modbusUnitId = modbus_slave_id then
+	if modbusUnitId = modbus_slave_id or protocol = modbus_TCP then
 
 		select case modbusFunction
 		case ReadCoilStatus:				' Read DO
@@ -441,31 +446,32 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	dim crc,tmpcrc as word=0
 	dim request_item as modbus_request_item
 	dim data as string = modbus_master_recv_buffer + recv_data
+	dim prefix_len as byte=0
 	modbus_master_recv_buffer = data
 	
 	if protocol=modbus_TCP then
+		prefix_len = 6
 		if len(data) < 8 then exit sub
 		transactionId = asc(mid(data, 1, 1)) * 256 + asc(mid(data, 2, 1))
 		protocolId = asc(mid(data, 3, 1)) * 256 + asc(mid(data, 4, 1))
 		if protocolId <> 0 then exit sub
 		length = asc(mid(data, 5, 1)) * 256 + asc(mid(data, 6, 1))
-		modbusUnitId = asc(mid(data, 7, 1))
-		modbusFunction = asc(mid(data, 8, 1))
-		str_modbus=mid(data,9,255)
 	else
-		if len(data) <= 5 then
-			exit sub
-		end if
-		modbusUnitId = asc(mid(data, 1, 1))
-		modbusFunction = asc(mid(data, 2, 1))
-		select case modbusFunction
-		case PresetSingleRegister,WriteSingleCoil:
-			length = 3
-			str_modbus = mid(data, 4, 5)
-		case else:
-			length = asc(mid(data, 3, 1))
-			str_modbus = mid(data, 3, length+1)
-		end select
+		if len(data) <= 5 then exit sub
+	end if
+	
+	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
+	modbusFunction = asc(mid(data, prefix_len + 2, 1))
+	
+	if modbusFunction = PresetSingleRegister or modbusFunction = WriteSingleCoil then
+		length = 3
+		str_modbus = mid(data, prefix_len + 4, 5)
+	else 
+		str_modbus=mid(data,prefix_len + 3,length+1)
+	end if
+	
+	if protocol=modbus_RTU then
+		length = asc(mid(data, 3, 1))
 		if len(data) < 5 + length then
 			exit sub
 		end if
@@ -478,7 +484,6 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 			modbus_debug_print("wrong crc")
 			exit sub
 		end if
-		
 	end if
 	
 	request_item = modbus_queue_pop()
