@@ -151,7 +151,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 				modbusLenMultipleData = modbusLenMultipleData + 1
 			end if
 
-			str_modbus = str_modbus + chr(modbusLenMultipleData)
+			str_modbus = chr(modbusLenMultipleData)
 			j = 1
 			k = 0
 			modbusBits = 0
@@ -171,6 +171,9 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			next i
 			if j <> 1 then
 				str_modbus = str_modbus + chr(modbusBits)
+			end if
+			if j < 128 then
+				str_modbus = str_modbus + chr(0)
 			end if
 			modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, str_modbus)
 			
@@ -183,12 +186,12 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 				modbusLenMultipleData = modbusLenMultipleData + 1
 			end if
 
-			str_modbus = str_modbus + chr(modbusLenMultipleData)
+			str_modbus = chr(modbusLenMultipleData)
 			j = 1
 			k = 0
 			modbusBits = 0
 			for i = 1 to modbusCount
-				if modbus_callback_ReadCoilStatus(modbusStartReference) = true then
+				if modbus_callback_ReadInputStatus(modbusStartReference) = true then
 					modbusBits = modbusBits or j
 				end if
 				modbusStartReference = modbusStartReference + 1
@@ -203,6 +206,9 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			next i
 			if j <> 1 then
 				str_modbus = str_modbus + chr(modbusBits)
+			end if
+			if j < 128 then
+				str_modbus = str_modbus + chr(0)
 			end if
 			modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, str_modbus)
 			
@@ -464,13 +470,17 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
 	modbusFunction = asc(mid(data, prefix_len + 2, 1))
 	
-	if modbusFunction = PresetSingleRegister or modbusFunction = WriteSingleCoil then
-		length = 3
-		str_modbus = mid(data, prefix_len + 4, 5)
-	else 
-		length = asc(mid(data, prefix_len + 3, 1))
-		str_modbus=mid(data,prefix_len + 3,length+1)
-	end if
+	select case modbusFunction
+		case ReadCoilStatus,ReadInputStatus:
+			length = 2
+			str_modbus = mid(data, prefix_len + 3, 3)
+		case WriteMultipleCoils, PresetMultipleRegisters:
+			length = 3
+			str_modbus = mid(data, prefix_len + 4, 5)
+		case else:
+			length = asc(mid(data, prefix_len + 3, 1))
+			str_modbus=mid(data,prefix_len + 3,length+1)
+	end select
 	
 	if protocol=modbus_RTU then
 		if len(data) < 5 + length then
@@ -493,7 +503,11 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		exit sub
 	end if
 '	modbus_debug_print("reply for " + str(request_item.device_id))
-	str_modbus = right(str_modbus,len(str_modbus) - 1)
+	if modbusFunction = ReadCoilStatus or modbusFunction = ReadInputStatus then
+		str_modbus = right(str_modbus,len(str_modbus) - 2)
+	else 
+		str_modbus = right(str_modbus,len(str_modbus) - 1)
+	end if
 	callback_modbus_slave_reply(request_item, str_modbus)
 	modbus_master_send_next()
 end sub
