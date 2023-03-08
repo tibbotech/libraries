@@ -85,6 +85,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	dim modbusBits as byte
 	dim crc,tmpcrc as word=0
 	dim prefix_len as byte=0
+	dim crc_size as byte = 0
 	dim data as string = modbus_slave_recv_buffer + recv_data
 	modbus_slave_recv_buffer = data
 	if len(modbus_slave_recv_buffer)=255 then
@@ -101,41 +102,42 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		transactionId = asc(mid(data, 1, 1)) * 256 + asc(mid(data, 2, 1))
 		protocolId = asc(mid(data, 3, 1)) * 256 + asc(mid(data, 4, 1))
 		if protocolId <> 0 then exit sub
-		length = asc(mid(data, 5, 1)) * 256 + asc(mid(data, 6, 1))
 	else
 		if len(data) <= 5 then exit sub
-		select case modbusFunction
-			case WriteMultipleCoils,PresetMultipleRegisters:
-				length=asc(mid(data,7,2)) + 9
-			case else:
-				length=8
-		end select
+		crc_size = 2
 	end if
 	
 	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
 	modbusFunction = asc(mid(data, prefix_len + 2, 1))
 	
+	select case modbusFunction
+		case WriteMultipleCoils,PresetMultipleRegisters:
+			length=asc(mid(data,7,2)) + 7 + crc_size
+		case else:
+			length= 6 + crc_size
+	end select
 	
 	if len(data) < prefix_len + length then
 			exit sub
 	end if
 	
+	str_modbus=mid(data, prefix_len + 3,length)
+	
 	if protocol=modbus_RTU then
-		str_modbus=mid(data, prefix_len + 3,len(data)-4)
-		crc=asc(mid(data, len(data) - 1, 1)) * 256 + asc(mid(data, len(data), 1))
-		dim tmpstr as string=mid(data,1,len(data)-2)
+		crc=asc(mid(data, length - 1, 1)) * 256 + asc(mid(data, length, 1))
+		dim tmpstr as string=mid(data,1,length-2)
 		tmpcrc=modbus_crc16(tmpstr, len(tmpstr))
 		if crc<>tmpcrc then
 			exit sub
 		end if
 		dim remaining as byte = len(data) - (len(tmpstr)+2)
 		modbus_slave_recv_buffer = mid(data,len(tmpstr) + 3,remaining)
-		data=str_modbus
 	else
-		data=mid(data, prefix_len + 3,length)
 		dim ss as byte=6+length+1
 		modbus_slave_recv_buffer = mid(modbus_slave_recv_buffer,ss,255)
 	end if
+	
+	data=str_modbus
 
 	if modbusUnitId = modbus_slave_id or protocol = modbus_TCP then
 
