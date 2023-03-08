@@ -19,6 +19,7 @@ dim modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
 dim modbus_master_recv_buffer as string
 dim modbus_trans_id as word
 dim modbus_queue_count as byte
+dim modbus_slave_id  as byte
 
 dim _crc_table_hi as byte(256) = {
 	&H00,&HC1,&H81,&H40,&H01,&HC0,&H80,&H41,&H01,&HC0,&H80,&H41,&H00,&HC1,&H81,&H40,
