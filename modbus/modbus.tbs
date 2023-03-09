@@ -113,7 +113,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	
 	select case modbusFunction
 		case WriteMultipleCoils,PresetMultipleRegisters:
-			length=asc(mid(data,7,2)) + 7 + crc_size
+			length=asc(mid(data, prefix_len + 7, 2)) + 7 + crc_size
 		case else:
 			length= 6 + crc_size
 	end select
@@ -238,7 +238,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			modbusValue = asc(mid(data, 3, 1)) * 256 + asc(mid(data, 4, 1))
 			if modbusValue = &hFF00 then modbusValue = 1
 			modbusBits=modbus_callback_WriteSingleCoil(modbusStartReference, modbusValue)
-			if modbusBits = 0 then
+			if modbusBits = 0 or modbusBits = 1 then
 				modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, mid(data, 1, 4))
 			else 
 				modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, &h86, str(modbusBits))
@@ -475,7 +475,7 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		case ReadCoilStatus,ReadInputStatus:
 			length = 2
 			str_modbus = mid(data, prefix_len + 3, 3)
-		case WriteMultipleCoils, PresetMultipleRegisters:
+		case WriteSingleCoil, PresetSingleRegister:
 			length = 3
 			str_modbus = mid(data, prefix_len + 4, 5)
 		case else:
