@@ -125,6 +125,9 @@ sub pic_send_bits(data as dword, numbits as byte)
 
 	dim i as byte
 
+	io.num = icsp_sda
+	io.enabled = YES
+
 	io.num = icsp_scl
 	
 	for i = 0 to numbits-1
