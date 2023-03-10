@@ -19,10 +19,19 @@
 #define SI2C_MAX_SIGNATURE_LEN 32
 #define SSPI_MAX_SIGNATURE_LEN 32
 #define WLN_WPA 1
+#define DNS_DEBUG_PRINT 1
 #define CTS_MAP 0
 #define RTS_MAP 0
-#define SNTP_DEBUG_PRINT 1
 #define DASHBOARD_SETTINGS_FILE "dashboard_settings.xtxt"
+#define HTTP_DEBUG_PRINT 0
+#define SNTP_DEBUG_PRINT 1
+#define MQTT_CONNECTION_TIMER 60
+#define MQTT_DEBUG_PRINT 1
+#define LCD_GRAPH_X 0
+#define LCD_GRAPH_Y 0
+#define LCD_GRAPH_WIDTH 320
+#define LCD_GRAPH_HEIGHT 240
+#define LCD_GRAPH_FILL &h7e0
 
 
 
@@ -31,6 +40,18 @@ const FIRMWARE_VERSION="{MyDevice 1.0.0}"
 
 const MAX_NUM_INTERFACES=4
 const SNTP_SERVER="216.239.35.0"
+
+const MODDevice1_DEVICE_ID = 1
+
+
+const MQTT_TLS = 0
+
+
+const SER_TBT05_S1_NAME = 0
+const TBT05_S1_NAME_TX = PL_IO_NUM_9_TX0
+const TBT05_S1_NAME_RX = PL_IO_NUM_8_RX0
+
+            
 
 
 
@@ -41,30 +62,35 @@ includepp "filenum.xtxt"
 includepp "tables.xtxt"
 
 
-include "../../time/time.tbh"
-include "../../time/datetime.tbh"
-include "../../sock/sock.tbh"
-include "../../settings/settings.tbh"
-include "../../dhcp/dhcp.tbh"
-include "../../utils/utils.tbh"
-include "../../http_server/http_server.tbh"
-include "../../upgrade/upgrade.tbh"
-include "../../sntp/sntp.tbh"
-include "../../stgcmd/stgcmd.tbh"
-include "../../filenum/filenum.tbh"
-include "../../tables/tables.tbh"
-include "../../tables/tables_web.tbh"
+include "libraries/sock/sock.tbh"
+include "libraries/time/time.tbh"
+include "libraries/settings/settings.tbh"
+include "libraries/time/datetime.tbh"
+include "libraries/dhcp/dhcp.tbh"
+include "libraries/utils/utils.tbh"
+include "libraries/dns/dns.tbh"
+include "libraries/http_server/http_server.tbh"
+include "libraries/upgrade/upgrade.tbh"
+include "libraries/stgcmd/stgcmd.tbh"
+include "libraries/filenum/filenum.tbh"
+include "libraries/http/http.tbh"
+include "libraries/modbus/modbus.tbh"
+include "libraries/sntp/sntp.tbh"
+include "libraries/tables/tables.tbh"
+include "libraries/tables/tables_web.tbh"
+include "libraries/mqtt/mqtt.tbh"
+include "libraries/lcd/lcd_graph.tbh"
 
 
 'DECLARATIONS--------------------------------------------------------
 
-declare function datetime_timestamp_mins(timestamp as dword) as dword
-declare function datetime_mins_to_timestamp(mins as word) as dword
-
-
 declare sub lcd_log(text as string)
 
 const LOG_FONT_FILE = LCD_SMALL_FONT
+
+declare function datetime_timestamp_mins(timestamp as dword) as dword
+declare function datetime_mins_to_timestamp(mins as word) as dword
+
 
 declare device_net_ip as string(16)
 declare device_net_mask as string(16)
@@ -105,6 +131,8 @@ declare num_wln_failures as byte
 #if SIGNAL_STRENGTH_INDICATION
 declare sub signal_strength_set(strength as byte)
 #endif
+
+declare DNS_socket as byte
 declare upgrade_socket_http as byte
 
 declare SNTP_socket as byte
@@ -125,7 +153,42 @@ declare WIFPW as string
 
 declare function var_WIFPW_update() as string
 declare sub var_WIFPW_set(byref value as string)
+declare MQTTI as string
+
+declare function var_MQTTI_update() as string
+declare sub var_MQTTI_set(byref value as string)
+declare MQTTU as string
+
+declare function var_MQTTU_update() as string
+declare sub var_MQTTU_set(byref value as string)
+declare MQTTP as string
+
+declare function var_MQTTP_update() as string
+declare sub var_MQTTP_set(byref value as string)
+declare MQTTH as string
+
+declare function var_MQTTH_update() as string
+declare sub var_MQTTH_set(byref value as string)
+declare temp_raw as word
+
+declare function var_temp_raw_update() as word
+declare sub var_temp_raw_set(value as word)
 declare function tbl_record_find_sorted(record_type as en_tbl_record_states, byref search_data as string, byref field_name as string, byref rec_num as word, wraparound as boolean, find_method as pl_fd_find_modes) as en_tbl_status_codes
+
+    declare MODBUS_MASTER_INTERFACE  as byte
+
+declare response_data as word
+
+declare device_id as word
+
+declare register_address as word
+
+declare mqtt_username as string
+declare mqtt_password as string
+declare mqtt_clientid as string
+declare MQTT_SERVER_HOST as string
+declare MQTT_DESTINATION_PORT as string(5)
+declare timer_1s_lf276ggdlg9nar1w1cj_timer as dword
 
 
 declare sub boot()

@@ -291,7 +291,7 @@ sub dhcp_proc_one_interface(interface as pl_sock_interfaces)
 					dhcp_wln_exchange_delay=DHCP_WLN_EXCHANGE_DELAY_CONST
 					dhcp_phase(dhcp_i)=DHCP_PHASE_IDLE
 					dhcp_renew(dhcp_i)=NO
-					dhcp_timer(dhcp_i)=1
+					dhcp_timer(dhcp_i)=sys.timercountms + 1 * 1000
 					dhcp_retry_ctr(dhcp_i)=DHCP_MAX_RETRIES
 					#if DHCP_DEBUG_PRINT
 						dhcp_media_linked(dhcp_i)=NO
@@ -314,27 +314,22 @@ sub dhcp_proc_one_interface(interface as pl_sock_interfaces)
 		end if
 	#endif
 
-	if dhcp_timer(dhcp_i)=0 then
+	if sys.timercountms < dhcp_timer(dhcp_i) then
 		exit sub
-	else
-		dhcp_timer(dhcp_i)=dhcp_timer(dhcp_i)-1
-		if dhcp_timer(dhcp_i)>0 then
-			exit sub
-		end if
 	end if
 	
 	#if NET_AVAILABLE and WLN_AVAILABLE
 		if interface=PL_SOCK_INTERFACE_NET then
 			if dhcp_interface_token=PL_SOCK_INTERFACE_WLN and dhcp_phase(PL_SOCK_INTERFACE_NET-1)<>DHCP_PHASE_OFF then
-				if dhcp_timer(PL_SOCK_INTERFACE_NET-1)=0 then
-					dhcp_timer(PL_SOCK_INTERFACE_NET-1)=1
+				if sys.timercountms > dhcp_timer(PL_SOCK_INTERFACE_NET-1) then
+					dhcp_timer(PL_SOCK_INTERFACE_NET-1)=sys.timercountms + 1 * 1000
 				end if
 				exit sub
 			end if
 		else
 			if dhcp_interface_token=PL_SOCK_INTERFACE_NET and dhcp_phase(PL_SOCK_INTERFACE_WLN-1)<>DHCP_PHASE_OFF then
-				if dhcp_timer(PL_SOCK_INTERFACE_WLN-1)=0 then
-					dhcp_timer(PL_SOCK_INTERFACE_WLN-1)=1
+				if sys.timercountms > dhcp_timer(PL_SOCK_INTERFACE_WLN-1) then
+					dhcp_timer(PL_SOCK_INTERFACE_WLN-1)=sys.timercountms + 1 * 1000
 				end if
 				exit sub
 			end if
@@ -366,7 +361,7 @@ label1:	if dhcp_sock_open(interface,DHCP_PHASE_DISCOVER)<>OK then
 		sock.rxclear()
 		send_dhcp(dhcp_obtained_ip(dhcp_i),device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_DISCOVER_REPLY
-		dhcp_timer(dhcp_i)=DHCP_WAIT_TIME
+		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
 		exit sub
 	
 	case DHCP_PHASE_DISCOVER_REPLY:
@@ -386,7 +381,7 @@ label2:	if dhcp_sock_open(interface,DHCP_PHASE_REQUEST)<>OK then
 		#endif
 		send_dhcp(dhcp_obtained_ip(dhcp_i),device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_REQUEST_REPLY
-		dhcp_timer(dhcp_i)=DHCP_WAIT_TIME
+		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
 		exit sub
 		
 	case DHCP_PHASE_REQUEST_REPLY:
@@ -594,7 +589,7 @@ exit_options:
 			dhcp_debugprint(interface,"RX offer message")
 		#endif
 		dhcp_phase(dhcp_i)=DHCP_PHASE_REQUEST
-		dhcp_timer(dhcp_i)=1
+		dhcp_timer(dhcp_i)=sys.timercountms + 1 * 1000
 		dhcp_sock_close()
 		
 	case DHCP_PHASE_REQUEST_REPLY:
@@ -603,7 +598,7 @@ exit_options:
 		#endif
 		'DHCP interaction completed successfully
 		dhcp_phase(dhcp_i)=DHCP_PHASE_IDLE
-		dhcp_timer(dhcp_i)=(dhcp_obtained_lease_time(dhcp_i)/10)*9
+		dhcp_timer(dhcp_i)=sys.timercountms + ((dhcp_obtained_lease_time(dhcp_i)/10)*9 * 1000)
 		dhcp_sock_close()
 		dhcp_check_if_all_finished()
 		#if DHCP_DEBUG_PRINT
@@ -632,11 +627,11 @@ sub dhcp_error(interface as pl_sock_interfaces)
 	end if
 
 	if dhcp_retry_ctr(dhcp_i)>0 then
-		dhcp_timer(dhcp_i)=((asc(random(1))) mod DHCP_MAX_RETRY_DELAY)+1
+		dhcp_timer(dhcp_i)=sys.timercountms + (((asc(random(1))) mod DHCP_MAX_RETRY_DELAY)+1) * 1000
 		dhcp_retry_ctr(dhcp_i)=dhcp_retry_ctr(dhcp_i)-1
 	else	
 		dhcp_retry_ctr(dhcp_i)=DHCP_MAX_RETRIES
-		dhcp_timer(dhcp_i)=DHCP_POST_FAIL_DELAY 'DHCP failed, try again in 3 mins
+		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_POST_FAIL_DELAY * 1000 'DHCP failed, try again in 3 mins
 		#if DHCP_DEBUG_PRINT
 			dhcp_debug_print_status(interface,DHCP_STATUS_FAILURE)
 		#endif
@@ -684,6 +679,7 @@ function dhcp_sock_open(interface as pl_sock_interfaces, phase as en_dhcp_phases
 	
 	'arrange buffer space
 	if sock.rxbuffsize<DHCP_MIN_BUFFER_SPACE or sock.txbuffsize<DHCP_MIN_BUFFER_SPACE then
+
 		if sys.freebuffpages<DHCP_SOCK_BUFF_PAGES*2 then
 			if sys.freebuffpages>DHCP_SOCK_BUFF_PAGES*2 then
 				x=DHCP_SOCK_BUFF_PAGES*2

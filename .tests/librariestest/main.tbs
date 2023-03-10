@@ -2,6 +2,7 @@ include "global.tbh"
 
 'sock 11: tibbit 09 
 'sock 12: tibbit 18 
+'sock 1: tibbit 05 name TBT05_S1_NAME
 
 
 
@@ -22,7 +23,10 @@ dim wln_password as string
 dim wln_dhcp_enabled as no_yes
 dim running_light as byte
 dim num_wln_failures as byte
+
+dim DNS_socket as byte
 dim upgrade_socket_http as byte=255
+dim modbus_slave_id  as byte
 
 dim SNTP_socket as byte
 dim var_poll_timer as dword
@@ -30,6 +34,29 @@ dim var1 as float=0.0
 dim WIFAP as string=""
 dim WSEC as string=""
 dim WIFPW as string=""
+dim MQTTI as string=""
+dim MQTTU as string=""
+dim MQTTP as string=""
+dim MQTTH as string=""
+dim temp_raw as word=0
+
+    dim MODBUS_MASTER_INTERFACE  as byte
+
+dim response_data as word
+
+dim device_id as word
+
+dim register_address as word
+
+dim mqtt_username as string = ""
+dim mqtt_password as string = ""
+dim mqtt_clientid as string = ""
+dim MQTT_SERVER_HOST as string=""
+dim MQTT_DESTINATION_PORT as string(5)=""
+
+dim timer_1s_lf276ggdlg9nar1w1cj_timer as dword
+
+dim timer_1s_lf276ggdlg9nar1w1cj_count as dword
 
 
 sub on_sys_init()
@@ -76,7 +103,7 @@ sub on_sys_timer()
         'wireless signal strength indication
 
         #if WLN_AVAILABLE
-
+            if sys.timercountms MOD 500=0 then
             if wln_already_started=YES then
                 if wln_error<>NO then
                     if running_light=0 then
@@ -102,9 +129,14 @@ sub on_sys_timer()
             else
                 signal_strength_set(0)
             end if
+            end if
         #endif
     #endif
             
+	dns_proc_timer()
+    http_proc_timer()
+
+    modbus_proc_timer()
 	sntp_proc_timer()
 
     if sys.timercountms >= var_poll_timer then
@@ -118,14 +150,30 @@ sub on_sys_timer()
         var_WSEC_update()
 
         var_WIFPW_update()
+
+        var_MQTTI_update()
+
+        var_MQTTU_update()
+
+        var_MQTTP_update()
+
+        var_MQTTH_update()
+
+        var_temp_raw_update()
     end if
+
+    mqtt_proc_timer()
 
 end sub
 
 
 sub on_sock_data_arrival()
     dhcp_proc_data()
+	dns_proc_data()
+
+    http_proc_data()
 	sntp_proc_data()
+	mqtt_proc_data()
 
 end sub
 
@@ -201,7 +249,25 @@ if sock.num=upgrade_socket_http AND newstatesimple=PL_SSTS_CLOSED then
     wend
     upgrade_socket_http=255
 end if
+
+    http_sock_state_update(newstatesimple)
 	sntp_proc_sock_event(newstate)
+	mqtt_sock_event(newstate, newstatesimple)
+
+end sub
+
+
+sub on_ser_data_arrival()
+
+if ser.num=SER_TBT05_S1_NAME then
+    'modbus master data
+    modbus_master_receive(ser.getdata(255),modbus_RTU)
+end if
+
+    if ser.num=SER_TBT05_S1_NAME then
+        'data on serial port SER_TBT05_S1_NAME
+    end if
+        
 
 end sub
 
@@ -209,8 +275,11 @@ end sub
 sub on_button_pressed()
 
 
-dim time_now as dword = datetime_current_timestamp()
+    sys.debugprint("button pressed")
+    
 
+    http_request(HTTP_GET, "http://tibbo.com", current_interface,
+    "")
 
 end sub
 

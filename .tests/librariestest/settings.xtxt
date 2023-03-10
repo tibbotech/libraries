@@ -1,9 +1,13 @@
 >>WIFAP	E	S	1	0	32	A	^	Wifi AP SSID
 >>WSEC	E	S	1	0	1	A	0	Wifi Security
 >>WIFPW	E	S	1	0	64	A	^	Wifi Password
+>>MQTTI	E	S	1	0	50	A	Client_ID_1	MQTT Client ID
+>>MQTTU	E	S	1	0	50	A	MQTT_Name_1	MQTT Username
+>>MQTTP	E	S	1	0	50	A	Password	MQTT Password
+>>MQTTH	E	S	1	0	100	A	1.0.0.1	MQTT Server Host Address/IP
 #define STG_DESCRIPTOR_FILE "settings.xtxt"
 #define STG_DEBUG_PRINT 1
-#define STG_MAX_NUM_SETTINGS 3
+#define STG_MAX_NUM_SETTINGS 7
 #define STG_RAM_ARRAY_SIZE 0
 #define STG_MAX_SETTING_NAME_LEN 5
-#define STG_MAX_SETTING_VALUE_LEN 64
+#define STG_MAX_SETTING_VALUE_LEN 100

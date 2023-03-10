@@ -469,3 +469,17 @@ sub td_get_tzone_offset(timezone as en_td_timezones, byref minutes_offset as int
 		minutes_offset=0
 	end select
 end sub
+
+function td_elapsed(start_time as dword) as boolean
+	td_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > start_time then
+		'elapsed and no overflow
+		td_elapsed = true
+	else
+		if start_time - current_time > 4000000000 then
+			'overflow
+			td_elapsed = true
+		end if
+	end if
+end function

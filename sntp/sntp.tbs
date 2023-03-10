@@ -180,7 +180,7 @@ sntp_start_continue:
 
 	sock.connect
 	sntp_phase=SNTP_PHASE_CONNECTING
-	sntp_reply_timer=SNTP_REPLY_TIMEOUT
+	sntp_reply_timer=sys.timercountms + SNTP_REPLY_TIMEOUT * 1000
 	sntp_retry_ctr=SNTP_RETRY
 	
 	#if SNTP_DEBUG_PRINT
@@ -193,11 +193,12 @@ public sub sntp_proc_timer()
 	dim w as word
 	
 	if sntp_reply_timer>0 then
-		sntp_reply_timer=sntp_reply_timer-1
-		if sntp_reply_timer>0 then
+		if sys.timercountms < sntp_reply_timer then
 			exit sub
 		end if
 	end if
+
+	sntp_reply_timer=0
 	
 	select case sntp_phase
 	case SNTP_PHASE_IDLE:
@@ -217,7 +218,7 @@ public sub sntp_proc_timer()
 		if sock.statesimple=PL_SSTS_CLOSED then
 			sock.connect
 		end if
-		sntp_reply_timer=SNTP_REPLY_TIMEOUT
+		sntp_reply_timer=sys.timercountms + SNTP_REPLY_TIMEOUT * 1000
 		
 		#if SNTP_DEBUG_PRINT
 			sntp_debugprint("Connecting to SNTP server at "+sock.targetip+":"+str(sock.targetport))
@@ -234,7 +235,7 @@ public sub sntp_proc_timer()
 		end if
 
 		sntp_send_request()
-		sntp_reply_timer=SNTP_REPLY_TIMEOUT
+		sntp_reply_timer=sys.timercountms + SNTP_REPLY_TIMEOUT * 1000
 	end select
 	exit sub
 
@@ -261,7 +262,7 @@ public sub sntp_proc_sock_event(state as pl_sock_state_simple)
 			sntp_debugprint("Connection established")
 		#endif
 		sntp_send_request()
-		sntp_reply_timer=SNTP_REPLY_TIMEOUT
+		sntp_reply_timer=sys.timercountms + SNTP_REPLY_TIMEOUT * 1000
 		sntp_retry_ctr=SNTP_RETRY
 		sntp_phase=SNTP_PHASE_RQUESTING
 	end if
@@ -311,7 +312,7 @@ public sub sntp_proc_data()
 			sntp_debug_print_status(SNTP_STATUS_REPLY_DATA_ERROR)
 		#endif
 		
-		sntp_reply_timer=1
+		sntp_reply_timer=sys.timercountms + 1 * 1000
 		exit sub
 	end if
 

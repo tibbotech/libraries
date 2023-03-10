@@ -22,7 +22,7 @@ const DNS_RX_BUF_SIZE=2
 dim dns_init_flag as word
 dim dns_sock, dns_name_len as byte
 dim dns_id as string(2)
-dim dns_rpl_tmr as byte=0
+dim dns_rpl_tmr as dword=0
 dim dns_domain as string=""
 dim dns_current_retries as byte=0
 
@@ -219,7 +219,7 @@ sub dns_query(byref query_name as string)
 	'query structure id(2)+flag(2)+number of question(2)+number of answer RRs(2)+number of authority RRs(2)+number of additional RRs(2)+query name(?)+query type(2)+query class(2)
 	dns_query_question=dns_id+chr(query_flag/256)+chr(query_flag mod 256)+chr(DNS_NUMBER_QUESTION/256)+chr(DNS_NUMBER_QUESTION mod 256)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+dns_query_question+chr(DNS_QUERY_TYPE/256)+chr(DNS_QUERY_TYPE mod 256)+chr(DNS_QUERY_CLASS/256)+chr(DNS_QUERY_CLASS mod 256)
 
-	dns_rpl_tmr=DNS_REPLY_TIMEOUT
+	dns_rpl_tmr=sys.timercountms+DNS_REPLY_TIMEOUT*1000
 	sock.num=dns_sock
 	sock.connect
 	sock.setdata(dns_query_question)
@@ -396,8 +396,8 @@ public sub dns_proc_timer()
 	if dns_init_flag<>DNS_INIT_SIGNATURE then exit sub
 	sock.num=dns_sock
 	if dns_rpl_tmr>0 then
-		dns_rpl_tmr=dns_rpl_tmr-1
-		if dns_rpl_tmr=0 then
+		if sys.timercountms > dns_rpl_tmr then
+			dns_rpl_tmr=0
 			#if DNS_DEBUG_PRINT
 				dns_debug_print_status(EN_STATUS_DNS_REPLY_TIMEOUT)
 			#endif

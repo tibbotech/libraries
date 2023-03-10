@@ -4,36 +4,6 @@ include "global.tbh"
 
 sub boot()
     
-    'Setting Library Initialization
-    '================================================================
-    dim stg_init_code as en_stg_status_codes
-    dim stg_name as string(STG_MAX_SETTING_NAME_LEN)
-    if stg_start()<>EN_STG_STATUS_OK then 
-        pat.play("R-R-~",PL_PAT_CANINT)
-        sys.debugprint("stg_start failed")
-        sys.halt
-    end if
-    stg_init_code=stg_check_all(stg_name)
-    select case stg_init_code
-    case EN_STG_STATUS_OK:
-    '--- all good ---
-    case EN_STG_STATUS_INVALID, EN_STG_STATUS_FAILURE:
-        if stg_restore_multiple(EN_STG_INIT_MODE_NORMAL)<>EN_STG_STATUS_OK then 
-            pat.play("R-R-~",PL_PAT_CANINT)
-            sys.debugprint("stg_restore_multiple failed")
-            sys.halt
-        end if
-    case else:
-        'some other trouble
-        pat.play("R-R-~",PL_PAT_CANINT)
-        sys.debugprint("stg_check_all failed")
-        sys.halt
-    end select
-    '-----------------------------------------------------------------
-WIFAP=stg_get("WIFAP",0)
-WSEC=stg_get("WSEC",0)
-WIFPW=stg_get("WIFPW",0)
-
     'LCD setup
     '================================================================
     lcd.width=320
@@ -70,6 +40,40 @@ WIFPW=stg_get("WIFPW",0)
     'lcd.forecolor=&hffff
     'lcd.print("Hello World", 0, 0)
     '-----------------------------------------------------------------
+
+    'Setting Library Initialization
+    '================================================================
+    dim stg_init_code as en_stg_status_codes
+    dim stg_name as string(STG_MAX_SETTING_NAME_LEN)
+    if stg_start()<>EN_STG_STATUS_OK then 
+        pat.play("R-R-~",PL_PAT_CANINT)
+        sys.debugprint("stg_start failed")
+        sys.halt
+    end if
+    stg_init_code=stg_check_all(stg_name)
+    select case stg_init_code
+    case EN_STG_STATUS_OK:
+    '--- all good ---
+    case EN_STG_STATUS_INVALID, EN_STG_STATUS_FAILURE:
+        if stg_restore_multiple(EN_STG_INIT_MODE_NORMAL)<>EN_STG_STATUS_OK then 
+            pat.play("R-R-~",PL_PAT_CANINT)
+            sys.debugprint("stg_restore_multiple failed")
+            sys.halt
+        end if
+    case else:
+        'some other trouble
+        pat.play("R-R-~",PL_PAT_CANINT)
+        sys.debugprint("stg_check_all failed")
+        sys.halt
+    end select
+    '-----------------------------------------------------------------
+WIFAP=stg_get("WIFAP",0)
+WSEC=stg_get("WSEC",0)
+WIFPW=stg_get("WIFPW",0)
+MQTTI=stg_get("MQTTI",0)
+MQTTU=stg_get("MQTTU",0)
+MQTTP=stg_get("MQTTP",0)
+MQTTH=stg_get("MQTTH",0)
 
     'Wireless Module Setup
     '================================================================
@@ -182,6 +186,16 @@ current_interface = PL_SOCK_INTERFACE_NULL
     num_wln_failures=0
     
 
+    'DNS setup
+    '================================================================
+    DNS_socket=sock_get("DNS")
+    dns_start(DNS_socket)
+    'Making a DNS query:
+    'dns_connect(PL_SOCK_INTERFACE_NET, "8.8.4.4",0)
+    'dns_query("google.com")
+    'get the response in callback_dns_answer_acquired
+    '-----------------------------------------------------------------
+
     'HTTP server setup
     '================================================================
     dim http_server_count as byte
@@ -201,12 +215,6 @@ current_interface = PL_SOCK_INTERFACE_NULL
     'visit the device ip on a browser to see index.html being served
     '-----------------------------------------------------------------
 
-    'SNTP setup
-    '================================================================
-    SNTP_socket=sock_get("NTP")
-    sntp_init()
-    '-----------------------------------------------------------------
-
 http_server_password = ""
 
     'Fd(flash disk) setup
@@ -222,6 +230,24 @@ http_server_password = ""
             sys.halt
         end if
     end if
+    '-----------------------------------------------------------------
+
+    http_start()
+
+    'Modbus Setup
+    '==================================
+    modbus_initialize()
+    
+
+    'temp_raw
+    'modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", MODBUS_MASTER_INTERFACE, modbus_RTU)
+    MODBUS_MASTER_INTERFACE=sock_get("MBM")
+    '----------------------------------
+
+    'SNTP setup
+    '================================================================
+    SNTP_socket=sock_get("NTP")
+    sntp_init()
     '-----------------------------------------------------------------
 	var_poll_timer = 1000
 
@@ -259,6 +285,41 @@ http_server_password = ""
         end if
     end if
 
+    mqtt_username=MQTTU
+    mqtt_password=MQTTP
+    mqtt_clientid=MQTTI
+    MQTT_SERVER_HOST=MQTTH
+    MQTT_DESTINATION_PORT="1883"
+
+lcd_graph_start(0,4000)
+
+    'Tibbit 05 RS485 setup on socket 1
+    '================================================================
+    io.num=PL_IO_NUM_0
+    io.enabled = YES
+    io.state = HIGH
+    ser.num=SER_TBT05_S1_NAME
+    ser.rtsmap=PL_IO_NUM_0
+    ser.parity=PL_SER_PR_NONE
+    ser.bits=PL_SER_BB_8
+    ser.flowcontrol=PL_SER_FC_DISABLED
+    'ser.baudrate=PL_SER_BAUD_38400'38400
+    ser.baudrate=ser.div9600*9600/38400
+    ser.dircontrol=PL_SER_DCP_LOWFORINPUT
+    ser.interface=PL_SER_SI_HALFDUPLEX
+    ser.dircontrol=PL_SER_DCP_LOWFORINPUT
+    ser.esctype=PL_SER_ET_DISABLED
+    ser.interchardelay=0
+    ser.txbuffrq(1)
+    ser.rxbuffrq(1)
+    sys.buffalloc()
+    
+    ser.enabled=YES
+    '-----------------------------------------------------------------
+
+        
+	timer_1s_lf276ggdlg9nar1w1cj_timer = 1 * 1000 / sys.onsystimerperiod / 10
+
     
     ' Set the timezone to UTC+08:00
     APP_TIMEZONE="27"
@@ -271,5 +332,7 @@ http_server_password = ""
     pat.play("B-B-B-",PL_PAT_CANINT)
 
             var_var1_set(0.0)
+
+            var_temp_raw_set(0)
 
 end sub
