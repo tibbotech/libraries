@@ -363,6 +363,7 @@ label1:	if dhcp_sock_open(interface,DHCP_PHASE_DISCOVER)<>OK then
 		#if DHCP_DEBUG_PRINT
 			dhcp_debugprint(interface,"TX discovery message")
 		#endif
+		sock.rxclear()
 		send_dhcp(dhcp_obtained_ip(dhcp_i),device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_DISCOVER_REPLY
 		dhcp_timer(dhcp_i)=DHCP_WAIT_TIME
@@ -683,10 +684,6 @@ function dhcp_sock_open(interface as pl_sock_interfaces, phase as en_dhcp_phases
 	
 	'arrange buffer space
 	if sock.rxbuffsize<DHCP_MIN_BUFFER_SPACE or sock.txbuffsize<DHCP_MIN_BUFFER_SPACE then
-		sock.rxbuffrq(0)
-		sock.txbuffrq(0)
-		sys.buffalloc
-
 		if sys.freebuffpages<DHCP_SOCK_BUFF_PAGES*2 then
 			if sys.freebuffpages>DHCP_SOCK_BUFF_PAGES*2 then
 				x=DHCP_SOCK_BUFF_PAGES*2
@@ -765,9 +762,6 @@ sub dhcp_check_if_all_finished()
 	next f
 	
 	sock.num=dhcp_sock
-	sock.rxbuffrq(0)
-	sock.txbuffrq(0)
-	sys.buffalloc
 	callback_dhcp_buff_released()
 	sock.num=dhcp_sock
 end sub
