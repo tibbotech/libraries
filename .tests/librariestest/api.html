@@ -35,7 +35,10 @@ select case endpoint
                 rtc.getdata(daycount, mincount, seconds)
                 sock.setdata("{")
                 sock.setdata("'firmwareVersion':'" + firmwareVersion + "',")
-                '****HOMEPAGE_INFORMATION****'
+                
+        sock.setdata("'ip':'" + net.ip + "',")
+        sock.setdata("'mac':'" + net.mac + "',")
+
                 sock.setdata("'uptime':'" + str(sys.timercount32) + "',")
                 sock.setdata("'wifiOn':'" + str(wln.enabled) + "',")
                 sock.setdata("'timezone':'" + str(APP_TIMEZONE) + "',")
@@ -47,14 +50,27 @@ select case endpoint
                 dim days, minutes as word
                 dim secs as byte
                 datetime_from_timestamp(timestamp, days, minutes, secs)
+				td_gmt_to_local(days, minutes, datetime_tz_offset, PL_OFF)
                 rtc.setdata(days, minutes, secs)
                 sock.setdata("'time':'" + lstr(timestamp) + "'")
                 sock.send()
+            case "get_tz":
+                sock.setdata(str(APP_TIMEZONE))
+                sock.send()
             case "edit_tz":
+                dim timestamp as dword=http_server_find_param(params, "t")
+                dim days, minutes as word
+                dim secs as byte
                 dim new_tz_offset as en_td_timezones=http_server_find_param(params, "tz")
                 datetime_tz_offset= new_tz_offset
                 APP_TIMEZONE = new_tz_offset
+                datetime_from_timestamp(timestamp, days, minutes, secs)
+				td_gmt_to_local(days, minutes, new_tz_offset, PL_OFF)
+                rtc.setdata(days, minutes, secs)
+                sock.setdata("{")
                 sock.setdata("'timezone_offset':'" + str(APP_TIMEZONE) + "'")
+                sock.setdata("'time':'" + lstr(timestamp) + "'")
+                sock.setdata("}")
                 sock.send()
             case else :
 
@@ -65,9 +81,22 @@ select case endpoint
         dim action as string=http_server_find_param(params, "action")
         dim value as string=http_server_find_param(params, "value")
         if action="get" then
-        '****HTTP_VARIABLE_VALUE_GET****'
+        
+dim var_value as string = ""
+select case variable
+    
+    case else:
+end select
+sock.setdata(var_value)
+sock.send()
+
         else if action="set" then
-        '****HTTP_VARIABLE_VALUE_SET****'
+        
+select case variable
+    
+    case else:
+end select
+
         end if
     case "s": 'Settings / LUIS
         dim action as string=http_server_find_param(params, "a")
@@ -150,7 +179,12 @@ select case endpoint
     case "f": 'RPC functions
         dim variable as string=http_server_find_param(params, "variable")
         dim value as string=http_server_find_param(params, "value")
-        '****HTTP_CMD_TRIGGER****'
+        
+select case variable
+    
+    case else:
+end select
+
         
     case else:
 end select

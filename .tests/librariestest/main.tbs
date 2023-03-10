@@ -1,0 +1,216 @@
+include "global.tbh"
+
+'sock 11: tibbit 09 
+'sock 12: tibbit 18 
+
+
+
+dim device_net_ip as string(16)
+dim device_net_mask as string(16)
+dim device_net_gateway as string(16)
+dim interface_ready(MAX_NUM_INTERFACES) as no_yes
+dim current_interface as pl_sock_interfaces
+
+dim APP_TIMEZONE as en_td_timezones
+dim APP_LATITUDE as float
+dim APP_LONGITUDE as float
+
+dim wln_already_started,wln_error as no_yes
+dim wln_security as pl_wln_security_modes
+dim wln_ssid as string
+dim wln_password as string
+dim wln_dhcp_enabled as no_yes
+dim running_light as byte
+dim num_wln_failures as byte
+dim upgrade_socket_http as byte=255
+
+dim SNTP_socket as byte
+dim var_poll_timer as dword
+dim var1 as float=0.0
+dim WIFAP as string=""
+dim WSEC as string=""
+dim WIFPW as string=""
+
+
+sub on_sys_init()
+    boot()
+end sub
+
+
+sub on_sys_timer()
+    dhcp_proc_timer()
+
+    '--------- wifi task
+    if wln.task=PL_WLN_TASK_IDLE AND wln.associationstate<>PL_WLN_ASSOCIATED then
+        if wln.enabled AND wln_ssid<>"" then
+            select case wln.associationstate
+                case PL_WLN_NOT_ASSOCIATED:
+                    wln_already_started=YES
+                    select case wln_security
+                        case WLN_SECURITY_MODE_DISABLED:
+                            wln.setwpa(PL_WLN_WPA_DISABLED,0,"",0)
+                        case WLN_SECURITY_MODE_WEP64:
+                            wln.setwep(wln_password,PL_WLN_WEP_MODE_64)
+                        case WLN_SECURITY_MODE_WEP128:
+                            wln.setwep(wln_password,PL_WLN_WEP_MODE_128)
+                        case WLN_SECURITY_MODE_WPA1_TKIP:
+                            wln.setwpa(PL_WLN_WPA_WPA1_PSK,PL_WLN_WPA_ALGORITHM_TKIP,wln_password,PL_WLN_WPA_CAST_MULTICAST)
+                        case WLN_SECURITY_MODE_WPA1_AES:
+                            wln.setwpa(PL_WLN_WPA_WPA1_PSK,PL_WLN_WPA_ALGORITHM_AES,wln_password,PL_WLN_WPA_CAST_MULTICAST)
+                        case WLN_SECURITY_MODE_WPA2_TKIP:
+                            wln.setwpa(PL_WLN_WPA_WPA2_PSK,PL_WLN_WPA_ALGORITHM_TKIP,wln_password,PL_WLN_WPA_CAST_MULTICAST)
+                        case WLN_SECURITY_MODE_WPA2_AES:
+                            wln.setwpa(PL_WLN_WPA_WPA2_PSK,PL_WLN_WPA_ALGORITHM_AES,wln_password,PL_WLN_WPA_CAST_MULTICAST)
+                    end select
+                case else:
+            end select
+        else
+            wln_already_started=NO
+        end if
+        
+    end if
+
+
+    dim x as byte
+    #if SIGNAL_STRENGTH_INDICATION
+        'wireless signal strength indication
+
+        #if WLN_AVAILABLE
+
+            if wln_already_started=YES then
+                if wln_error<>NO then
+                    if running_light=0 then
+                        signal_strength_set(&b11111)
+                        running_light=1
+                    else
+                        signal_strength_set(0)
+                        running_light=0
+                    end if
+                else
+                    if interface_ready(PL_SOCK_INTERFACE_WLN)=NO then
+                        signal_strength_set(val("&b1"+strgen(running_light,"0")))
+                        running_light=running_light+1
+                        if running_light>4 then
+                            running_light=0
+                        end if
+                    else
+                        x=(wln.rssi/40)+1
+                        if x>5 then x=5
+                        signal_strength_set("&b"+strgen(x,"1"))
+                        end if
+                end if
+            else
+                signal_strength_set(0)
+            end if
+        #endif
+    #endif
+            
+	sntp_proc_timer()
+
+    if sys.timercountms >= var_poll_timer then
+        var_poll_timer = sys.timercountms + 1000
+        
+
+        var_var1_update()
+
+        var_WIFAP_update()
+
+        var_WSEC_update()
+
+        var_WIFPW_update()
+    end if
+
+end sub
+
+
+sub on_sock_data_arrival()
+    dhcp_proc_data()
+	sntp_proc_data()
+
+end sub
+
+
+sub on_net_link_change()
+
+    if net.linkstate=PL_NET_LINKSTAT_NOLINK then
+        interface_set(PL_SOCK_INTERFACE_NET,NO)
+    end if
+
+end sub
+
+
+sub on_wln_task_complete(completed_task as pl_wln_tasks)
+
+    select case completed_task
+        case PL_WLN_TASK_SETWPA,PL_WLN_TASK_SETWEP:
+            if wln.associate("",wln_ssid,0,PL_WLN_BSS_MODE_INFRASTRUCTURE)<>ACCEPTED then
+                sys.debugprint("WiFi> associate failed")
+            else
+                sys.debugprint("WiFi> associating to "+wln_ssid)
+            end if
+        case PL_WLN_TASK_ASSOCIATE:
+            if wln.associationstate=PL_WLN_ASSOCIATED then
+                sys.debugprint("WiFi> associated to "+wln_ssid)
+                if wln_dhcp_enabled=YES then
+                    interface_ready(PL_SOCK_INTERFACE_WLN)=YES
+                    interface_set(PL_SOCK_INTERFACE_WLN,YES)
+                end if
+            else
+                sys.debugprint("WiFi> associate failed")
+            end if
+        case else:
+    end select
+            
+
+end sub
+
+
+sub on_wln_event(wln_event as pl_wln_events)
+
+    if wln_event=PL_WLN_EVENT_DISASSOCIATED OR wln_event=PL_WLN_EVENT_DISABLED then
+        sys.debugprint("WiFi> disconnected")
+        interface_ready(PL_SOCK_INTERFACE_WLN)=NO
+    end if
+    
+
+end sub
+
+
+sub on_sock_postdata()
+
+if upload_started=false then
+    device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
+    upload_started=true
+else
+    device_firmware_upload_update()
+end if
+
+end sub
+
+
+sub on_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+
+if sock.num=upgrade_socket_http AND newstatesimple=PL_SSTS_CLOSED then
+    while sock.varlen <> 0
+        if upload_started=false then
+            device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
+            upload_started=true
+        else
+            device_firmware_upload_update()
+        end if
+    wend
+    upgrade_socket_http=255
+end if
+	sntp_proc_sock_event(newstate)
+
+end sub
+
+
+sub on_button_pressed()
+
+
+dim time_now as dword = datetime_current_timestamp()
+
+
+end sub
+

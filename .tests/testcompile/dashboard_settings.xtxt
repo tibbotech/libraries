@@ -1,3 +1,0 @@
-I=group1;D=General;T=GROUP;
-I=stg1;T=DATETIME;C=EDIT;D=Setting;
-    @@STG_RefPath=settings.xtxt

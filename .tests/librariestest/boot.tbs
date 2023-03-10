@@ -30,18 +30,102 @@ sub boot()
         sys.halt
     end select
     '-----------------------------------------------------------------
-stg1=stg_get("stg1",0)
+WIFAP=stg_get("WIFAP",0)
+WSEC=stg_get("WSEC",0)
+WIFPW=stg_get("WIFPW",0)
+
+    'LCD setup
+    '================================================================
+    lcd.width=320
+    lcd.height=240
+    io.num=PL_IO_NUM_55
+    io.enabled=YES
+    io.num=PL_IO_NUM_43
+    io.enabled=YES
+    io.num=PL_IO_NUM_42
+    io.enabled=YES
+    io.num=PL_IO_NUM_41
+    io.enabled=YES
+    io.num=PL_IO_NUM_40
+    io.enabled=YES
+    lcd.iomapping="55,43,42,41,40,0" 'RST,DC,WR,RD,CS,data_bus
+    lcd.rotated=YES 'yes, the LCD is installed up side down
+    lcd.enabled=YES
+    'backlight ON
+    io.num=PL_IO_NUM_54 
+    io.enabled=YES
+    io.state=LOW
+    
+    'clear screen to white
+    lcd.forecolor=&h0
+    lcd.lock
+    lcd.fill(0,0,lcd.width,lcd.height)
+    lcd.unlock
+    'sets font used to draw text
+    romfile.open(LOG_FONT_FILE)
+    lcd.setfont(romfile.offset)
+    
+    'To print text:
+    'lcd.backcolor=&h0
+    'lcd.forecolor=&hffff
+    'lcd.print("Hello World", 0, 0)
+    '-----------------------------------------------------------------
+
+    'Wireless Module Setup
+    '================================================================
+    wln.csmap=WLN_CS
+    io.num=WLN_CS
+    io.enabled=YES
+    wln.dimap=WLN_DI
+    wln.domap=WLN_DO
+    io.num=WLN_DO
+    io.enabled=YES
+    wln.clkmap=WLN_CLK
+    io.num=WLN_CLK
+    io.enabled=YES
+    io.num=WLN_RST
+    io.enabled=YES
+    io.num=WLN_RST
+    io.state=LOW
+    dim wln_delay as dword = sys.timercountms + 2
+    while sys.timercountms < wln_delay
+    wend
+    io.state=HIGH
+    wln.getmoduletype()
+    wln.buffrq(5)
+    sys.buffalloc()
+    if wln.boot(0)<>OK then
+        sys.debugprint("wireless module boot failed")
+    end if
+    sys.debugprint("Wireless F/W version:"+wln.fwversion)
+    '-----------------------------------------------------------------
 
     device_net_ip = "192.168.1.130"
     device_net_mask = "255.255.255.0"
     device_net_gateway = "192.168.1.1"
     'Ethernet setup
     '================================================================
-    net.ip=device_net_ip
-    net.netmask=device_net_mask
-    net.gatewayip=device_net_gateway
+
+    dim dhcp_enabled as string(1) = 1
+    dim use_dhcp as boolean 
+
+    if dhcp_enabled = "1" then
+        use_dhcp = true
+    else
+        use_dhcp = false
+    end if
+
+    if use_dhcp = false then
+        net.ip=device_net_ip
+        net.netmask=device_net_mask
+        net.gatewayip=device_net_gateway
+    else
+        'ethernet dhcp
+        dhcp_start(PL_SOCK_INTERFACE_NET,device_net_ip,"")
+    end if
     '-----------------------------------------------------------------
 current_interface = PL_SOCK_INTERFACE_NULL
+    sys.onsystimerperiod=1
     dim f as byte
     for f=0 to MAX_NUM_INTERFACES-1
         interface_ready(f)=NO
@@ -70,6 +154,34 @@ current_interface = PL_SOCK_INTERFACE_NULL
 
     beep.divider = 11111
 
+    'Wifi setup
+    '================================================================
+    wln_ssid=WIFAP
+    wln_password=WIFPW
+    wln_security=WSEC
+    wln_dhcp_enabled=1
+#if SIGNAL_STRENGTH_INDICATION
+    signal_strength_set(0) 'this will turn all 5 LEDs OFF
+#endif
+    'wifi DHCP
+    dim wln_dhcp_enabled as string(1) = 1
+    dim wln_use_dhcp as boolean 
+
+    if wln_dhcp_enabled = "1" then
+        wln_use_dhcp = true
+    else
+        wln_use_dhcp = false
+    end if     
+    
+    if wln_use_dhcp = true then
+    dhcp_start(PL_SOCK_INTERFACE_WLN,"1.0.0.1","")
+    end if
+    '-----------------------------------------------------------------
+    wln_error=NO
+    wln_already_started=YES
+    num_wln_failures=0
+    
+
     'HTTP server setup
     '================================================================
     dim http_server_count as byte
@@ -94,6 +206,8 @@ current_interface = PL_SOCK_INTERFACE_NULL
     SNTP_socket=sock_get("NTP")
     sntp_init()
     '-----------------------------------------------------------------
+
+http_server_password = ""
 
     'Fd(flash disk) setup
     '================================================================
@@ -149,13 +263,10 @@ current_interface = PL_SOCK_INTERFACE_NULL
     ' Set the timezone to UTC+08:00
     APP_TIMEZONE="27"
     datetime_tz_offset=APP_TIMEZONE
-
-    if net.linkstate<>PL_NET_LINKSTAT_NOLINK then
-        interface_set(PL_SOCK_INTERFACE_NET,YES)
-    end if
-
-' Set the timezone to UTC+08:00
-APP_TIMEZONE="27"
+    APP_LATITUDE=0
+    datetime_lat=APP_LATITUDE
+    APP_LONGITUDE=0
+    datetime_lng=APP_LONGITUDE
 
     pat.play("B-B-B-",PL_PAT_CANINT)
 

@@ -134,9 +134,19 @@ const options = [
         minutesOffset: -60 * 5,
     },
     {
+        name: 'UTC-04:30',
+        value: '8',
+        minutesOffset: (-60 * 4) - 30,
+    },
+    {
         name: 'UTC-04:00',
         value: '9',
         minutesOffset: -60 * 4,
+    },
+    {
+        name: 'UTC-03:30',
+        value: '10',
+        minutesOffset: (-60 * 3) - 30,
     },
     {
         name: 'UTC-03:00',
@@ -174,9 +184,19 @@ const options = [
         minutesOffset: 60 * 3,
     },
     {
+        name: 'UTC+03:30',
+        value: '18',
+        minutesOffset: 60 * 3 + 30,
+    },
+    {
         name: 'UTC+04:00',
         value: '19',
         minutesOffset: 60 * 4,
+    },
+    {
+        name: 'UTC+04:30',
+        value: '20',
+        minutesOffset: 60 * 4 + 30,
     },
     {
         name: 'UTC+05:00',
@@ -184,9 +204,24 @@ const options = [
         minutesOffset: 60 * 5,
     },
     {
+        name: 'UTC+05:30',
+        value: '22',
+        minutesOffset: 60 * 5 + 30,
+    },
+    {
+        name: 'UTC+05:45',
+        value: '23',
+        minutesOffset: 60 * 5 + 45,
+    },
+    {
         name: 'UTC+06:00',
         value: '24',
         minutesOffset: 60 * 6,
+    },
+    {
+        name: 'UTC+06:30',
+        value: '25',
+        minutesOffset: 60 * 6 + 30,
     },
     {
         name: 'UTC+07:00',
@@ -202,6 +237,11 @@ const options = [
         name: 'UTC+09:00',
         value: '28',
         minutesOffset: 60 * 9,
+    },
+    {
+        name: 'UTC+09:30',
+        value: '29',
+        minutesOffset: 60 * 9 + 30,
     },
     {
         name: 'UTC+10:00',
@@ -226,34 +266,21 @@ const options = [
 ];
 
 const Timestamp = ({
-    value, key, selected, setSnackbarOn, update,
+    value, key, selected, setSnackbarOn, update, minutesOffset,
 }) => {
     const [isEditing, setIsEditing] = React.useState(false);
     const [newDate, setNewDate] = React.useState(value);
 
-    function padTo2Digits(num) {
-        return num.toString().padStart(2, '0');
-    }
-    function formatDate(date) {
-        const dateTime = new Date((date) * 1000);
-        const year = padTo2Digits(dateTime.getFullYear());
-        const month = padTo2Digits(dateTime.getMonth() + 1);
-        const day = padTo2Digits(dateTime.getDate());
-        const hours = padTo2Digits(dateTime.getHours());
-        const minutes = padTo2Digits(dateTime.getMinutes());
-        const seconds = padTo2Digits(dateTime.getSeconds());
-        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-    }
-
-    const handleChange = (e) => {
-        const value = Date.parse(e.target.value);
-        setNewDate(value / 1000);
+    const handleChange = (date) => {
+        setNewDate(date);
     };
     const updateTime = () => {
-        const minutesOffset = options
-            .find(option => option.value === selected).minutesOffset * 60;
-        const timestamp = newDate + minutesOffset;
-        fetch(`${API_URL_BASE}/api.html?e=i&action=edit_t&t=${timestamp}`).then(res => res.text())
+        const timestamp = newDate;
+        fetchAPI('POST', {
+            e: 'i',
+            action: 'edit_t',
+            t: timestamp,
+        })
             .then(
                 (result) => {
                     setSnackbarOn(true);
@@ -268,7 +295,7 @@ const Timestamp = ({
     };
 
     const getLocalTime = () => {
-        const value = (Date.parse(new Date()));
+        const value = Date.parse(new Date());
         setNewDate(value / 1000);
     };
 
@@ -277,7 +304,7 @@ const Timestamp = ({
             <>
                 <Button onClick={updateTime}>Update</Button>
                 &nbsp;
-                <Button onClick={getLocalTime} variant="info">Local</Button>
+                <Button onClick={getLocalTime} variant="info">Now</Button>
                 &nbsp;
                 <Button onClick={() => setIsEditing(false)} variant="secondary">Cancel</Button>
             </>
@@ -286,31 +313,40 @@ const Timestamp = ({
             <Button onClick={() => setIsEditing(true)}>Set</Button>
         );
 
+    const Datetime = (
+        <DatetimeElement
+            edit={isEditing}
+            type="datetime"
+            time={isEditing ? newDate : value}
+            minutesOffset={minutesOffset}
+            handleChange={handleChange}
+        />
+    );
 
     return (
         <InformationElement label="Device time" key={key} action={action}>
             {
-                isEditing
-                    ? (
-                        <div className="col-sm-5">
-                            <input className="form-control" type="datetime-local" value={formatDate(newDate)} onChange={handleChange} />
-                        </div>
-                    )
-                    : (
-                        <span>
-                            {formatDate(value).replace('T', ' ')}
-                        </span>
-                    )
+                isEditing ? (
+                    <div className="col-sm-6">
+                        {Datetime}
+                    </div>
+                ) : Datetime
             }
         </InformationElement>
     );
 };
 
 const UTC = ({
-    value, key, setSnackbarOn, selected, setSelected, update,
+    value, key, setSnackbarOn, selected, setSelected, update, minutesOffset,
 }) => {
     const updateTz = () => {
-        fetch(`${API_URL_BASE}/api.html?e=i&action=edit_tz&tz=${selected}`).then(res => res.text())
+        const timestamp = Date.parse(new Date()) / 1000;
+        fetchAPI('POST', {
+            e: 'i',
+            action: 'edit_tz',
+            tz: selected,
+            t: timestamp,
+        })
             .then(
                 (result) => {
                     // alert(result);
@@ -329,16 +365,16 @@ const UTC = ({
             onClick={updateTz}
             disabled={value === selected}
         >
-                Update
+            Update
         </Button>
     );
 
     return (
-        <InformationElement label="Timezone" key={key} action={action}>
+        <InformationElement label="Timezone" key={key}>
             <div className="col-sm-4">
-                <select className="form-select" value={selected} onChange={e => setSelected(e.target.value)}>
+                <select className="form-select" value={selected} onChange={e => setSelected(e.target.value)} disabled>
                     {
-                        options.map((option, i) => {
+                        timezones.map((option, i) => {
                             return (
                                 <option value={option.value} key={i}>{option.name}</option>
                             );
@@ -363,9 +399,9 @@ const infoElements = [
 const Information = ({ infoValues, update }) => {
     const [snackbarOn, setSnackbarOn] = React.useState(false);
     const [selectedTZOffset, setSelectedTZOffset] = React.useState(infoValues.timezone);
-
     const [uptime, setUptime] = React.useState(new Date(infoValues.uptime / 2 * 1000));
     const [time, setTime] = React.useState(Number(infoValues.time));
+
     React.useEffect(() => {
         const interval = setInterval(
             () => {
@@ -386,7 +422,6 @@ const Information = ({ infoValues, update }) => {
     React.useEffect(() => {
         setTime(Number(infoValues.time));
     }, [infoValues.time]);
-
 
     return (
         <>

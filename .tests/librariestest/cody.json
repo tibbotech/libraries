@@ -1,0 +1,594 @@
+{
+  "id": "640aa26b033b1731a1803ee8",
+  "name": "librariestest",
+  "device": "TPP2W(G2)",
+  "description": "",
+  "shortDescription": "",
+  "version": "0.1.6",
+  "features": [
+    {
+      "id": "time",
+      "settings": {
+        "ID": "lc7hknk4dl5v9hyuqsq"
+      }
+    },
+    {
+      "id": "datetime",
+      "settings": {
+        "ID": "lc7hknk4ishubtawf1k"
+      }
+    },
+    {
+      "id": "sock",
+      "settings": {
+        "ID": "lc7hl0p9jq8nghth6ga"
+      }
+    },
+    {
+      "id": "stg",
+      "settings": {
+        "ID": "lc7hkthaak3qz9efphs",
+        "ENABLED": "1",
+        "STG_DEBUG_PRINT": "1",
+        "STORAGE": "EEPROM",
+        "STG_TIMESTAMP": "0",
+        "REDUNDANCY": "0",
+        "STG_MAX_NUM_SETTINGS": "0",
+        "STG_RAM_ARRAY_SIZE": "0",
+        "STG_MAX_SETTING_NAME_LEN": "0",
+        "STG_MAX_SETTING_VALUE_LEN": "0",
+        "SETTINGS": [
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf1z4doye29c4aj81g",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "WIFAP",
+              "NAME": "Wifi AP SSID",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": "0",
+              "MAX": 32,
+              "INITIALIZE": "A",
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf1z4emnhunaj4efu6",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "WSEC",
+              "NAME": "Wifi Security",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": 0,
+              "MAX": 1,
+              "INITIALIZE": "A",
+              "DEFAULT": "0"
+            }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf1z4eyx5f1mza59ja5",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "WIFPW",
+              "NAME": "Wifi Password",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": 0,
+              "MAX": 64,
+              "INITIALIZE": "A",
+              "DEFAULT": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "lcd",
+      "settings": {
+        "ID": "lf1z2e9v0nh6fs0ezfbl",
+        "ENABLED": "1",
+        "BACKCOLOR": "#000000",
+        "FORECOLOR": "#ffffff",
+        "LOGFONT": "LCD_SMALL_FONT"
+      }
+    },
+    {
+      "id": "wln",
+      "settings": {
+        "ID": "lf1z3pjbtvfdjthtozg"
+      }
+    },
+    {
+      "id": "dhcp",
+      "settings": {
+        "ID": "lf1z3n789ehlz2klef9"
+      }
+    },
+    {
+      "id": "wireless_module",
+      "settings": {
+        "ID": "lf1z3pjbsru7sooyhg",
+        "ENABLED": "1",
+        "MODULE": "WA2000C"
+      }
+    },
+    {
+      "id": "net",
+      "settings": {
+        "ID": "lc7hknk377nzkil6lot",
+        "ENABLED": "1",
+        "DHCP": "1",
+        "IP": "192.168.1.130",
+        "NM": "255.255.255.0",
+        "GI": "192.168.1.1"
+      }
+    },
+    {
+      "id": "general",
+      "settings": {
+        "ID": "lc7hknk3u635ztn28r",
+        "LEDPAT": "1",
+        "DEVICE_NAME": "Device_Name_1",
+        "FIRMWARENAME": "MyDevice",
+        "FIRMWAREVERSION": "1.0.0",
+        "INTERFACE_SWITCHING": "1",
+        "TIMEZONE": "27",
+        "LOGGING": "sys.debugprint",
+        "BEEPFREQUENCY": "2700",
+        "LATITUDE": "0",
+        "LONGITUDE": "0"
+      }
+    },
+    {
+      "id": "wifi",
+      "settings": {
+        "ID": "lf1z2e9vkwa3zkocjln",
+        "ENABLED": "1",
+        "MODE": "station",
+        "DHCP": "1",
+        "IP": "1.0.0.1",
+        "NETMASK": "255.255.255.0",
+        "GATEWAY": "1.0.0.1",
+        "WAP": "",
+        "WSEC": "0",
+        "WPW": "",
+        "CHANNEL": "6",
+        "AUTOSTART": "1",
+        "CLK": "14",
+        "CS": "15",
+        "DI": "12",
+        "DO": "13",
+        "RST": "11",
+        "BUF": "5"
+      }
+    },
+    {
+      "id": "boardsetting",
+      "settings": {
+        "ID": "lc7hknk3r2i70lvzxf",
+        "POE": "0",
+        "5VDIRECT": "0",
+        "WIFIANTENNA": "0",
+        "GPRSANTENNA": "0",
+        "TPB": "tpb2lg2",
+        "VPK": "0",
+        "DIN": "0",
+        "POWERADAPTER": "apr-p0008",
+        "ASM": "",
+        "NOTES": ""
+      }
+    },
+    {
+      "id": "httpserver",
+      "settings": {
+        "ID": "lc7hkthcjtvdww8cvi",
+        "ENABLED": "1",
+        "PORT": "80",
+        "SOCKETS": "4",
+        "TXBUF": "10",
+        "RXBUF": "10",
+        "VARBUF": "1",
+        "ENDPOINTS": []
+      }
+    },
+    {
+      "id": "firmware_upgrade",
+      "settings": {
+        "ID": "lc7hkx8pr3be6rsnleb"
+      }
+    },
+    {
+      "id": "sntp",
+      "settings": {
+        "ID": "lc7hkthdswvklcmg4yh",
+        "ENABLED": "1",
+        "SNTP_SERVER": "216.239.35.0"
+      }
+    },
+    {
+      "id": "web_dashboard",
+      "settings": {
+        "ID": "lc7hkthg989lkmu4f88",
+        "GENERAL": "",
+        "SETTINGS": "",
+        "ADVANCED": "",
+        "ENABLED": "1",
+        "TABLESENABLED": "1",
+        "SETTINGSENABLED": "1",
+        "WIDGETENABLED": "1",
+        "INTERVAL": "1",
+        "DASHBOARD_TITLE": "Tibbo Device Dashboard",
+        "WIDGETS": "[{\"x\":0,\"y\":0,\"w\":4,\"h\":4,\"variable\":\"\",\"i\":\"1672298940834\",\"type\":\"line\",\"id\":\"1672298940834\",\"settings\":{\"label\":\"Line\",\"bounds\":true,\"values\":50}}]",
+        "PASSWORD": "",
+        "GROUPS": [
+          {
+            "id": "luis_group",
+            "settings": {
+              "ID": "lc9tzaanil2acgx7m5m",
+              "GROUPID": "group1",
+              "NAME": "General",
+              "SETTINGS": [
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lc9tzaanoyr399hfhbs",
+                    "SETTINGID": "lf1z4doye29c4aj81g",
+                    "NAME": "Wifi AP SSID",
+                    "CONTROL": "EDIT",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lc9tzaan98485mhu6vo",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf1z4vtiud0vuyzbj5f",
+                    "SETTINGID": "lf1z4emnhunaj4efu6",
+                    "NAME": "Wifi Security",
+                    "CONTROL": "STATIC",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbedtdz0lniymw",
+                          "LABEL": "Disabled",
+                          "VALUE": "0"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbetkz85do3vmq",
+                          "LABEL": "WEP64",
+                          "VALUE": "1"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbeyqq0h0du9tj",
+                          "LABEL": "WEP128",
+                          "VALUE": "2"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbeqqiaui1u9mj",
+                          "LABEL": "WPA1-PSK (TKIP)",
+                          "VALUE": "3"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbemrb7lc852k",
+                          "LABEL": "WPA1-PSK (AES)",
+                          "VALUE": "4"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbegcy3kc5cqq8",
+                          "LABEL": "WPA2-PSK (TKIP)",
+                          "VALUE": "5"
+                        }
+                      },
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z5sbet205e851dl",
+                          "LABEL": "WPA2-PSK (AES)",
+                          "VALUE": "6"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf1z51rgv0mo1jg496",
+                    "SETTINGID": "lf1z4eyx5f1mza59ja5",
+                    "NAME": "Wifi Password",
+                    "CONTROL": "PASSWORD",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf1z51rh1t9s2pr72hs",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fd",
+      "settings": {
+        "ID": "lc7hkx8oh24c10m0fn",
+        "ENABLED": "1",
+        "FILES": "32",
+        "SECTORS": "100"
+      }
+    },
+    {
+      "id": "filenum",
+      "settings": {
+        "ID": "lc7hkx8o1gzzd5amgip"
+      }
+    },
+    {
+      "id": "global_vars",
+      "settings": {
+        "ID": "lc7hknk4czc82gm1k",
+        "INTERVAL": "1",
+        "DEBUG_PRINT": "0",
+        "VARS": [
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lc8rkfhk99b8nqg9dlq",
+              "VARNAME": "var1",
+              "DATATYPE": "float",
+              "NAME": "",
+              "FEATURE": "",
+              "FEATURE_SETTING": "",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
+            }
+          }
+        ],
+        "AUTOVARS": [
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf1z4g5m3bubj6xilbk",
+              "VARNAME": "WIFAP",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf1z4doye29c4aj81g",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": "0",
+              "MAXIMUM": 32,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf1z4g5m2xfmbs4kgny",
+              "VARNAME": "WSEC",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf1z4emnhunaj4efu6",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": 0,
+              "MAXIMUM": 1,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf1z4g5mra9prgqyw8s",
+              "VARNAME": "WIFPW",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf1z4eyx5f1mza59ja5",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": 0,
+              "MAXIMUM": 64,
+              "DEFAULT": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "tbl",
+      "settings": {
+        "ID": "lc7hknk46tz0jz3e6tl",
+        "ENABLED": "0",
+        "TBL_DEBUG_PRINT": "1",
+        "TBL_MAX_TABLE_NAME_LEN": "0",
+        "TBL_MAX_FIELD_NAME_LEN": "0",
+        "TBL_MAX_FIELD_VALUE_LEN": "0",
+        "TBL_MAX_RECORD_SIZE": "0",
+        "TBL_MAX_NUM_TABLES": "0",
+        "TBL_MAX_TOTAL_NUM_FIELDS": "0",
+        "WEBENABLED": "1",
+        "TABLES": [
+          {
+            "id": "tbl_table",
+            "settings": {
+              "ID": "lc7hkw2yih2neopk7z",
+              "NAME": "T1",
+              "COMMENT": "",
+              "MAXRECORDS": 1000,
+              "STRUCT": "T",
+              "KEYFIELDS": "0",
+              "FIELDS": [
+                {
+                  "id": "tbl_field",
+                  "settings": {
+                    "ID": "lc7hkxee7e8dek0askm",
+                    "NAME": "TS",
+                    "FIELDTYPE": "E",
+                    "P1": "0",
+                    "P2": "2147483647",
+                    "DEFAULT": "",
+                    "COMMENT": ""
+                  }
+                },
+                {
+                  "id": "tbl_field",
+                  "settings": {
+                    "ID": "lc7hl23ailg16wu7yuk",
+                    "NAME": "F",
+                    "FIELDTYPE": "F",
+                    "P1": "-32768",
+                    "P2": "32768",
+                    "DEFAULT": "",
+                    "COMMENT": ""
+                  }
+                },
+                {
+                  "id": "tbl_field",
+                  "settings": {
+                    "ID": "lc8u0a5vekwxcfmsevr",
+                    "NAME": "T",
+                    "FIELDTYPE": "M",
+                    "P1": "0",
+                    "P2": "255",
+                    "DEFAULT": "",
+                    "COMMENT": ""
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_button",
+      "settings": {
+        "ID": "lc7hmet1isvbsf9w70f",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 255,
+        "Y": 495,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "node_datetime",
+      "settings": {
+        "ID": "lc7hn74okhedptd4eup",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 555,
+        "Y": 495,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lc7hn9rsmc8ka8x96nh",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lc7hmet1isvbsf9w70f",
+        "SOURCE_PORT": "on_button_pressed",
+        "TARGET": "",
+        "TARGET_FEATURE": "lc7hn74okhedptd4eup",
+        "TARGET_PORT": "timestamp_get",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "tibbit_09",
+      "settings": {
+        "ID": "lc8v2paaqutxctasqb",
+        "SOCKET": "11",
+        "TIBBIT": "09",
+        "PLATFORM": ""
+      }
+    },
+    {
+      "id": "tibbit_18",
+      "settings": {
+        "ID": "lc8v2s6ud4bhfhdevkq",
+        "SOCKET": "12",
+        "TIBBIT": "18",
+        "PLATFORM": ""
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf1z4dp8n3lrr4e25sh",
+        "SETTINGID": "WAP",
+        "LINKEDSETTING": "lf1z4doye29c4aj81g",
+        "FEATURE": "lf1z2e9vkwa3zkocjln"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf1z4emvjinbxbomp3",
+        "SETTINGID": "WSEC",
+        "LINKEDSETTING": "lf1z4emnhunaj4efu6",
+        "FEATURE": "lf1z2e9vkwa3zkocjln"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf1z4ez6d9aus671e8u",
+        "SETTINGID": "WPW",
+        "LINKEDSETTING": "lf1z4eyx5f1mza59ja5",
+        "FEATURE": "lf1z2e9vkwa3zkocjln"
+      }
+    }
+  ]
+}

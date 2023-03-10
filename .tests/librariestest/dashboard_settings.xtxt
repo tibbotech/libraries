@@ -1,0 +1,5 @@
+I=group1;D=General;T=GROUP;
+I=WIFAP;T=STRING;C=EDIT;D=Wifi AP SSID;
+I=WSEC;T=STRING;C=STATIC;D=Wifi Security;O=Disabled/0/WEP64/1/WEP128/2/WPA1-PSK (TKIP)/3/WPA1-PSK (AES)/4/WPA2-PSK (TKIP)/5/WPA2-PSK (AES)/6;
+I=WIFPW;T=STRING;C=PASSWORD;D=Wifi Password;
+    @@STG_RefPath=settings.xtxt

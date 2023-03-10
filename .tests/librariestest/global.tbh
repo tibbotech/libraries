@@ -1,9 +1,24 @@
 'DEFINES-------------------------------------------------------------
 #define WLN_AVAILABLE 0
+#define LCD_STD_FONT "11X19(HP).bin"
+#define LCD_SMALL_FONT "Tibbo-5x7(V).bin"
+#define WLN_AVAILABLE 1
+#define DHCP_DEBUG_PRINT 1
+#define DHCP_POST_FAIL_DELAY 30
+#define DHCP_WAIT_TIME 8
+#define WLN_DEBUG_PRINT 1
+#define MAX_NUM_WLN_FAILURES 5
+#define WLN_CLK PL_IO_NUM_53
+#define WLN_CS PL_IO_NUM_49
+#define WLN_DI PL_IO_NUM_52
+#define WLN_DO PL_IO_NUM_50
+#define WLN_RST PL_IO_NUM_51
+#define SIGNAL_STRENGTH_INDICATION 1
 #define SOCK_MAX_SIGNATURE_LEN 32
 #define SSI_MAX_SIGNATURE_LEN 32
 #define SI2C_MAX_SIGNATURE_LEN 32
 #define SSPI_MAX_SIGNATURE_LEN 32
+#define WLN_WPA 1
 #define CTS_MAP 0
 #define RTS_MAP 0
 #define SNTP_DEBUG_PRINT 1
@@ -28,19 +43,17 @@ includepp "tables.xtxt"
 
 include "../../time/time.tbh"
 include "../../time/datetime.tbh"
+include "../../sock/sock.tbh"
 include "../../settings/settings.tbh"
+include "../../dhcp/dhcp.tbh"
 include "../../utils/utils.tbh"
 include "../../http_server/http_server.tbh"
-include "../../sock/sock.tbh"
-include "../../dns/dns.tbh"
 include "../../upgrade/upgrade.tbh"
 include "../../sntp/sntp.tbh"
 include "../../stgcmd/stgcmd.tbh"
 include "../../filenum/filenum.tbh"
 include "../../tables/tables.tbh"
 include "../../tables/tables_web.tbh"
-include "../../modbus/modbus.tbh"
-include "../../mqtt/mqtt.tbh"
 
 
 'DECLARATIONS--------------------------------------------------------
@@ -49,6 +62,10 @@ declare function datetime_timestamp_mins(timestamp as dword) as dword
 declare function datetime_mins_to_timestamp(mins as word) as dword
 
 
+declare sub lcd_log(text as string)
+
+const LOG_FONT_FILE = LCD_SMALL_FONT
+
 declare device_net_ip as string(16)
 declare device_net_mask as string(16)
 declare device_net_gateway as string(16)
@@ -56,12 +73,38 @@ declare device_net_gateway as string(16)
 declare sub interface_set(interface as pl_sock_interfaces, state as no_yes)
 
 declare interface_ready(MAX_NUM_INTERFACES) as no_yes
+
 declare APP_TIMEZONE as en_td_timezones
+declare APP_LATITUDE as float
+declare APP_LONGITUDE as float
 
 declare current_interface as pl_sock_interfaces
 
 declare sub change_current_interface(new_interface as pl_sock_interfaces)
 declare sub close_interface_sockets(interface as pl_sock_interfaces)
+
+enum pl_wln_security_modes
+    WLN_SECURITY_MODE_DISABLED,
+    WLN_SECURITY_MODE_WEP64,
+    WLN_SECURITY_MODE_WEP128,
+    WLN_SECURITY_MODE_WPA1_TKIP
+    WLN_SECURITY_MODE_WPA1_AES,
+    WLN_SECURITY_MODE_WPA2_TKIP,
+    WLN_SECURITY_MODE_WPA2_AES
+end enum
+        
+
+declare wln_already_started,wln_error as no_yes
+declare wln_security as pl_wln_security_modes
+declare wln_ssid as string
+declare wln_password as string
+declare wln_dhcp_enabled as no_yes
+declare num_wln_failures as byte
+
+
+#if SIGNAL_STRENGTH_INDICATION
+declare sub signal_strength_set(strength as byte)
+#endif
 declare upgrade_socket_http as byte
 
 declare SNTP_socket as byte
@@ -70,22 +113,19 @@ declare var1 as float
 
 declare function var_var1_update() as float
 declare sub var_var1_set(value as float)
-declare stg1 as dword
+declare WIFAP as string
 
-declare function var_stg1_update() as dword
-declare sub var_stg1_set(value as dword)
+declare function var_WIFAP_update() as string
+declare sub var_WIFAP_set(byref value as string)
+declare WSEC as string
+
+declare function var_WSEC_update() as string
+declare sub var_WSEC_set(byref value as string)
+declare WIFPW as string
+
+declare function var_WIFPW_update() as string
+declare sub var_WIFPW_set(byref value as string)
 declare function tbl_record_find_sorted(record_type as en_tbl_record_states, byref search_data as string, byref field_name as string, byref rec_num as word, wraparound as boolean, find_method as pl_fd_find_modes) as en_tbl_status_codes
-
-'Query found result for T1
-declare sub T1_found_lc7hmobsjp7rjjxb7yd(row_index as word,byref TS as float,byref F as float,byref T as float)
-
-declare table_find_result_index as word
-
-'Query found result for T1
-declare sub T1_found_lc8nacbg4t8xik9c3n6(row_index as word,byref TS as float,byref F as float,byref T as float)
-
-'Query found result for T1
-declare sub T1_found_lc8u2erzuad9ypwd6s(row_index as word,byref TS as float,byref F as float,byref T as float)
 
 
 declare sub boot()

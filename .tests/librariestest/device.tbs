@@ -1,6 +1,9 @@
 include "global.tbh"
 
 
+dim lcd_logs(29) as string(64)
+dim lcd_log_index as byte=0
+
 
 
 function datetime_timestamp_mins(timestamp as dword) as dword
@@ -37,8 +40,20 @@ end sub
 sub callback_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
     
 
-if stg_name_or_num="stg1" then
-    stg1=strtof(stg_value)
+if stg_name_or_num="WIFAP" then
+    WIFAP=stg_value
+    
+    
+end if
+
+if stg_name_or_num="WSEC" then
+    WSEC=stg_value
+    
+    
+end if
+
+if stg_name_or_num="WIFPW" then
+    WIFPW=stg_value
     
     
 end if
@@ -54,6 +69,103 @@ sub callback_stg_vm_write(data_to_write as byte, address as word)
     
 end sub
 
+sub lcd_log(text as string)
+    dim i as byte
+    if lcd_log_index < 29 - 1 then
+        lcd_log_index = lcd_log_index + 1
+    else 
+        for i=0 to 29 - 2
+            lcd_logs(i) = lcd_logs(i + 1)
+        next i
+    end if
+    lcd_logs(lcd_log_index) = left(text,53)
+    romfile.open(LOG_FONT_FILE)
+    lcd.setfont(romfile.offset)
+    lcd.lock()
+    lcd.forecolor=&h0
+    lcd.fill(0,0,lcd.width,lcd.height)
+    lcd.forecolor=&hffff
+    for i=0 to 29 - 1
+        lcd.print(lcd_logs(i),0,i * 8)
+    next i
+    lcd.unlock()
+end sub
+
+sub callback_dhcp_ok(renew as no_yes, interface as pl_sock_interfaces, byref ip as string, byref gateway_ip as string, byref netmask as string, lease_time as dword)
+    
+
+    if interface=PL_SOCK_INTERFACE_NET then
+        if renew=YES and net.ip<>ip then
+            'this is a lease renewal and the DHCP server has issues new IP
+            'it is better to reboot than deal with the implications of the changed IP
+            sys.reboot
+        end if
+
+        #if DEV_DEBUG_PRINT
+            dev_debugprint("Ethernet DHCP OK ("+ip+")")
+        #endif
+
+        if net.ip<>ip then
+            sock.inconenabledmaster=NO
+            close_interface_sockets(PL_SOCK_INTERFACE_NET)
+            net.ip=ip
+            if gateway_ip<>"" then net.gatewayip=gateway_ip
+            if netmask<>"" then net.netmask=netmask
+            sock.inconenabledmaster=YES
+        end if
+        
+        interface_set(PL_SOCK_INTERFACE_NET,YES)
+    end if
+            
+
+    if interface=PL_SOCK_INTERFACE_WLN then
+        if renew=YES and wln.ip<>ip then
+            'this is a lease renewal and the DHCP server has issues new IP
+            'it is better to reboot than deal with the implications of the changed IP
+            sys.reboot
+        end if
+        
+        #if DEV_DEBUG_PRINT
+            dev_debugprint("Wi-Fi DHCP OK ("+ip+")")
+        #endif
+        
+        if wln.ip<>ip then
+            sock.inconenabledmaster=NO
+            close_interface_sockets(PL_SOCK_INTERFACE_WLN)
+            wln.ip=ip
+            if gateway_ip<>"" then wln.gatewayip=gateway_ip
+            if netmask<>"" then wln.netmask=netmask
+            sock.inconenabledmaster=YES
+            
+            sys.debugprint("WiFi> ip is " + wln.ip + "\r\n")
+        end if
+        interface_set(PL_SOCK_INTERFACE_WLN,YES)
+        
+    end if
+                
+end sub
+        
+
+sub callback_dhcp_failure(interface as pl_sock_interfaces,failure_code as en_dhcp_status_codes)
+    
+end sub
+        
+
+sub callback_dhcp_pre_clear_ip(interface as pl_sock_interfaces)
+    
+end sub
+        
+
+sub callback_dhcp_pre_buffrq(required_buff_pages as byte)
+    
+end sub
+        
+
+sub callback_dhcp_buff_released()
+    
+end sub
+        
+
 sub interface_set(interface as pl_sock_interfaces, state as no_yes)
     dim best_interface as pl_sock_interfaces=PL_SOCK_INTERFACE_NET
     if state = YES then
@@ -65,7 +177,6 @@ sub interface_set(interface as pl_sock_interfaces, state as no_yes)
         best_interface = PL_SOCK_INTERFACE_NET
     else
         #IF WLN_AVAILABLE
-            
             if interface_ready(PL_SOCK_INTERFACE_WLN) = YES then
                 best_interface = PL_SOCK_INTERFACE_WLN
             end if
@@ -134,6 +245,27 @@ sub change_current_interface(new_interface as pl_sock_interfaces)
         end if
     end if
 end sub
+
+#if SIGNAL_STRENGTH_INDICATION
+sub signal_strength_set(strength as byte)
+'Bits 0-5 of strength argument correspond to LEDs
+    
+    dim f,x as byte
+    dim s as string(8)
+    
+    s=mid(bin(strength),3,8)
+    s=strgen(8-len(s),"0")+s
+    
+    'make 5 clocks
+    io.num=PL_IO_NUM_47
+    for f=0 to 4
+        x=1-val(mid(s,f+4,1))
+        io.lineset(PL_IO_NUM_48,x)
+        io.state=LOW
+        io.state=HIGH
+    next f
+end sub
+#endif
 
 sub on_firmware_update_start(byref current_fw_upg_state as pl_upg_state_t) 
     
@@ -218,6 +350,7 @@ end sub
 sub callback_sntp_pre_buffrq(required_buff_pages as byte)
     
 end sub
+        
 
 sub callback_stgcmd_buzz_command()
     
@@ -247,13 +380,33 @@ sub var_var1_set(value as float)
 end sub
             
 
-function var_stg1_update() as dword
+function var_WIFAP_update() as string
     
 end function
             
 
-sub var_stg1_set(value as dword)
-    stg_set("stg1", 0, lstr(value))
+sub var_WIFAP_set(byref value as string)
+    stg_set("WIFAP", 0, value)
+end sub
+            
+
+function var_WSEC_update() as string
+    
+end function
+            
+
+sub var_WSEC_set(byref value as string)
+    stg_set("WSEC", 0, value)
+end sub
+            
+
+function var_WIFPW_update() as string
+    
+end function
+            
+
+sub var_WIFPW_set(byref value as string)
+    stg_set("WIFPW", 0, value)
 end sub
             
 
@@ -465,93 +618,3 @@ function tbl_record_find_sorted(
         end if
     end if
 end function
-
-sub T1_found_lc7hmobsjp7rjjxb7yd(row_index as word,byref TS as float,byref F as float,byref T as float)
-    
-
-    sys.debugprint(datetime_timestamp_to_string(TS,"YYYY-MM-DD hh:mm:ss")+" " + fstr(F))
-    
-end sub
-
-sub T1_found_lc8nacbg4t8xik9c3n6(row_index as word,byref TS as float,byref F as float,byref T as float)
-    
-
-    sys.debugprint("FF " + datetime_timestamp_to_string(TS,"YYYY-MM-DD hh:mm:ss")+" " + fstr(F))
-    
-end sub
-
-sub T1_found_lc8u2erzuad9ypwd6s(row_index as word,byref TS as float,byref F as float,byref T as float)
-    
-
-    sys.debugprint("T " + datetime_timestamp_to_string(datetime_mins_to_timestamp(T / 60),"hh:mm"))
-    
-end sub
-
-function modbus_callback_ReadCoilStatus(address as word) as boolean
-
-end function
-
-function modbus_callback_ReadInputStatus(address as word) as boolean
-
-end function
-
-function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte 
-
-end function
-
-function modbus_callback_ReadHoldingRegister(address as word) as word
-
-end function
-
-function modbus_callback_ReadInputRegister(address as word) as word
-
-end function
-
-function modbus_callback_set_holding_register(address as word, data as word) as boolean
-
-end function
-
-sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
-
-end sub
-
-sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
-
-end sub
-
-sub callback_mqtt_connect_ok()
-
-end sub
-
-sub callback_mqtt_connect_lost()
-
-end sub
-
-sub callback_mqtt_sub_ok()
-
-end sub
-	
-sub callback_mqtt_notif(byref topic as string,byref data as string,remaining_bytes as dword)
-
-end sub
-
-sub callback_dns_failure(status as en_dns_status_codes)
-    
-end sub
-        
-sub callback_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
-    
-    mqtt_dns_answer_acquired(return_type, return_string)
-end sub
-        
-sub callback_dns_ok()
-    
-end sub
-        
-sub callback_dns_pre_buffrq(num_of_pages_required as byte)
-    
-end sub
-        
-sub callback_dns_buff_released()
-    
-end sub

@@ -20,16 +20,24 @@
 	<script src="https://unpkg.com/react-bootstrap@next/dist/react-bootstrap.min.js" crossorigin></script>
 	<script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/react-grid-layout/0.16.6/react-grid-layout.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 	<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 	<script src="https://unpkg.com/recharts@1.6.2/umd/Recharts.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/react-chartjs-2/2.9.0/react-chartjs-2.min.js"></script>
-
 	<script src="https://unpkg.com/@mui/material@5.11.2/umd/material-ui.production.min.js"
 		crossorigin="anonymous"></script>
 	<script data-plugins="transform-modules-umd" data-presets="react" type="text/babel" src="/Widgets.js"></script>
 	<script data-plugins="transform-modules-umd" data-presets="react" type="text/babel" src="/Information.js"></script>
 	<script data-plugins="transform-modules-umd" data-presets="react" type="text/babel" src="/Database.js"></script>
+	<script src="/timezones.js"></script>
+	<script src="/CustomFunctions.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+	<script>
+		if (!window.moment) {
+			document.write('<script src="assets/plugins/moment/moment.min.js"><\/script>');
+		}
+	</script>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
 	<link rel="stylesheet"
 		href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,1,0" />
@@ -60,7 +68,7 @@
 		} = Widgets;
 
 		const {
-			Information
+			Information,
 		} = Information;
 		const {
 			Log,
@@ -69,7 +77,7 @@
 
 		const {
 			Line
-		} = ReactChartjs2
+		} = ReactChartjs2;
 
 		const ResponsiveReactGridLayout = ReactGridLayout.WidthProvider(ReactGridLayout.Responsive);
 		const Link = ReactRouterDOM.Link;
@@ -91,8 +99,8 @@
 		const Tab = window.ReactBootstrap.Tab;
 		let DASHBOARD_STATE = {};
 		DASHBOARD_STATE.firmwareUpgrade = true;
-		DASHBOARD_STATE.tablesEnabled = true;
-		DASHBOARD_STATE.widgetsEnabled = true;
+		DASHBOARD_STATE.tablesEnabled = false;
+		DASHBOARD_STATE.widgetsEnabled = false;
 		DASHBOARD_STATE.title = "Tibbo Device Dashboard";
 
 		
@@ -100,7 +108,7 @@ DASHBOARD_STATE.firmwareUpgrade = true;
 
     DASHBOARD_STATE.widgetsEnabled = true;
 
-    DASHBOARD_STATE.title = "Tibbo Device Dashboard222";
+    DASHBOARD_STATE.title = "Tibbo Device Dashboard";
 
     DASHBOARD_STATE.settingsEnabled = true;
 
@@ -110,27 +118,92 @@ DASHBOARD_STATE.tablesEnabled = true;
 		let sessionToken = '';
 
 		const ROWS_PER_PAGE = 10;
-		const API_URL_BASE = window.location.hostname == 'localhost' ? 'http://192.168.1.84' : '';
+		const API_URL_BASE = window.location.hostname == 'localhost' ? 'http://192.168.1.127' : '';
 		const CONNECTION_TYPE_BLE = 'BLE';
 		const CONNECTION_TYPE_HTTP = 'HTTP';
-
-		var widgets = [];
-		var updateInterval = 1000;
-		var currentConnectionType = CONNECTION_TYPE_HTTP;
+		let widgets = [];
+		let updateInterval = 1000;
+		let currentConnectionType = CONNECTION_TYPE_HTTP;
+		let sessionPassword = '';
 		
 		widgets = [{ "x": 0, "y": 0, "w": 3, "h": 1, "variable": "dashboard_override_switch", "i": "1672212520274", "type": "switch", "id": "1672212520274", "settings": { "label": "Switch", "bounds": true, "onLabel": "On", "offLabel": "Off", "isOn": false, "min": "0", "max": "1" }, "linkType": "variable", "value": "0", "error": false, "name": "" }, { "x": 0, "y": 1, "w": 3, "h": 1, "variable": "sprinkler_ON_when_0", "i": "1672213592366", "type": "card", "id": "1672213592366", "settings": { "label": "Sprinkler State", "decimalPlaces": 0, "min": 0, "max": 1 }, "linkType": "variable", "value": "1", "error": false, "name": "Tibbit 03_1 (Relay 1 Name)" }, { "x": 3, "y": 1, "w": 3, "h": 1, "variable": "dashboard_override_switch", "i": "1672217600727", "type": "text", "id": "1672217600727", "settings": { "label": "Text", "bounds": true, "min": "0", "max": "1" }, "linkType": "variable", "value": "0", "error": false, "name": "" }, { "x": 0, "y": 2, "w": 4, "h": 2, "variable": "dashboard_override_switch", "i": "1672217621388", "type": "gauge", "id": "1672217621388", "settings": { "label": "Gauge", "bounds": true, "decimalPlaces": 0, "min": "0", "max": "1" }, "linkType": "variable", "value": "0", "error": false, "name": "" }, { "x": 4, "y": 2, "w": 1, "h": 2, "variable": "dashboard_override_switch", "i": "1672217638128", "type": "bar", "id": "1672217638128", "settings": { "label": "Bar", "isHorizontal": false, "bounds": true, "decimalPlaces": 0, "min": "0", "max": "1" }, "linkType": "variable", "value": "0", "error": false, "name": "" }];
 		
-    updateInterval = 1 * 1000;
-    widgets = [];
+updateInterval = 1 * 1000;
+widgets = [];
 
 		let UNOWIRE_SENSORS = [];
 		
 
-		function fetchAPI(urlParams, config) {
-			return fetch(`${API_URL_BASE}/api.html?${urlParams}`, config);
+		function fetchAPI(method, params, url = 'api.html') {
+			return new Promise((resolve, reject) => {
+				let httpConfig = {
+					method: 'GET',
+				};
+				let urlParams = `p=${sessionPassword}` + Object.keys(params).map((key) => {
+					return `&${key}=${params[key]}`
+				}).join('');
+				if (method === 'POST') {
+					httpConfig = {
+						method: 'POST',
+						body: urlParams
+					}
+					urlParams = '';
+				}
+				fetch(`${API_URL_BASE}/${url}?${urlParams}`, httpConfig)
+					.then((response) => response.text()).then((data) => {
+						resolve(data);
+					})
+					.catch(error => {
+						reject(error);
+					});
+			});
 		}
 
+		const TimezoneContext = React.createContext(14);
 
+		const DatetimeElement = ({
+			edit, type, time, handleChange, isTimeLocal
+		}) => {
+			const timezone = React.useContext(TimezoneContext);
+			const minutesOffset = React.useMemo(() => {
+				if (isTimeLocal) return new Date().getTimezoneOffset() * -1;
+				return timezones.find(el => el.value === timezone.toString()).minutesOffset;
+			}, [timezone, isTimeLocal]);
+
+			const onDatetimeChange = (e) => {
+				const value = Date.parse(e.target.value)
+					- (new Date().getTimezoneOffset() + minutesOffset) * 60 * 1000;
+				handleChange(value / 1000);
+			};
+
+			const onTimeChange = (e) => {
+				const value = e.target.value;
+				const parts = value.split(':');
+				const newValue = ((parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)) * 60).toString();
+				handleChange(newValue);
+			}
+
+			switch (type) {
+				case 'datetime':
+					if (!edit) return (
+						<div>{moment.utc((time + minutesOffset * 60) * 1000).format('YYYY/MM/DD HH:mm:ss')}</div>
+					);
+					return (
+						<input className="form-control" type="datetime-local" value={moment.utc((time + (minutesOffset) * 60) * 1000).format('YYYY-MM-DDTHH:mm:ss')} onChange={onDatetimeChange} />
+					);
+				case 'time':
+					if (!edit) return (
+						<div>{moment.utc(time * 1000).format('HH:mm')}</div>
+					);
+					return (
+						<input className="form-control" type="time" value={moment.utc(time * 1000).format('HH:mm')} onChange={onTimeChange} />
+					)
+				default:
+					return <></>;
+			}
+
+
+		};
 
 		class App extends React.Component {
 			constructor(props) {
@@ -138,32 +211,127 @@ DASHBOARD_STATE.tablesEnabled = true;
 				this.state = {
 					showNav: false,
 					isPageVisible: true,
+					loading: false,
+					authenticated: false,
+					password: '',
+					authChallenge: '',
+					timezone: 14,
 				};
-				this.onVisibilityChange = this.onVisibilityChange.bind(this);
+				this.getSession = this.getSession.bind(this);
+				this.renderLogin = this.renderLogin.bind(this);
+				this.login = this.login.bind(this);
+				this.getTz = this.getTz.bind(this);
 			}
 
 			componentDidMount() {
-				window.addEventListener('visibilitychange', this.onVisibilityChange)
+				this.getSession();
 			}
 
 			componentWillUnmount() {
-				window.removeEventListener('visibilitychange', this.onVisibilityChange)
+
 			}
 
+			async getSession() {
+				this.setState({
+					loading: true,
+				});
+				fetchAPI('GET', {
+					e: 'a',
+					action: 'get'
+				}).then(res => {
+					const data = res.trim();
+					// success
+					if (data === '0') {
+						this.setState({
+							authenticated: true,
+							loading: false,
+						}, () => {
+							this.getTz()
+						});
+					} else {
+						this.setState({
+							authenticated: false,
+							authChallenge: data,
+							loading: false,
+						});
+					}
+				});
+			}
 
-			onVisibilityChange() {
-				if (document.visibilityState === 'visible') {
+			async getTz() {
+				fetchAPI('GET', {
+					e: 'i',
+					action: 'get_tz'
+				}).then(res => {
 					this.setState({
-						isPageVisible: true,
+						timezone: JSON.parse(res.replace(/'/g, '"'))
 					})
-				} else {
-					this.setState({
-						isPageVisible: false,
+				});
+			}
+
+			login(e) {
+				e.preventDefault();
+				const { password, authChallenge } = this.state;
+				const passhash = CryptoJS.MD5(`${password}${authChallenge}`).toString();
+				fetch(`${API_URL_BASE}/api.html?e=a&action=login&p=${passhash}`)
+					.then((response) => response.text())
+					.then(data => {
+						if (data.indexOf('UNAUTHORIZED') >= 0) {
+							this.setState({
+								authenticated: false,
+								loading: false,
+							});
+							alert('Login failed.');
+						} else {
+							sessionPassword = passhash;
+							this.setState({
+								authenticated: true,
+								loading: false,
+							});
+						}
 					})
-				}
+				return false;
+			}
+
+			renderLogin() {
+				return (
+					<div className="container">
+						<div class="modal position-static d-block">
+							<div class="modal-dialog">
+								<div class="modal-content">
+									<div class="modal-header">
+										<h5 class="modal-title">Login</h5>
+									</div>
+									<div class="modal-body">
+										<Form onSubmit={this.login}>
+											<input
+												type="password"
+												className="form-control mb-2"
+												placeholder="Enter Device Password"
+												value={this.state.password}
+												onChange={e => this.setState({ password: e.target.value })}
+											/>
+											<button type="submit" className="btn btn-primary" disabled={this.state.loading}>Login</button>
+										</Form>
+									</div>
+
+								</div>
+							</div>
+
+						</div>
+					</div>
+				);
 			}
 
 			render() {
+				if (this.state.loading) {
+					return (
+						<div>Loading...</div>
+					);
+				}
+				if (!this.state.authenticated) {
+					return this.renderLogin();
+				}
 				return (
 					<ReactRouterDOM.HashRouter>
 						<header className="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
@@ -225,13 +393,15 @@ DASHBOARD_STATE.tablesEnabled = true;
 									<div className="container-fluid" style={{
 										paddingTop: 16
 									}}>
-										<Route path="/" exact component={() => <Home isPageVisible={this.state.isPageVisible} />} />
-										<Route path="/dashboard" component={() => <Dashboard isPageVisible={this.state.isPageVisible} />} />
-										<Route path="/settings" component={Settings} />
-										<Route path="/database" component={DatabaseWrapper} />
-										<Route path="/log" component={LogWrapper} />
-										<Route path="/unowiresensors" component={UnoWireSensors} />
-										<Route path="/firmware" component={Firmware} />
+										<TimezoneContext.Provider value={this.state.timezone} >
+											<Route path="/" exact component={() => <Home updateTz={() => this.getTz()} />} />
+											<Route path="/dashboard" component={() => <Dashboard />} />
+											<Route path="/settings" component={Settings} />
+											<Route path="/database" component={DatabaseWrapper} />
+											<Route path="/log" component={LogWrapper} />
+											<Route path="/unowiresensors" component={UnoWireSensors} />
+											<Route path="/firmware" component={Firmware} />
+										</TimezoneContext.Provider>
 									</div>
 									<footer style={{
 										position: 'fixed',
@@ -272,29 +442,33 @@ DASHBOARD_STATE.tablesEnabled = true;
 
 			componentDidMount() {
 				this.timer = setInterval(() => {
-					if (!this.props.isPageVisible) return
-					if (!this.state.isMounting) return
-					fetch(`${API_URL_BASE}/api.html?e=i&action=get`)
-						.then(res => res.text())
-						.then(res => {
-							this.setState({
-								isMounting: false,
-								infos: JSON.parse(res.replace(/'/g, '"'))
-							})
+					if (document.visibilityState !== 'visible') {
+						return;
+					}
+					fetchAPI('GET', {
+						e: 'i',
+						action: 'get'
+					}).then(res => {
+						const infos = JSON.parse(res.replace(/'/g, '"'))
+						this.setState({
+							isMounting: false,
+							infos
 						})
-				}
-					, updateInterval)
+					});
+				}, updateInterval);
 			}
 
 			update() {
-				fetch(`${API_URL_BASE}/api.html?e=i&action=get`)
-					.then(res => res.text())
-					.then(res => {
-						this.setState({
-							isMounting: false,
-							infos: JSON.parse(res.replace(/'/g, '"'))
-						})
+				fetchAPI('GET', {
+					e: 'i',
+					action: 'get'
+				}).then(res => {
+					this.props.updateTz()
+					this.setState({
+						isMounting: false,
+						infos: JSON.parse(res.replace(/'/g, '"'))
 					})
+				});
 			}
 
 			render() {
@@ -304,7 +478,7 @@ DASHBOARD_STATE.tablesEnabled = true;
 						{this.state.isMounting ?
 							<div>Loading...</div>
 							:
-							<Information infoValues={this.state.infos} update={this.update} />
+							<Information infoValues={this.state.infos} update={this.update} timezone={this.props.timezone} />
 						}
 					</div>
 				)
@@ -337,31 +511,11 @@ DASHBOARD_STATE.tablesEnabled = true;
 				}
 			}
 
-			executeWidgetAction(widget, options) {
-				switch (widget.linkType) {
-					case 'command':
-						const requestOptions = {
-							method: 'POST',
-							body: `e=f&cmd=${widget.variable}&value=${options.value}`,
-						};
-						fetch(`${API_URL_BASE}/api.html`, requestOptions)
-							.then(res => res.text())
-							.then(
-								(result) => {
-									alert('sent');
-								},
-								(error) => {
-									alert('error sending', error);
-									console.error(error);
-								}
-							);
-						break;
-				}
-			}
-
 			componentDidMount() {
 				this.timer = setInterval(() => {
-					if (!this.props.isPageVisible) return
+					if (document.visibilityState !== 'visible') {
+						return;
+					}
 					let variablesToFetch = [];
 					let commandsToFetch = [];
 					const newWidgets = this.state.widgets;
@@ -393,40 +547,65 @@ DASHBOARD_STATE.tablesEnabled = true;
 						this.setState({
 							loadingVariables: newLoadingVariables
 						})
-						fetch(`${API_URL_BASE}/api.html?e=v&variable=${variablesToFetch[i]}&action=get`)
-							.then(res => res.text())
-							.then(
-								(result) => {
-									for (let j = 0; j < newWidgets.length; j++) {
-										if (newWidgets[j].variable === currentVariable) {
-											newWidgets[j].value = result.trim();
-											newWidgets[j].data.push({
-												name: new Date().toLocaleTimeString(),
-												value: newWidgets[j].value
-											});
+						fetchAPI('GET', {
+							e: 'v',
+							variable: variablesToFetch[i],
+							action: 'get'
+						}).then(
+							(result) => {
+								for (let j = 0; j < newWidgets.length; j++) {
+									const value = newWidgets[j].settings.customFn.length > 0 ?
+										window[`custom${newWidgets[j].id}`](result.trim()) : result.trim();
+									if (newWidgets[j].variable === currentVariable) {
+										newWidgets[j].value = value;
+										newWidgets[j].data.push({
+											name: new Date().toLocaleTimeString(),
+											value: value
+										});
 
-										}
 									}
-									delete newLoadingVariables[currentVariable]
-									this.setState({
-										widgets: newWidgets,
-										loadingVariables: newLoadingVariables
-									});
-								},
-								// Note: it's important to handle errors here
-								// instead of a catch() block so that we don't swallow
-								// exceptions from actual bugs in components.
-								(error) => {
-									console.error(error);
 								}
-							);
+								delete newLoadingVariables[currentVariable]
+								this.setState({
+									widgets: newWidgets,
+									loadingVariables: newLoadingVariables
+								});
+							},
+							// Note: it's important to handle errors here
+							// instead of a catch() block so that we don't swallow
+							// exceptions from actual bugs in components.
+							(error) => {
+								console.error(error);
+							}
+						);
 					}
 					this.setState({
 						isLoading: false,
 					})
 				}, updateInterval);
+
 			}
 
+			executeWidgetAction(widget, options) {
+				switch (widget.linkType) {
+					case 'command':
+						fetchAPI('POST', {
+							e: 'f',
+							cmd: widget.variable,
+							value: options.value
+						})
+							.then(
+								(result) => {
+									alert('sent');
+								},
+								(error) => {
+									alert('error sending', error);
+									console.error(error);
+								}
+							);
+						break;
+				}
+			}
 
 			setWidgetValue(value, widget, name) {
 				const { widgets } = this.state;
@@ -465,21 +644,21 @@ DASHBOARD_STATE.tablesEnabled = true;
 				if (widget.linkType === 'command') {
 					actionType = 'f'; // send command
 				}
-				const requestOptions = {
-					method: 'POST',
-					body: `e=${actionType}&action=set&variable=${widget.variable}&value=${widget.tmpValue}`,
-				};
 				this.setState({
 					isRequesting: true,
 				})
-				return fetch(`${API_URL_BASE}/api.html`, requestOptions)
-					.then(response => response.text())
+				return fetchAPI('POST', {
+					e: actionType,
+					action: 'set',
+					variable: widget.variable,
+					value: widget.tmpValue
+				})
 					.then(data => {
 						// alert('sent');
 						this.setSnackbarOn(true);
 						this.setState({
 							isRequesting: false,
-						})
+						});
 					});
 			}
 
@@ -592,6 +771,13 @@ DASHBOARD_STATE.tablesEnabled = true;
 							className="layout"
 							isDragable={false}
 							isResizable={false}
+							breakpoints={{
+								lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0,
+							}}
+							cols={{
+								lg: 12, md: 10, sm: 6, xs: 4, xxs: 2,
+							}}
+							rowHeight={40}
 						>
 							{this.state.widgets.map((item, i) => {
 								return this.renderWidget(item)
@@ -630,22 +816,32 @@ DASHBOARD_STATE.tablesEnabled = true;
 					activeGroup: undefined,
 					settingsIndex: 0,
 					commandQueue: [],
+					showPasswords: [],
 					loading: true,
 					currentConnectionType
 				}
 			}
 
 			componentDidMount() {
-				fetchAPI('e=s&a=def', {
-					method: 'GET',
-					params: {
-						'a': 'def', // get SDF file (exposed settings and definition)
-					}
-				}).then((response) => {
-					return response.text();
-				}).then((data) => {
+				fetchAPI('GET', {
+					'e': 's',
+					'a': 'def', // get SDF file (exposed settings and definition)
+				}
+				).then((data) => {
 					this.sdf = data;
 					this.initSettings();
+				});
+			}
+
+			toggleShowPassword(settingId) {
+				const { showPasswords } = this.state;
+				if (!showPasswords.includes(settingId)) {
+					showPasswords.push(settingId);
+				} else {
+					showPasswords.splice(showPasswords.indexOf(settingId), 1);
+				}
+				this.setState({
+					showPasswords,
 				});
 			}
 
@@ -674,7 +870,7 @@ DASHBOARD_STATE.tablesEnabled = true;
 					}
 				}
 				if (groups.length > 0) {
-					activeGroup = groups[0]
+					activeGroup = groups[0].id;
 				}
 				this.setState({
 					settings,
@@ -687,10 +883,13 @@ DASHBOARD_STATE.tablesEnabled = true;
 				return (
 					<Row>
 						<h2>Settings</h2>
-						<Tabs>
+						<Tabs
+							activeKey={this.state.activeGroup}
+							onSelect={v => this.setState({ activeGroup: v })}
+						>
 							{this.state.groups.map((group, i) => (
 								<Tab
-									eventKey={group.name}
+									eventKey={group.id}
 									title={(
 										<span>
 											{group.name}
@@ -746,7 +945,7 @@ DASHBOARD_STATE.tablesEnabled = true;
 				if (this.state.activeGroup != undefined) {
 					let settings = [];
 					for (let i = 0; i < this.state.settings.length; i++) {
-						if (this.state.settings[i].group == this.state.activeGroup.id) {
+						if (this.state.settings[i].group == this.state.activeGroup) {
 							settings.push(this.state.settings[i]);
 						}
 					}
@@ -758,10 +957,30 @@ DASHBOARD_STATE.tablesEnabled = true;
 							case 'EDIT':
 								switch (item.T) {
 									case 'DATETIME':
-										fieldControl = <input type="datetime-local" className="form-control" placeholder={item.D} />;
+										fieldControl = <DatetimeElement
+											type="datetime"
+											edit
+											handleChange={(value) => {
+												this.formChange(item, {
+													target: {
+														value
+													}
+												})
+											}}
+										/>;
 										break;
 									case 'TIME':
-										fieldControl = <input type="time" className="form-control" placeholder={item.D} />;
+										fieldControl = <DatetimeElement
+											type="time"
+											edit
+											handleChange={(value) => {
+												this.formChange(item, {
+													target: {
+														value: value.toString(),
+													}
+												})
+											}}
+										/>;
 										break;
 									default:
 										fieldControl = <input type="text" className="form-control" placeholder={item.D} />;
@@ -771,6 +990,25 @@ DASHBOARD_STATE.tablesEnabled = true;
 							case 'ETHERNETCTRL':
 							case 'IPCTRL':
 								fieldControl = <input type="text" className="form-control" placeholder={item.D} />;
+								break;
+							case 'PASSWORD' :
+								const showPassword = this.state.showPasswords.includes(item.I);
+								fieldControl = (
+										<div className="input-group">
+											<input
+												type={showPassword ? 'text' : 'password'}
+												className="form-control"
+												placeholder={item.D}
+												value={item.VALUE}
+												onChange={(e) => this.formChange(item, e)}
+											/>
+											<div className="input-group-append">
+												<button type="button" className="btn btn-outline-secondary" onClick={() => this.toggleShowPassword(item.I)}>
+													{showPassword ? 'Hide' : 'Show'}
+												</button>
+											</div>
+										</div>
+								);
 								break;
 							case 'STATIC':
 							case 'SWITCH':
@@ -786,23 +1024,8 @@ DASHBOARD_STATE.tablesEnabled = true;
 						if (item.VALUE !== undefined) {
 							switch (item.T) {
 								case 'DATETIME':
-									const d = new Date(Number(item.VALUE) * 1000);
-									let dValue = '';
-									try {
-										dValue = (new Date(d.getTime()
-											- d.getTimezoneOffset()
-											* 60000).toISOString()).slice(0, -1);
-									} catch (e) {
-										console.log(e);
-									}
-									fieldControl.props.value = dValue;
-									break;
 								case 'TIME':
-									let tmpValue = item.VALUE / 60;
-									const remainder = Number(tmpValue) % 60;
-									const hours = (Number(tmpValue) - remainder) / 60;
-									const minutes = remainder;
-									fieldControl.props.value = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0');
+									fieldControl.props.time = Number(item.VALUE);
 									break;
 								default:
 									fieldControl.props.value = item.VALUE;
@@ -857,13 +1080,22 @@ DASHBOARD_STATE.tablesEnabled = true;
 						<option key={j} value={valueParts[j + 1]}>{valueParts[j]}</option>
 					)
 				}
-				if (options.length == 2) {
+				const controlParts = item.C.split('/');
+				const controlType = controlParts[0];
+				if (controlType === 'SWITCH') {
+					const checked = this.state.settings.find(el => el.I === item.I).VALUE === "1";
 					return (
 						<Switch id={"switch-" + item.I}
-							trueValue={values[1].value}
-							falseValue={values[0].value}
-							trueLabel={values[1].label}
-							falseLabel={values[0].label} />
+							onClick={(e, value) => {
+								e.preventDefault();
+								this.formChange(item, {
+								target: {
+									value: checked ? "0" : "1",
+								}
+							})
+							}}
+							checked={checked}
+						/>
 					)
 				}
 				return (
@@ -952,8 +1184,10 @@ DASHBOARD_STATE.tablesEnabled = true;
 						}
 						break;
 					case CONNECTION_TYPE_HTTP:
-						fetchAPI(`e=s&a=cmd&cmd=${commandString}`).then((response) => {
-							return response.text();
+						fetchAPI('POST', {
+							'e': 's',
+							'a': 'cmd',
+							'cmd': commandString,
 						}).then((data) => {
 							this.processCommand(data);
 						});
@@ -1181,27 +1415,7 @@ DASHBOARD_STATE.tablesEnabled = true;
 				let settings = this.state.settings;
 				for (let i = 0; i < settings.length; i++) {
 					if (settings[i].I == setting.I) {
-						switch (settings[i].T) {
-							case 'DATETIME':
-								const dateTimeLocalValue = value;
-								const fakeUtcTime = new Date(`${dateTimeLocalValue}Z`);
-								try {
-									const d = new Date(fakeUtcTime.getTime() + fakeUtcTime.getTimezoneOffset() * 60000);
-									settings[i].VALUE = Math.round(d.getTime() / 1000).toString();
-								} catch (ex) {
-									console.log(ex);
-								}
-								break;
-							case 'TIME':
-								const parts = value.split(':');
-								const hours = parseInt(parts[0]);
-								const minutes = parseInt(parts[1]);
-								settings[i].VALUE = ((hours * 60 + minutes) * 60).toString();
-								break;
-							default:
-								settings[i].VALUE = value;
-								break;
-						}
+						settings[i].VALUE = value;
 					}
 				}
 				this.setState({
@@ -1423,11 +1637,13 @@ DASHBOARD_STATE.tablesEnabled = true;
 				const sensors = this.state.sensors;
 				for (let i = 0; i < sensors.length; i++) {
 					const sensor = sensors[i];
+
 					try {
-						const response = await fetch(`${API_URL_BASE}/unowires.html`, {
-							method: 'post',
-							body: `f=save&id=${sensor.id}&serial=${sensor.serial}`,
-						});
+						const response = await fetchAPI('POST', {
+							f: 'save',
+							id: sensor.id,
+							serial: sensor.serial,
+						}, 'unowires.html');
 					} catch (ex) {
 
 					}
@@ -1445,11 +1661,11 @@ DASHBOARD_STATE.tablesEnabled = true;
 				for (let i = 0; i < sensors.length; i++) {
 					const sensor = sensors[i];
 					try {
-						let response = await fetch(`${API_URL_BASE}/unowires.html?f=get&id=${sensor.id}`, {
-							method: 'get',
-							cache: "no-cache",
-						});
-						let data = await response.text();
+						const data = await fetchAPI('GET', {
+							f: 'get',
+							id: sensor.id,
+							t: new Date().getTime().toString(),
+						}, 'unowires.html');
 						sensors[i].serial = data.trim();
 					} catch (ex) {
 
@@ -1468,11 +1684,10 @@ DASHBOARD_STATE.tablesEnabled = true;
 					sensorsDetected: [],
 				});
 				try {
-					const response = await fetch(`${API_URL_BASE}/unowires.html?f=scan`, {
-						method: 'get',
-						cache: "no-cache",
-					});
-					const data = await response.text();
+					const data = await fetchAPI('GET', {
+						f: 'scan',
+						ts: new Date.getTime().toString(),
+					}, 'unowires.html');
 					const lines = data.split('\n');
 					const sensorsDetected = [];
 					for (let i = 0; i < lines.length; i++) {
@@ -1689,20 +1904,6 @@ DASHBOARD_STATE.tablesEnabled = true;
 								)}
 							</Form>
 						</div>
-					</div>
-				)
-			}
-		}
-
-		class Login extends React.Component {
-			constructor(props) {
-				super(props);
-			}
-
-			render() {
-				return (
-					<div>
-						Login
 					</div>
 				)
 			}

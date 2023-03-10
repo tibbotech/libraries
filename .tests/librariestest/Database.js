@@ -123,19 +123,15 @@ const FieldInput = ({
                 console.log(e);
             }
             return (
-                <Form.Control
-                    type="datetime-local"
-                    value={dValue}
-                    onChange={(e) => {
+                <DatetimeElement
+                    edit
+                    type="datetime"
+                    time={Number(editRow[field.fieldName])}
+                    handleChange={(value) => {
                         try {
-                            const dateTimeLocalValue = e.target.value;
-                            const fakeUtcTime = new Date(`${dateTimeLocalValue}Z`);
-                            const d = new Date(fakeUtcTime.getTime()
-                                + fakeUtcTime.getTimezoneOffset() * 60000);
-                            const newValue = Math.round(d.getTime() / 1000).toString();
                             fieldValueChanged({
                                 target: {
-                                    value: newValue,
+                                    value,
                                 },
                             }, field.fieldName);
                         } catch (e) {
@@ -146,25 +142,16 @@ const FieldInput = ({
             );
         }
         case 'M': {
-            let value = editRow[field.fieldName];
-            value = Math.floor(value / 60);
-            const remainder = Number(value) % 60;
-            const hours = (Number(value) - remainder) / 60;
-            const minutes = remainder;
-            const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            const value = editRow[field.fieldName];
             return (
-                <Form.Control
+                <DatetimeElement
+                    edit
                     type="time"
-                    value={timeValue}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        const parts = value.split(':');
-                        const hours = parseInt(parts[0], 10);
-                        const minutes = parseInt(parts[1], 10);
-                        const newValue = ((hours * 60 + minutes) * 60).toString();
+                    time={Number(value)}
+                    handleChange={(value) => {
                         fieldValueChanged({
                             target: {
-                                value: newValue,
+                                value,
                             },
                         }, field.fieldName);
                     }}
@@ -376,25 +363,29 @@ const RenderedTable = ({
                         return (
                             <tr key={i}>
                                 {row.fields.map((field, j) => {
-                                    let fieldValue = field;
+                                    const fieldValue = field;
                                     switch (activeTable.fields[j].fieldType) {
                                         case 'E':
-                                            fieldValue = new Date(fieldValue * 1000)
-                                                .toLocaleString();
-                                            break;
+                                            return (
+                                                <td key={j}>
+                                                    <DatetimeElement
+                                                        edit={false}
+                                                        type="datetime"
+                                                        time={Number(fieldValue)}
+                                                        isTimeLocal
+                                                    />
+                                                </td>
+                                            );
                                         case 'M':
-                                            {
-                                                fieldValue = Math.floor(fieldValue / 60);
-                                                const remainder = Number(fieldValue) % 60;
-                                                const hours = (Number(fieldValue) - remainder) / 60;
-                                                const minutes = remainder;
-                                                const t = new Date();
-                                                t.setHours(hours);
-                                                t.setMinutes(minutes);
-                                                t.setSeconds(0);
-                                                fieldValue = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                            }
-                                            break;
+                                            return (
+                                                <td key={j}>
+                                                    <DatetimeElement
+                                                        edit={false}
+                                                        type="time"
+                                                        time={Number(fieldValue)}
+                                                    />
+                                                </td>
+                                            );
                                         default:
 
                                             break;
@@ -424,10 +415,11 @@ const RenderedTable = ({
 };
 
 function fetchTables(type) {
-    return fetch(`${API_URL_BASE}/tables_api.html?action=get&type=${type}`)
-        .then((response) => {
-            return response.text();
-        })
+    return fetchAPI('GET', {
+        e: 't',
+        a: 'get',
+        type,
+    })
         .then((result) => {
             let activeTable;
             const tables = [];
@@ -485,10 +477,11 @@ function fetchTables(type) {
 }
 
 function fetchData(activeTable) {
-    return fetch(`${API_URL_BASE}/tables_api.html?action=rows&table=${activeTable.name}`)
-        .then((response) => {
-            return response.text();
-        })
+    return fetchAPI('GET', {
+        e: 't',
+        a: 'rows',
+        table: activeTable.name,
+    })
         .then((result) => {
             const data = [];
             const lines = result.split('\r\n');
@@ -830,11 +823,11 @@ class WrappedDatabase extends React.Component {
 
     clearTable() {
         if (window.confirm(`Clear table ${this.state.activeTable.name}?`)) {
-            const params = `action=clear&table=${this.state.activeTable.name}`;
-            fetch(`${API_URL_BASE}/tables_api.html?${params}`)
-                .then((response) => {
-                    return response.text();
-                })
+            fetchAPI('GET', {
+                e: 't',
+                a: 'clear',
+                table: this.state.activeTable.name,
+            })
                 .then((result) => {
                     if (result.trim() !== '') alert(result);
                     this.setSnackbarOn(true);
@@ -1079,18 +1072,22 @@ class WrappedDatabase extends React.Component {
                 rowStr += ',';
             }
         }
-        let body = `action=add&row=${rowStr}&table=${this.state.activeTable.name}`;
+        let body = {
+            e: 't',
+            a: 'add',
+            row: rowStr,
+            table: this.state.activeTable.name,
+        };
         if (this.state.rowId !== undefined) {
-            body = `action=edit&row=${rowStr}&table=${this.state.activeTable.name}&index=${this.state.rowId}`;
+            body = {
+                e: 't',
+                a: 'edit',
+                row: rowStr,
+                table: this.state.activeTable.name,
+                index: this.state.rowId,
+            };
         }
-        fetch(`${API_URL_BASE}/tables_api.html`,
-            {
-                method: 'POST',
-                body,
-            })
-            .then((response) => {
-                return response.text();
-            })
+        fetchAPI('POST', body)
             .then((result) => {
                 if (result.trim() !== '') {
                     alert(result);
@@ -1112,14 +1109,12 @@ class WrappedDatabase extends React.Component {
             if (Number.isNaN(row)) {
                 return;
             }
-            fetch(`${API_URL_BASE}/tables_api.html`,
-                {
-                    method: 'POST',
-                    body: `action=delete&row=${tableRow}&table=${this.state.activeTable.name}`,
-                })
-                .then((response) => {
-                    return response.text();
-                })
+            fetchAPI('POST', {
+                e: 't',
+                a: 'delete',
+                row,
+                table: this.state.activeTable.name,
+            })
                 .then((result) => {
                     if (result.trim() !== '') {
                         alert(result);
@@ -1207,15 +1202,12 @@ class WrappedDatabase extends React.Component {
                     rowStr += ',';
                 }
             }
-            const body = `action=add&row=${rowStr}&table=${this.state.activeTable.name}`;
-            fetch(`${API_URL_BASE}/tables_api.html`,
-                {
-                    method: 'POST',
-                    body,
-                })
-                .then((response) => {
-                    return response.text();
-                })
+            fetchAPI('POST', {
+                e: 't',
+                a: 'add',
+                row: rowStr,
+                table: this.state.activeTable.name,
+            })
                 .then((result) => {
                     const importRows = this.state.importRows;
                     for (let i = 0; i < importRows.length; i++) {

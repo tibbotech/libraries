@@ -293,15 +293,16 @@ const SwitchWidget = ({
         } else {
             setWidgetValue(widget.settings.min, widget, 'tmpValue');
         }
+        setIsChecked(value === true);
         sendValue(false, widget);
         setSettingValue(value, widget, 'isOn');
     };
 
     React.useEffect(() => {
-        if (widget.value === widget.settings.max) {
+        if (widget.value.toString() === widget.settings.max.toString()) {
             setIsChecked(true);
         }
-        if (widget.value === widget.settings.min) {
+        if (widget.value.toString() === widget.settings.min.toString()) {
             setIsChecked(false);
         }
     }, [widget.value]);
@@ -453,7 +454,7 @@ const LineWidget = ({
             }}
         >
             <Stack direction="row" alignItems="flex-start"><h6>{widget.settings.label}</h6></Stack>
-            <div style={{ position: 'relative', height: '90%' }}>
+            <div style={{ position: 'relative', height: 'calc(90% - 30px)' }}>
                 <Line
                     data={data}
                     options={options}

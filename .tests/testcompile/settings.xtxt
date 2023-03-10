@@ -1,7 +1,0 @@
->>stg1	E	T	1	0	2147483647	A	^	Setting Display Name
-#define STG_DESCRIPTOR_FILE "settings.xtxt"
-#define STG_DEBUG_PRINT 1
-#define STG_MAX_NUM_SETTINGS 1
-#define STG_RAM_ARRAY_SIZE 0
-#define STG_MAX_SETTING_NAME_LEN 4
-#define STG_MAX_SETTING_VALUE_LEN 10

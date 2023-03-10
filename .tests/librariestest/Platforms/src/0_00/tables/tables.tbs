@@ -328,7 +328,7 @@ public function tbl_start() as en_tbl_status_codes
 
 			field_item.field_name ="UID"
 			field_item.field_type=asc("U")
-			field_item.key=YES
+			field_item.key=yes
 			field_item.p1=0
 			field_item.p2=2147483647 
 			field_item.romaddr_def=0	
@@ -867,7 +867,7 @@ fail_to_open:
 	
 	tbl_info_index=f
 	tbl_selected_file_name=file_name
-	tbl_get_num_records(tbl_selected_all_rc,YES)
+	tbl_get_num_records(tbl_selected_all_rc,yes)
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto fd_error
 	if tbl_active_rc_sg(tbl_selected_active_rc,EN_TBL_GET)<>PL_FD_STATUS_OK then goto fd_error
@@ -1009,7 +1009,7 @@ fail_to_open:
 	
 	tbl_info_index=f
 	tbl_selected_file_name=file_name
-	tbl_get_num_records(tbl_selected_all_rc,YES)
+	tbl_get_num_records(tbl_selected_all_rc,yes)
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto fd_error
 	if tbl_active_rc_sg(tbl_selected_active_rc,EN_TBL_GET)<>PL_FD_STATUS_OK then goto fd_error
@@ -1099,7 +1099,7 @@ public function tbl_clear() as en_tbl_status_codes
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto tbl_fail
 	if tbl_attributes_sg(tbl_selected_file_name,"","",EN_TBL_SET)<>PL_FD_STATUS_OK then goto tbl_fail
-	tbl_clear=tbl_get_num_records(tbl_selected_all_rc,YES)
+	tbl_clear=tbl_get_num_records(tbl_selected_all_rc,yes)
 	if tbl_clear<>EN_TBL_STATUS_OK then goto finish 
 	if tbl_active_rc_sg(tbl_selected_active_rc,EN_TBL_GET)<>PL_FD_STATUS_OK then goto tbl_fail
 	if fd.transactioncommit()<>PL_FD_STATUS_OK then goto tbl_fail
@@ -2374,7 +2374,7 @@ public function tbl_get_num_records(byref num_of_records as word, include_delete
 		goto finish
 	end if
 	
-	if include_deleted=YES then
+	if include_deleted=yes then
 		fz=fd.filesize
 		num_of_records=fz/tbl_info(tbl_info_index).rec_size
 	else
@@ -2607,7 +2607,7 @@ function tbl_adjust_size() as en_tbl_status_codes
 	if removing_sector>0 then
 		tbl_record_ptr_sg(1,EN_TBL_SET)
 		if fd.cutfromtop(removing_sector)<>PL_FD_STATUS_OK then goto tbl_fail
-		tbl_get_num_records(tbl_selected_all_rc,YES)
+		tbl_get_num_records(tbl_selected_all_rc,yes)
 		goto tbl_ok		
 	end if
 	

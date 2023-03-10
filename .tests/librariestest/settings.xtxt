@@ -1,0 +1,9 @@
+>>WIFAP	E	S	1	0	32	A	^	Wifi AP SSID
+>>WSEC	E	S	1	0	1	A	0	Wifi Security
+>>WIFPW	E	S	1	0	64	A	^	Wifi Password
+#define STG_DESCRIPTOR_FILE "settings.xtxt"
+#define STG_DEBUG_PRINT 1
+#define STG_MAX_NUM_SETTINGS 3
+#define STG_RAM_ARRAY_SIZE 0
+#define STG_MAX_SETTING_NAME_LEN 5
+#define STG_MAX_SETTING_VALUE_LEN 64
