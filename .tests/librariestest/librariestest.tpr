@@ -32,7 +32,7 @@ transport=udp_winpcap
 address=
 
 [file5]
-path=../../time/time.tbh
+path=libraries/sock/sock.tbh
 type=header
 format=
 condition=
@@ -40,7 +40,7 @@ locked=no
 location=project
 
 [file6]
-path=../../time/time.tbs
+path=libraries/sock/sock.tbs
 type=basic
 format=
 condition=
@@ -48,23 +48,23 @@ locked=no
 location=
 
 [file7]
-path=../../time/datetime.tbs
-type=basic
+path=11x19(HP).bin
+type=text
 format=
 condition=
 locked=no
-location=
+location=project
 
 [file8]
-path=../../time/datetime.tbh
-type=header
+path=Tibbo-5x7(V).bin
+type=text
 format=
 condition=
 locked=no
 location=project
 
 [file9]
-path=../../sock/sock.tbh
+path=libraries/time/time.tbh
 type=header
 format=
 condition=
@@ -72,7 +72,7 @@ locked=no
 location=project
 
 [file10]
-path=../../sock/sock.tbs
+path=libraries/time/time.tbs
 type=basic
 format=
 condition=
@@ -88,7 +88,7 @@ locked=no
 location=project
 
 [file12]
-path=../../settings/settings.tbh
+path=libraries/settings/settings.tbh
 type=header
 format=
 condition=
@@ -96,7 +96,7 @@ locked=no
 location=project
 
 [file13]
-path=../../settings/settings.tbs
+path=libraries/settings/settings.tbs
 type=basic
 format=
 condition=
@@ -104,23 +104,23 @@ locked=no
 location=
 
 [file14]
-path=11x19(HP).bin
-type=text
+path=libraries/time/datetime.tbs
+type=basic
 format=
 condition=
 locked=no
-location=project
+location=
 
 [file15]
-path=Tibbo-5x7(V).bin
-type=text
+path=libraries/time/datetime.tbh
+type=header
 format=
 condition=
 locked=no
 location=project
 
 [file16]
-path=../../dhcp/dhcp.tbh
+path=libraries/dhcp/dhcp.tbh
 type=header
 format=
 condition=
@@ -128,7 +128,7 @@ locked=no
 location=project
 
 [file17]
-path=../../dhcp/dhcp.tbs
+path=libraries/dhcp/dhcp.tbs
 type=basic
 format=
 condition=
@@ -136,7 +136,7 @@ locked=no
 location=
 
 [file18]
-path=../../utils/utils.tbh
+path=libraries/utils/utils.tbh
 type=header
 format=
 condition=
@@ -144,7 +144,7 @@ locked=no
 location=project
 
 [file19]
-path=../../utils/utils.tbs
+path=libraries/utils/utils.tbs
 type=basic
 format=
 condition=
@@ -152,23 +152,23 @@ locked=no
 location=
 
 [file20]
-path=index.html
-type=html
-format=65001
-condition=
-locked=no
-location=project
-
-[file21]
-path=../../http_server/http_server.tbh
+path=libraries/dns/dns.tbh
 type=header
 format=
 condition=
 locked=no
 location=project
 
+[file21]
+path=libraries/dns/dns.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
 [file22]
-path=../../http_server/http_server.tbs
+path=libraries/modbus/modbus.tbs
 type=basic
 format=
 condition=
@@ -176,7 +176,7 @@ locked=no
 location=
 
 [file23]
-path=../../upgrade/upgrade.tbh
+path=libraries/modbus/modbus.tbh
 type=header
 format=
 condition=
@@ -184,31 +184,31 @@ locked=no
 location=project
 
 [file24]
-path=../../upgrade/upgrade.tbs
+path=index.html
+type=html
+format=65001
+condition=
+locked=no
+location=project
+
+[file25]
+path=libraries/http_server/http_server.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file26]
+path=libraries/http_server/http_server.tbs
 type=basic
 format=
 condition=
 locked=no
 location=
 
-[file25]
-path=upload_firmware.html
-type=html
-format=65001
-condition=
-locked=no
-location=project
-
-[file26]
-path=upload_progress.html
-type=html
-format=65001
-condition=
-locked=no
-location=project
-
 [file27]
-path=../../sntp/sntp.tbh
+path=libraries/upgrade/upgrade.tbh
 type=header
 format=
 condition=
@@ -216,7 +216,7 @@ locked=no
 location=project
 
 [file28]
-path=../../sntp/sntp.tbs
+path=libraries/upgrade/upgrade.tbs
 type=basic
 format=
 condition=
@@ -224,7 +224,7 @@ locked=no
 location=
 
 [file29]
-path=api.html
+path=upload_firmware.html
 type=html
 format=65001
 condition=
@@ -232,6 +232,22 @@ locked=no
 location=project
 
 [file30]
+path=upload_progress.html
+type=html
+format=65001
+condition=
+locked=no
+location=project
+
+[file31]
+path=api.html
+type=html
+format=65001
+condition=
+locked=no
+location=project
+
+[file32]
 path=Widgets.js
 type=text
 format=
@@ -239,7 +255,7 @@ condition=
 locked=no
 location=project
 
-[file31]
+[file33]
 path=Information.js
 type=text
 format=
@@ -247,7 +263,7 @@ condition=
 locked=no
 location=project
 
-[file32]
+[file34]
 path=CustomFunctions.js
 type=text
 format=
@@ -255,7 +271,7 @@ condition=
 locked=no
 location=project
 
-[file33]
+[file35]
 path=timezones.js
 type=text
 format=
@@ -263,7 +279,7 @@ condition=
 locked=no
 location=project
 
-[file34]
+[file36]
 path=Database.js
 type=text
 format=
@@ -271,7 +287,7 @@ condition=
 locked=no
 location=project
 
-[file35]
+[file37]
 path=dashboard_settings.xtxt
 type=text
 format=65001
@@ -279,23 +295,23 @@ condition=
 locked=no
 location=project
 
-[file36]
-path=../../stgcmd/stgcmd.tbh
+[file38]
+path=libraries/stgcmd/stgcmd.tbh
 type=header
 format=
 condition=
 locked=no
 location=project
 
-[file37]
-path=../../stgcmd/stgcmd.tbs
+[file39]
+path=libraries/stgcmd/stgcmd.tbs
 type=basic
 format=
 condition=
 locked=no
 location=
 
-[file38]
+[file40]
 path=filenum.xtxt
 type=text
 format=65001
@@ -303,23 +319,55 @@ condition=
 locked=no
 location=project
 
-[file39]
-path=../../filenum/filenum.tbh
+[file41]
+path=libraries/filenum/filenum.tbh
 type=header
 format=
 condition=
 locked=no
 location=project
 
-[file40]
-path=../../filenum/filenum.tbs
+[file42]
+path=libraries/filenum/filenum.tbs
 type=basic
 format=
 condition=
 locked=no
 location=
 
-[file41]
+[file43]
+path=libraries/http/http.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file44]
+path=libraries/http/http.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
+[file45]
+path=libraries/sntp/sntp.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file46]
+path=libraries/sntp/sntp.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
+[file47]
 path=tables.xtxt
 type=xtext
 format=TBL_lib_configurator
@@ -327,32 +375,64 @@ condition=
 locked=no
 location=project
 
-[file42]
-path=../../tables/tables.tbh
+[file48]
+path=libraries/tables/tables.tbh
 type=header
 format=
 condition=
 locked=no
 location=project
 
-[file43]
-path=../../tables/tables.tbs
+[file49]
+path=libraries/tables/tables.tbs
 type=basic
 format=
 condition=
 locked=no
 location=
 
-[file44]
-path=../../tables/tables_web.tbh
+[file50]
+path=libraries/tables/tables_web.tbh
 type=header
 format=
 condition=
 locked=no
 location=project
 
-[file45]
-path=../../tables/tables_web.tbs
+[file51]
+path=libraries/tables/tables_web.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
+[file52]
+path=libraries/mqtt/mqtt.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file53]
+path=libraries/mqtt/mqtt.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
+[file54]
+path=libraries/lcd/lcd_graph.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file55]
+path=libraries/lcd/lcd_graph.tbs
 type=basic
 format=
 condition=

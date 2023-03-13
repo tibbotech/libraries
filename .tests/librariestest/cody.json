@@ -7,21 +7,25 @@
   "version": "0.1.6",
   "features": [
     {
-      "id": "time",
-      "settings": {
-        "ID": "lc7hknk4dl5v9hyuqsq"
-      }
-    },
-    {
-      "id": "datetime",
-      "settings": {
-        "ID": "lc7hknk4ishubtawf1k"
-      }
-    },
-    {
       "id": "sock",
       "settings": {
         "ID": "lc7hl0p9jq8nghth6ga"
+      }
+    },
+    {
+      "id": "lcd",
+      "settings": {
+        "ID": "lf1z2e9v0nh6fs0ezfbl",
+        "ENABLED": "1",
+        "BACKCOLOR": "#000000",
+        "FORECOLOR": "#ffffff",
+        "LOGFONT": "LCD_SMALL_FONT"
+      }
+    },
+    {
+      "id": "time",
+      "settings": {
+        "ID": "lc7hknk4dl5v9hyuqsq"
       }
     },
     {
@@ -88,24 +92,88 @@
               "INITIALIZE": "A",
               "DEFAULT": ""
             }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf20qa8mftfb0wvygru",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "MQTTI",
+              "NAME": "MQTT Client ID",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": "0",
+              "MAX": 50,
+              "INITIALIZE": "A",
+              "DEFAULT": "Client_ID_1"
+            }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf20qb4xaamly1y91ru",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "MQTTU",
+              "NAME": "MQTT Username",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": "0",
+              "MAX": 50,
+              "INITIALIZE": "A",
+              "DEFAULT": "MQTT_Name_1"
+            }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf20qbzlwqhv1ccd2cp",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "MQTTP",
+              "NAME": "MQTT Password",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": "0",
+              "MAX": 50,
+              "INITIALIZE": "A",
+              "DEFAULT": "Password"
+            }
+          },
+          {
+            "id": "stg_setting",
+            "settings": {
+              "ID": "lf20qcxm3846rato1sb",
+              "GENERAL": "",
+              "ADVANCED": "",
+              "SETTINGID": "MQTTH",
+              "NAME": "MQTT Server Host Address/IP",
+              "STORAGE": "E",
+              "SETTINGTYPE": "string",
+              "DATATYPE": "S",
+              "MIN": "0",
+              "MAX": 100,
+              "INITIALIZE": "A",
+              "DEFAULT": "1.0.0.1"
+            }
           }
         ]
-      }
-    },
-    {
-      "id": "lcd",
-      "settings": {
-        "ID": "lf1z2e9v0nh6fs0ezfbl",
-        "ENABLED": "1",
-        "BACKCOLOR": "#000000",
-        "FORECOLOR": "#ffffff",
-        "LOGFONT": "LCD_SMALL_FONT"
       }
     },
     {
       "id": "wln",
       "settings": {
         "ID": "lf1z3pjbtvfdjthtozg"
+      }
+    },
+    {
+      "id": "datetime",
+      "settings": {
+        "ID": "lc7hknk4ishubtawf1k"
       }
     },
     {
@@ -189,6 +257,19 @@
       }
     },
     {
+      "id": "dns",
+      "settings": {
+        "ID": "lf20q95621rpzsqhr8j",
+        "ENABLED": "1"
+      }
+    },
+    {
+      "id": "modbus",
+      "settings": {
+        "ID": "lf272ximwbfj4zk9na"
+      }
+    },
+    {
       "id": "httpserver",
       "settings": {
         "ID": "lc7hkthcjtvdww8cvi",
@@ -208,14 +289,6 @@
       }
     },
     {
-      "id": "sntp",
-      "settings": {
-        "ID": "lc7hkthdswvklcmg4yh",
-        "ENABLED": "1",
-        "SNTP_SERVER": "216.239.35.0"
-      }
-    },
-    {
       "id": "web_dashboard",
       "settings": {
         "ID": "lc7hkthg989lkmu4f88",
@@ -228,7 +301,7 @@
         "WIDGETENABLED": "1",
         "INTERVAL": "1",
         "DASHBOARD_TITLE": "Tibbo Device Dashboard",
-        "WIDGETS": "[{\"x\":0,\"y\":0,\"w\":4,\"h\":4,\"variable\":\"\",\"i\":\"1672298940834\",\"type\":\"line\",\"id\":\"1672298940834\",\"settings\":{\"label\":\"Line\",\"bounds\":true,\"values\":50}}]",
+        "WIDGETS": "[{\"x\":0,\"y\":0,\"w\":4,\"h\":4,\"variable\":\"lf6afh4m0hzm2po5pnus\",\"i\":\"1678679635256\",\"type\":\"switch\",\"id\":\"1678679635256\",\"settings\":{\"label\":\"ModbusIO\",\"bounds\":true,\"onLabel\":\"On\",\"offLabel\":\"Off\",\"isOn\":false,\"customFn\":\"\",\"min\":\"0\",\"max\":\"1\"},\"linkType\":\"variable\",\"value\":\"0\",\"error\":false}]",
         "PASSWORD": "",
         "GROUPS": [
           {
@@ -270,7 +343,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbedtdz0lniymw",
+                          "ID": "lf6funtd5aojt0saumd",
                           "LABEL": "Disabled",
                           "VALUE": "0"
                         }
@@ -278,7 +351,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbetkz85do3vmq",
+                          "ID": "lf6funtd3jc23gb1nph",
                           "LABEL": "WEP64",
                           "VALUE": "1"
                         }
@@ -286,7 +359,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbeyqq0h0du9tj",
+                          "ID": "lf6funtd6idk0cciwb7",
                           "LABEL": "WEP128",
                           "VALUE": "2"
                         }
@@ -294,7 +367,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbeqqiaui1u9mj",
+                          "ID": "lf6funtd8x2wjeicx1i",
                           "LABEL": "WPA1-PSK (TKIP)",
                           "VALUE": "3"
                         }
@@ -302,7 +375,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbemrb7lc852k",
+                          "ID": "lf6funtdwjoua9f2cqm",
                           "LABEL": "WPA1-PSK (AES)",
                           "VALUE": "4"
                         }
@@ -310,7 +383,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbegcy3kc5cqq8",
+                          "ID": "lf6funtdi3k89xihrd",
                           "LABEL": "WPA2-PSK (TKIP)",
                           "VALUE": "5"
                         }
@@ -318,7 +391,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf1z5sbet205e851dl",
+                          "ID": "lf6funtd8785ewfzfut",
                           "LABEL": "WPA2-PSK (AES)",
                           "VALUE": "6"
                         }
@@ -348,6 +421,90 @@
                     "VALIDATION": "",
                     "STATUS": ""
                   }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf20qnobn5nru8sycnb",
+                    "SETTINGID": "lf20qcxm3846rato1sb",
+                    "NAME": "MQTT Server Host Address/IP",
+                    "CONTROL": "EDIT",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf20qnob9cj89uf25t6",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf20qrw5fdgo1ai1xq4",
+                    "SETTINGID": "lf20qa8mftfb0wvygru",
+                    "NAME": "MQTT Client ID",
+                    "CONTROL": "EDIT",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf20qrw5kavba8n8uwb",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf20quokk8u4xpnkz3r",
+                    "SETTINGID": "lf20qb4xaamly1y91ru",
+                    "NAME": "MQTT Username",
+                    "CONTROL": "EDIT",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf20quokvcqftyw6e1q",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
+                },
+                {
+                  "id": "luis_item",
+                  "settings": {
+                    "ID": "lf20qxpfm8jvs679a5",
+                    "SETTINGID": "lf20qbzlwqhv1ccd2cp",
+                    "NAME": "MQTT Password",
+                    "CONTROL": "PASSWORD",
+                    "OPTIONS": [
+                      {
+                        "id": "luis_item_option",
+                        "settings": {
+                          "ID": "lf20qxpf5ykg9v05rtr",
+                          "LABEL": "OPTION_LABEL",
+                          "VALUE": "0"
+                        }
+                      }
+                    ],
+                    "VALIDATION": "",
+                    "STATUS": ""
+                  }
                 }
               ]
             }
@@ -368,6 +525,20 @@
       "id": "filenum",
       "settings": {
         "ID": "lc7hkx8o1gzzd5amgip"
+      }
+    },
+    {
+      "id": "http",
+      "settings": {
+        "ID": "lf26lwnzcmjchsu86ao"
+      }
+    },
+    {
+      "id": "sntp",
+      "settings": {
+        "ID": "lc7hkthdswvklcmg4yh",
+        "ENABLED": "1",
+        "SNTP_SERVER": "216.239.35.0"
       }
     },
     {
@@ -433,6 +604,104 @@
               "MINIMUM": 0,
               "MAXIMUM": 64,
               "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf20qe44s07cpnyfj67",
+              "VARNAME": "MQTTI",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf20qa8mftfb0wvygru",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": "0",
+              "MAXIMUM": 50,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf20qe441n34rtkxqul",
+              "VARNAME": "MQTTU",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf20qb4xaamly1y91ru",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": "0",
+              "MAXIMUM": 50,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf20qe4466zkx99v4h3",
+              "VARNAME": "MQTTP",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf20qbzlwqhv1ccd2cp",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": "0",
+              "MAXIMUM": 50,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf20qe44npnjq05fl3",
+              "VARNAME": "MQTTH",
+              "DATATYPE": "string",
+              "NAME": "",
+              "FEATURE": "lf20qcxm3846rato1sb",
+              "FEATURE_SETTING": "SETTINGID",
+              "MINIMUM": "0",
+              "MAXIMUM": 100,
+              "DEFAULT": ""
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf273ef6a20f5fcpb7o",
+              "VARNAME": "temp_raw",
+              "DATATYPE": "word",
+              "NAME": "Modbus Device Register",
+              "FEATURE": "lf273d96nv3pxnqc41",
+              "FEATURE_SETTING": "NAME",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf69shn4krsnowsxeli",
+              "VARNAME": "temp",
+              "DATATYPE": "word",
+              "NAME": "Slave Register",
+              "FEATURE": "lf69sggw25l1d5r4kf6",
+              "FEATURE_SETTING": "NAME",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf6afh4m0hzm2po5pnus",
+              "VARNAME": "ioline",
+              "DATATYPE": "word",
+              "NAME": "Slave Register",
+              "FEATURE": "lf6affynqi5wa91clk8",
+              "FEATURE_SETTING": "NAME",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
             }
           }
         ]
@@ -519,33 +788,6 @@
       }
     },
     {
-      "id": "node_datetime",
-      "settings": {
-        "ID": "lc7hn74okhedptd4eup",
-        "DISPLAY_NAME": "",
-        "FEATURE": "",
-        "X": 555,
-        "Y": 495,
-        "INPUTS": [],
-        "OUTPUTS": [],
-        "GROUP": "",
-        "ARGUMENTS": []
-      }
-    },
-    {
-      "id": "node_link",
-      "settings": {
-        "ID": "lc7hn9rsmc8ka8x96nh",
-        "SOURCE": "",
-        "SOURCE_FEATURE": "lc7hmet1isvbsf9w70f",
-        "SOURCE_PORT": "on_button_pressed",
-        "TARGET": "",
-        "TARGET_FEATURE": "lc7hn74okhedptd4eup",
-        "TARGET_PORT": "timestamp_get",
-        "ARGUMENTS": []
-      }
-    },
-    {
       "id": "tibbit_09",
       "settings": {
         "ID": "lc8v2paaqutxctasqb",
@@ -561,6 +803,105 @@
         "SOCKET": "12",
         "TIBBIT": "18",
         "PLATFORM": ""
+      }
+    },
+    {
+      "id": "modbus_master",
+      "settings": {
+        "ID": "lf1z2e9vvne2kzruje",
+        "DEBUG_PRINT": "1",
+        "MODBUSDEVICES": [
+          {
+            "id": "modbus_device",
+            "settings": {
+              "ID": "lf272wcnbap7hl3s2s",
+              "NAME": "MODDevice1",
+              "PROTOCOL": "modbus_RTU",
+              "SERIAL_PORT": "SER_TBT05_S1_NAME",
+              "DEVICEID": "1",
+              "DEVICEIP": "1.0.0.1",
+              "DEVICEPORT": "502",
+              "REGISTERS": [
+                {
+                  "id": "modbus_device_register",
+                  "settings": {
+                    "ID": "lf273d96nv3pxnqc41",
+                    "ADDRESS": "300",
+                    "LENGTH": "1",
+                    "DATATYPE": "ReadHoldingRegisters",
+                    "VARTYPE": "INTEGER",
+                    "NAME": "temp_raw"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "modbus_slave",
+      "settings": {
+        "ID": "lf1z2e9vzoarogaylsn",
+        "SLAVEPROTOCOL": "modbus_TCP",
+        "DEVICEID": "1",
+        "SLAVE_SERIAL_PORT": "",
+        "SLAVE_TCP_PORT": "502",
+        "MODBUSTABLEITEMS": [
+          {
+            "id": "modbus_table_item",
+            "settings": {
+              "ID": "lf69sggw25l1d5r4kf6",
+              "NAME": "temp",
+              "DATATYPE": "HREG",
+              "VARTYPE": "INTEGER",
+              "ADDRESS": "1"
+            }
+          },
+          {
+            "id": "modbus_table_item",
+            "settings": {
+              "ID": "lf6affynqi5wa91clk8",
+              "NAME": "ioline",
+              "DATATYPE": "COIL",
+              "VARTYPE": "INTEGER",
+              "ADDRESS": "10"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mqtt",
+      "settings": {
+        "ID": "lf1z2e9v5h3qraf5jsq",
+        "GENERAL": "",
+        "CERTIFICATE": "",
+        "ENABLED": "1",
+        "MQTT_APP_CLIENT_ID": "Client_ID_1",
+        "MQTT_NAME": "MQTT_Name_1",
+        "MQTT_PASSWORD": "Password",
+        "MQTT_SERVER_HOST": "1.0.0.1",
+        "MQTT_DESTINATION_PORT": "1883",
+        "MQTT_TLS": "0",
+        "MQTT_LARGE_PACKETS": "0",
+        "MQTT_DEBUG_PRINT": "1",
+        "CERTIFICATEFILE": "",
+        "TOPICS": []
+      }
+    },
+    {
+      "id": "lcd_graph",
+      "settings": {
+        "ID": "lf1z2e9vb8powrjciua",
+        "ENABLED": "1",
+        "MINY": "0",
+        "MAXY": "4000",
+        "STARTX": "0",
+        "STARTY": 0,
+        "WIDTH": 320,
+        "HEIGHT": 240,
+        "FILL": "#00ff00"
       }
     },
     {
@@ -588,6 +929,272 @@
         "SETTINGID": "WPW",
         "LINKEDSETTING": "lf1z4eyx5f1mza59ja5",
         "FEATURE": "lf1z2e9vkwa3zkocjln"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf20qa90q3m2eyik9pp",
+        "SETTINGID": "MQTT_APP_CLIENT_ID",
+        "LINKEDSETTING": "lf20qa8mftfb0wvygru",
+        "FEATURE": "lf1z2e9v5h3qraf5jsq"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf20qb5byw2banms9kd",
+        "SETTINGID": "MQTT_NAME",
+        "LINKEDSETTING": "lf20qb4xaamly1y91ru",
+        "FEATURE": "lf1z2e9v5h3qraf5jsq"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf20qbzxi433jnjo9jg",
+        "SETTINGID": "MQTT_PASSWORD",
+        "LINKEDSETTING": "lf20qbzlwqhv1ccd2cp",
+        "FEATURE": "lf1z2e9v5h3qraf5jsq"
+      }
+    },
+    {
+      "id": "linked_setting",
+      "settings": {
+        "ID": "lf20qcxwkeyc8s53xc",
+        "SETTINGID": "MQTT_SERVER_HOST",
+        "LINKEDSETTING": "lf20qcxm3846rato1sb",
+        "FEATURE": "lf1z2e9v5h3qraf5jsq"
+      }
+    },
+    {
+      "id": "node_debug",
+      "settings": {
+        "ID": "lf20tm21avmu3p7vojb",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 600,
+        "Y": 495,
+        "INPUTS": [
+          {
+            "id": "node_port",
+            "settings": {
+              "ID": "lf20tm21jzin68usco",
+              "NAME": "Print",
+              "PORTID": "sys.debugprint",
+              "PARAMS": [
+                {
+                  "id": "node_parameter",
+                  "settings": {
+                    "ID": "lf20tm210epram4kikdi",
+                    "NAME": "printstring",
+                    "DATATYPE": "string",
+                    "DEFAULT": ""
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf20tm21lqrbhxcjuq9",
+              "ARGVALUE": "button pressed",
+              "TARGETPARAM": "printstring"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf20topg4mrn3ftfj1e",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lc7hmet1isvbsf9w70f",
+        "SOURCE_PORT": "on_button_pressed",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf20tm21avmu3p7vojb",
+        "TARGET_PORT": "sys.debugprint",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "node_http",
+      "settings": {
+        "ID": "lf26lug58f7nt4u8jjf",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 600,
+        "Y": 615,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf26lug5k7sq63jsi8r",
+              "ARGVALUE": "",
+              "TARGETPARAM": "data"
+            }
+          }
+        ],
+        "URL": "http://tibbo.com",
+        "METHOD": "HTTP_GET",
+        "HEADERS": [],
+        "CERTIFICATEFILE": ""
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf26lwph3tnzvhbtg43",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lc7hmet1isvbsf9w70f",
+        "SOURCE_PORT": "on_button_pressed",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf26lug58f7nt4u8jjf",
+        "TARGET_PORT": "http_request_start",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "tibbit_05",
+      "settings": {
+        "ID": "lf2735t0c4ioo1y8g7u",
+        "SOCKET": "1",
+        "TIBBIT": "05",
+        "PLATFORM": "",
+        "NAME": "TBT05_S1_NAME",
+        "MODE": "RS485",
+        "BAUD": "PL_SER_BAUD_38400",
+        "FLOWCONTROL": "PL_SER_FC_DISABLED",
+        "PARITY": "PL_SER_PR_NONE",
+        "BITS": "PL_SER_BB_8",
+        "TXBUF": "1",
+        "RXBUF": "1"
+      }
+    },
+    {
+      "id": "node_time_interval",
+      "settings": {
+        "ID": "lf276ggdlg9nar1w1cj",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 255,
+        "Y": 345,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [],
+        "INTERVAL": 1
+      }
+    },
+    {
+      "id": "tibbit_21",
+      "settings": {
+        "ID": "lf673ex6kiatrzhegse",
+        "SOCKET": "2",
+        "TIBBIT": "21",
+        "PLATFORM": ""
+      }
+    },
+    {
+      "id": "node_debug",
+      "settings": {
+        "ID": "lf67dtdef656612cwab",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 900,
+        "Y": 615,
+        "INPUTS": [
+          {
+            "id": "node_port",
+            "settings": {
+              "ID": "lf67dtden8p42ni60w",
+              "NAME": "Print",
+              "PORTID": "sys.debugprint",
+              "PARAMS": [
+                {
+                  "id": "node_parameter",
+                  "settings": {
+                    "ID": "lf67dtderk9krndjgyp",
+                    "NAME": "printstring",
+                    "DATATYPE": "string",
+                    "DEFAULT": ""
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf67dtde27zsubay8bgi",
+              "ARGVALUE": "{{$data}}",
+              "TARGETPARAM": "printstring"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf67dxlox10fgmav2li",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lf26lug58f7nt4u8jjf",
+        "SOURCE_PORT": "http_data_arrival",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf67dtdef656612cwab",
+        "TARGET_PORT": "sys.debugprint",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "node_variable_set",
+      "settings": {
+        "ID": "lf69utaixy7bcjpevj",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 600,
+        "Y": 345,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf69utaiw6ys5jxs8sm",
+              "ARGVALUE": "{{$lf273ef6a20f5fcpb7o}}",
+              "TARGETPARAM": "value"
+            }
+          }
+        ],
+        "VARIABLE": "lf69shn4krsnowsxeli"
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf69uvqellync0u5s5i",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lf276ggdlg9nar1w1cj",
+        "SOURCE_PORT": "timer_tick",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf69utaixy7bcjpevj",
+        "TARGET_PORT": "set_value",
+        "ARGUMENTS": []
       }
     }
   ]

@@ -85,6 +85,8 @@ select case endpoint
 dim var_value as string = ""
 select case variable
     
+        case "ioline":
+            var_value=str(ioline)
     case else:
 end select
 sock.setdata(var_value)
@@ -94,6 +96,8 @@ sock.send()
         
 select case variable
     
+        case "ioline":
+            var_ioline_set(val(value))
     case else:
 end select
 

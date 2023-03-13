@@ -5,9 +5,11 @@ const HTTP_TLS_BUFF_PAGES=40
 dim http_start_called as boolean=false
 dim http_methods(6) as string(7) = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH"}
 dim http_request_item as http_request_type
-dim http_timer_count as word = 0
+dim http_timer_count as dword = 0
 dim http_chunk_length as dword = 0
 dim http_last_domain as string = ""
+
+declare function http_time_elapsed(end_time as dword) as boolean
 
 sub http_debugprint(byref print_data as string) 
 	
@@ -188,7 +190,7 @@ end function
 sub http_get_headers()
 
 	sock.num=http_request_item.socket
-	http_timer_count=0
+	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	dim http_reply, next_byte as string
 	while http_request_item.state<>HTTP_HEADERS_PROCESSED 
 		if http_request_item.tls then
@@ -260,7 +262,7 @@ end sub
 
 sub http_get_content() 
 	
-	http_timer_count=0
+	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	if http_request_item.chunked=true and http_request_item.remaining_response_content_length=0  then
 		if http_get_chunk_length()=NG then
 			exit sub
@@ -475,14 +477,22 @@ sub http_proc_timer()
 	if http_start_called=false then		
 		exit sub
 	end if
-	if http_request_item.state>DNS_REQUEST_SENT then
-		http_timer_count = http_timer_count + 1
-		if http_timer_count > HTTP_TIMEOUT then
+	if http_request_item.state>DNS_REQUEST_SENT AND http_timer_count<>0 then
+		if sys.timercountms > http_timer_count then
+			http_timer_count=0
 			http_failed("Timeout")
 		end if
 	end if	
 	
 end sub
+
+function http_time_elapsed(end_time as dword) as boolean
+	http_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		http_time_elapsed = true
+	end if
+end function
 
 function http_get_path(url as string) as string
 
@@ -511,7 +521,7 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 		http_reset_socket()
 		http_debugprint("Current HTTP request cancelled, starting new request.")
 	end if
-	http_timer_count = 0
+	http_timer_count = sys.timercountms + HTTP_TIMEOUT * 1000
 	http_request_item.data=data
 	http_request_item.url=url
 	http_request_item.method=method
@@ -568,7 +578,7 @@ sub http_dns_answer_acquired(return_type as en_dns_return_type, byref return_str
 end sub
 
 function http_send_post_data(byref data as string) as word
-	http_timer_count = 0
+	http_timer_count = sys.timercountms + HTTP_TIMEOUT * 1000
 	dim sent as string = data
 	if len(sent) > http_request_item.remaining_content_length then
 		sent = left(sent,http_request_item.remaining_content_length)

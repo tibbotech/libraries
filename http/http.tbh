@@ -11,7 +11,7 @@
 #endif
 
 #ifndef HTTP_TIMEOUT 'in half seconds
-	#define HTTP_TIMEOUT 60
+	#define HTTP_TIMEOUT 30
 #endif
 
 

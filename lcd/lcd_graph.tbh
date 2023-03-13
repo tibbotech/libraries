@@ -42,5 +42,4 @@
 
 declare sub lcd_graph_start(min as real, max as real)
 declare sub lcd_graph_add_point(y as real)
-declare sub lcd_graph_proc_timer()
 declare sub lcd_graph_clear()
