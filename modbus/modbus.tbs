@@ -10,6 +10,7 @@ declare function modbus_get_holding_register(register as word) as word
 declare function modbus_queue_pop() as modbus_request_item
 declare function modbus_master_get_request(byref request_item as modbus_request_item) as string
 declare function modbus_crc16(data as byte(255), byte_cnt as byte) as word
+declare function modbus_time_elapsed(end_time as dword) as boolean
 
 
 dim modbus_queue_start as char
@@ -378,7 +379,7 @@ sub modbus_proc_timer()
 		if modbus_request_queue(modbus_queue_start).timestamp = 0 then
 			modbus_master_send_next()
 		else
-			if sys.timercountms > modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT then
+			if modbus_time_elapsed(modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT) then
 				modbus_debug_print("modbus timeout for device " + str(modbus_request_queue(modbus_queue_start).device_id))
 				request_item = modbus_queue_pop()
 				callback_modbus_slave_reply_timeout(request_item)
@@ -387,6 +388,14 @@ sub modbus_proc_timer()
 		end if
 	end if
 end sub
+
+function modbus_time_elapsed(end_time as dword) as boolean
+	modbus_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		modbus_time_elapsed = true
+	end if
+end function
 
 sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol)
 	dim request_item as modbus_request_item

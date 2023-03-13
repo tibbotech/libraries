@@ -81,6 +81,8 @@ dim mqtt_target_interface as pl_sock_interfaces
 dim mqtt_encrypted as boolean
 dim mqtt_unreplied_ping_count as byte=0
 
+declare function mqtt_time_elapsed(end_time as dword) as boolean
+
 #if MQTT_DEBUG_PRINT=1
 	declare sub mqtt_debug_print(data as string)
 #endif
@@ -386,7 +388,7 @@ sub mqtt_proc_timer()
 		mqtt_ping()
 	else
 		if mqtt_connection_counter<>0 then
-		if sys.timercountms > mqtt_connection_counter then
+		if mqtt_time_elapsed(mqtt_connection_counter) then
 			mqtt_connection_counter=0
 			select case mqtt_state
 			case EN_MQTT_STATES_NOT_CONNECTED:
@@ -413,6 +415,14 @@ sub mqtt_proc_timer()
 	end if
 			
 end sub
+
+function mqtt_time_elapsed(end_time as dword) as boolean
+	mqtt_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		mqtt_time_elapsed = true
+	end if
+end function
 
 
 sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_sock_state_simple)

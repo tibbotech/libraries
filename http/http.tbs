@@ -9,6 +9,8 @@ dim http_timer_count as dword = 0
 dim http_chunk_length as dword = 0
 dim http_last_domain as string = ""
 
+declare function http_time_elapsed(end_time as dword) as boolean
+
 sub http_debugprint(byref print_data as string) 
 	
 	#if HTTP_DEBUG_PRINT 
@@ -483,6 +485,14 @@ sub http_proc_timer()
 	end if	
 	
 end sub
+
+function http_time_elapsed(end_time as dword) as boolean
+	http_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		http_time_elapsed = true
+	end if
+end function
 
 function http_get_path(url as string) as string
 

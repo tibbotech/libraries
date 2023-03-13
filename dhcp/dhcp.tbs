@@ -43,6 +43,7 @@ declare sub discard_sockets(interface as pl_sock_interfaces)
 declare sub dhcp_init()
 declare sub dhcp_debug_print_status(interface as pl_sock_interfaces,status as en_dhcp_status_codes)
 declare sub dhcp_debugprint(interface as pl_sock_interfaces,byref print_data as string)
+declare function dhcp_time_elapsed(end_time as dword) as boolean
 
 '------------------------------------------------------------------------------
 dim dhcp_sock as byte
@@ -314,7 +315,7 @@ sub dhcp_proc_one_interface(interface as pl_sock_interfaces)
 		end if
 	#endif
 
-	if sys.timercountms < dhcp_timer(dhcp_i) then
+	if dhcp_time_elapsed(dhcp_timer(dhcp_i)) = false then
 		exit sub
 	end if
 	
@@ -927,6 +928,14 @@ sub dhcp_init()
 		dhcp_wln_exchange_delay=DHCP_WLN_EXCHANGE_DELAY_CONST
 	#endif
 end sub
+
+function dhcp_time_elapsed(end_time as dword) as boolean
+	dhcp_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		dhcp_time_elapsed = true
+	end if
+end function
 
 '----------------------------------------------------------------------------
 #if DHCP_DEBUG_PRINT

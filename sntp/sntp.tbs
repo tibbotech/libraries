@@ -75,6 +75,7 @@ declare sub sntp_debug_print_status(status as en_sntp_status_codes)
 declare sub sntp_debugprint(byref print_data as string)
 declare sub sntp_send_request()
 declare function sntp_ts_to_dword(ts as string(4)) as dword
+declare function sntp_time_elapsed(end_time as dword) as boolean
 
 #if SNTP_OFFSET_CALCULATION
 	declare function sntp_dword_to_ts(ts_val as dword) as string(4)
@@ -193,7 +194,7 @@ public sub sntp_proc_timer()
 	dim w as word
 	
 	if sntp_reply_timer>0 then
-		if sys.timercountms < sntp_reply_timer then
+		if sntp_time_elapsed(sntp_reply_timer) then
 			exit sub
 		end if
 	end if
@@ -252,6 +253,14 @@ sntp_failed:
 		sntp_debugprint("---FAILURE---")
 	#endif					
 end sub
+
+function sntp_time_elapsed(end_time as dword) as boolean
+	sntp_time_elapsed = false
+	dim current_time as dword = sys.timercountms
+	if current_time > end_time AND current_time - end_time < 4000000000 then
+		sntp_time_elapsed = true
+	end if
+end function
 
 '------------------------------------------------------------------------------
 public sub sntp_proc_sock_event(state as pl_sock_state_simple)

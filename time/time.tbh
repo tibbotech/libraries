@@ -62,4 +62,5 @@ declare function td_str_to_binstr(byref td_str as string) as ok_ng
 declare function td_binstr_to_str(byref td_str as string) as ok_ng
 declare function td_str_date_time_reformat(byref td_str as string, op as en_td_string_ops, date_format as en_td_date_formats) as ok_ng
 declare function td_str_time_reformat(byref t_str as string, op as en_td_string_ops) as ok_ng
-declare function td_elapsed(start_time as dword) as boolean
+declare function td_elapsed(end_time as dword) as boolean
+
