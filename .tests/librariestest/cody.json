@@ -264,6 +264,12 @@
       }
     },
     {
+      "id": "modbus",
+      "settings": {
+        "ID": "lf272ximwbfj4zk9na"
+      }
+    },
+    {
       "id": "httpserver",
       "settings": {
         "ID": "lc7hkthcjtvdww8cvi",
@@ -295,7 +301,7 @@
         "WIDGETENABLED": "1",
         "INTERVAL": "1",
         "DASHBOARD_TITLE": "Tibbo Device Dashboard",
-        "WIDGETS": "[{\"x\":0,\"y\":0,\"w\":4,\"h\":4,\"variable\":\"\",\"i\":\"1672298940834\",\"type\":\"line\",\"id\":\"1672298940834\",\"settings\":{\"label\":\"Line\",\"bounds\":true,\"values\":50}}]",
+        "WIDGETS": "[{\"x\":0,\"y\":0,\"w\":4,\"h\":4,\"variable\":\"lf6afh4m0hzm2po5pnus\",\"i\":\"1678679635256\",\"type\":\"switch\",\"id\":\"1678679635256\",\"settings\":{\"label\":\"ModbusIO\",\"bounds\":true,\"onLabel\":\"On\",\"offLabel\":\"Off\",\"isOn\":false,\"customFn\":\"\",\"min\":\"0\",\"max\":\"1\"},\"linkType\":\"variable\",\"value\":\"0\",\"error\":false}]",
         "PASSWORD": "",
         "GROUPS": [
           {
@@ -337,7 +343,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1h5cpb4dkxh5",
+                          "ID": "lf6funtd5aojt0saumd",
                           "LABEL": "Disabled",
                           "VALUE": "0"
                         }
@@ -345,7 +351,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1ras05ge6w7",
+                          "ID": "lf6funtd3jc23gb1nph",
                           "LABEL": "WEP64",
                           "VALUE": "1"
                         }
@@ -353,7 +359,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1fzrq6eegh8t",
+                          "ID": "lf6funtd6idk0cciwb7",
                           "LABEL": "WEP128",
                           "VALUE": "2"
                         }
@@ -361,7 +367,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1kgp39zp045",
+                          "ID": "lf6funtd8x2wjeicx1i",
                           "LABEL": "WPA1-PSK (TKIP)",
                           "VALUE": "3"
                         }
@@ -369,7 +375,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1ax42rdho99t",
+                          "ID": "lf6funtdwjoua9f2cqm",
                           "LABEL": "WPA1-PSK (AES)",
                           "VALUE": "4"
                         }
@@ -377,7 +383,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf1tvvm1qoglwi",
+                          "ID": "lf6funtdi3k89xihrd",
                           "LABEL": "WPA2-PSK (TKIP)",
                           "VALUE": "5"
                         }
@@ -385,7 +391,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27zjf14c5jk6zazpk",
+                          "ID": "lf6funtd8785ewfzfut",
                           "LABEL": "WPA2-PSK (AES)",
                           "VALUE": "6"
                         }
@@ -525,12 +531,6 @@
       "id": "http",
       "settings": {
         "ID": "lf26lwnzcmjchsu86ao"
-      }
-    },
-    {
-      "id": "modbus",
-      "settings": {
-        "ID": "lf272ximwbfj4zk9na"
       }
     },
     {
@@ -675,6 +675,34 @@
               "MAXIMUM": "",
               "DEFAULT": "0"
             }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf69shn4krsnowsxeli",
+              "VARNAME": "temp",
+              "DATATYPE": "word",
+              "NAME": "Slave Register",
+              "FEATURE": "lf69sggw25l1d5r4kf6",
+              "FEATURE_SETTING": "NAME",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
+            }
+          },
+          {
+            "id": "variable",
+            "settings": {
+              "ID": "lf6afh4m0hzm2po5pnus",
+              "VARNAME": "ioline",
+              "DATATYPE": "word",
+              "NAME": "Slave Register",
+              "FEATURE": "lf6affynqi5wa91clk8",
+              "FEATURE_SETTING": "NAME",
+              "MINIMUM": "",
+              "MAXIMUM": "",
+              "DEFAULT": "0"
+            }
           }
         ]
       }
@@ -806,6 +834,38 @@
                   }
                 }
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "modbus_slave",
+      "settings": {
+        "ID": "lf1z2e9vzoarogaylsn",
+        "SLAVEPROTOCOL": "modbus_TCP",
+        "DEVICEID": "1",
+        "SLAVE_SERIAL_PORT": "",
+        "SLAVE_TCP_PORT": "502",
+        "MODBUSTABLEITEMS": [
+          {
+            "id": "modbus_table_item",
+            "settings": {
+              "ID": "lf69sggw25l1d5r4kf6",
+              "NAME": "temp",
+              "DATATYPE": "HREG",
+              "VARTYPE": "INTEGER",
+              "ADDRESS": "1"
+            }
+          },
+          {
+            "id": "modbus_table_item",
+            "settings": {
+              "ID": "lf6affynqi5wa91clk8",
+              "NAME": "ioline",
+              "DATATYPE": "COIL",
+              "VARTYPE": "INTEGER",
+              "ADDRESS": "10"
             }
           }
         ]
@@ -1033,6 +1093,108 @@
         "GROUP": "",
         "ARGUMENTS": [],
         "INTERVAL": 1
+      }
+    },
+    {
+      "id": "tibbit_21",
+      "settings": {
+        "ID": "lf673ex6kiatrzhegse",
+        "SOCKET": "2",
+        "TIBBIT": "21",
+        "PLATFORM": ""
+      }
+    },
+    {
+      "id": "node_debug",
+      "settings": {
+        "ID": "lf67dtdef656612cwab",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 900,
+        "Y": 615,
+        "INPUTS": [
+          {
+            "id": "node_port",
+            "settings": {
+              "ID": "lf67dtden8p42ni60w",
+              "NAME": "Print",
+              "PORTID": "sys.debugprint",
+              "PARAMS": [
+                {
+                  "id": "node_parameter",
+                  "settings": {
+                    "ID": "lf67dtderk9krndjgyp",
+                    "NAME": "printstring",
+                    "DATATYPE": "string",
+                    "DEFAULT": ""
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf67dtde27zsubay8bgi",
+              "ARGVALUE": "{{$data}}",
+              "TARGETPARAM": "printstring"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf67dxlox10fgmav2li",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lf26lug58f7nt4u8jjf",
+        "SOURCE_PORT": "http_data_arrival",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf67dtdef656612cwab",
+        "TARGET_PORT": "sys.debugprint",
+        "ARGUMENTS": []
+      }
+    },
+    {
+      "id": "node_variable_set",
+      "settings": {
+        "ID": "lf69utaixy7bcjpevj",
+        "DISPLAY_NAME": "",
+        "FEATURE": "",
+        "X": 600,
+        "Y": 345,
+        "INPUTS": [],
+        "OUTPUTS": [],
+        "GROUP": "",
+        "ARGUMENTS": [
+          {
+            "id": "node_argument",
+            "settings": {
+              "ID": "lf69utaiw6ys5jxs8sm",
+              "ARGVALUE": "{{$lf273ef6a20f5fcpb7o}}",
+              "TARGETPARAM": "value"
+            }
+          }
+        ],
+        "VARIABLE": "lf69shn4krsnowsxeli"
+      }
+    },
+    {
+      "id": "node_link",
+      "settings": {
+        "ID": "lf69uvqellync0u5s5i",
+        "SOURCE": "",
+        "SOURCE_FEATURE": "lf276ggdlg9nar1w1cj",
+        "SOURCE_PORT": "timer_tick",
+        "TARGET": "",
+        "TARGET_FEATURE": "lf69utaixy7bcjpevj",
+        "TARGET_PORT": "set_value",
+        "ARGUMENTS": []
       }
     }
   ]

@@ -45,6 +45,10 @@ const SNTP_SERVER="216.239.35.0"
 const MODDevice1_DEVICE_ID = 1
 
 
+const temp_addr = 1
+
+const ioline_addr = 10
+
 const MQTT_TLS = 0
 
 
@@ -70,12 +74,12 @@ include "libraries/time/datetime.tbh"
 include "libraries/dhcp/dhcp.tbh"
 include "libraries/utils/utils.tbh"
 include "libraries/dns/dns.tbh"
+include "libraries/modbus/modbus.tbh"
 include "libraries/http_server/http_server.tbh"
 include "libraries/upgrade/upgrade.tbh"
 include "libraries/stgcmd/stgcmd.tbh"
 include "libraries/filenum/filenum.tbh"
 include "libraries/http/http.tbh"
-include "libraries/modbus/modbus.tbh"
 include "libraries/sntp/sntp.tbh"
 include "libraries/tables/tables.tbh"
 include "libraries/tables/tables_web.tbh"
@@ -174,6 +178,14 @@ declare temp_raw as word
 
 declare function var_temp_raw_update() as word
 declare sub var_temp_raw_set(value as word)
+declare temp as word
+
+declare function var_temp_update() as word
+declare sub var_temp_set(value as word)
+declare ioline as word
+
+declare function var_ioline_update() as word
+declare sub var_ioline_set(value as word)
 declare function tbl_record_find_sorted(record_type as en_tbl_record_states, byref search_data as string, byref field_name as string, byref rec_num as word, wraparound as boolean, find_method as pl_fd_find_modes) as en_tbl_status_codes
 
     declare MODBUS_MASTER_INTERFACE  as byte
@@ -183,6 +195,7 @@ declare response_data as word
 declare device_id as word
 
 declare register_address as word
+declare MODBUS_SLAVE_INTERFACE  as byte
 
 declare mqtt_username as string
 declare mqtt_password as string

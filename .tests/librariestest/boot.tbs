@@ -196,6 +196,28 @@ current_interface = PL_SOCK_INTERFACE_NULL
     'get the response in callback_dns_answer_acquired
     '-----------------------------------------------------------------
 
+    'Modbus Setup
+    '==================================
+    modbus_initialize()
+    
+
+    'temp_raw
+    'modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", MODBUS_MASTER_INTERFACE, modbus_RTU)
+    MODBUS_MASTER_INTERFACE=sock_get("MBM")
+
+    MODBUS_SLAVE_INTERFACE=sock_get("MBS")
+    sock.num=MODBUS_SLAVE_INTERFACE
+    sock.protocol=PL_SOCK_PROTOCOL_TCP
+    sock.localportlist="502"
+    sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
+    sock.reconmode=PL_SOCK_RECONMODE_3
+    sock.allowedinterfaces="NET,WLN,PPP"
+    sock.txbuffrq(1)
+    sock.rxbuffrq(1)
+    sys.buffalloc()
+    
+    '----------------------------------
+
     'HTTP server setup
     '================================================================
     dim http_server_count as byte
@@ -233,16 +255,6 @@ http_server_password = ""
     '-----------------------------------------------------------------
 
     http_start()
-
-    'Modbus Setup
-    '==================================
-    modbus_initialize()
-    
-
-    'temp_raw
-    'modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", MODBUS_MASTER_INTERFACE, modbus_RTU)
-    MODBUS_MASTER_INTERFACE=sock_get("MBM")
-    '----------------------------------
 
     'SNTP setup
     '================================================================
@@ -284,6 +296,8 @@ http_server_password = ""
             sys.halt
         end if
     end if
+
+modbus_slave_id=1
 
     mqtt_username=MQTTU
     mqtt_password=MQTTP
@@ -334,5 +348,9 @@ lcd_graph_start(0,4000)
             var_var1_set(0.0)
 
             var_temp_raw_set(0)
+
+            var_temp_set(0)
+
+            var_ioline_set(0)
 
 end sub

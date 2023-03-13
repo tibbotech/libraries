@@ -330,6 +330,100 @@ sub callback_dns_buff_released()
 end sub
         
 
+function modbus_callback_ReadCoilStatus(address as word) as boolean
+modbus_callback_ReadCoilStatus=false
+select case address
+
+
+    case ioline_addr:
+        modbus_callback_ReadCoilStatus=ioline
+        
+case else:
+end select
+end function
+    
+
+function modbus_callback_ReadInputStatus(address as word) as boolean
+modbus_callback_ReadInputStatus=false
+select case address
+
+case else:
+end select
+end function
+    
+
+function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte
+modbus_callback_WriteSingleCoil=0
+select case address
+
+
+    case ioline_addr:
+        modbus_callback_WriteSingleCoil=ioline
+        var_ioline_set(value)
+        
+case else
+modbus_callback_WriteSingleCoil=2
+end select
+end function
+    
+
+function modbus_callback_ReadHoldingRegister(address as word) as word
+modbus_callback_ReadHoldingRegister=0
+select case address
+
+
+    case temp_addr:
+        modbus_callback_ReadHoldingRegister=temp
+        
+case else:
+end select
+end function
+    
+
+function modbus_callback_ReadInputRegister(address as word) as word
+modbus_callback_ReadInputRegister=0
+select case address
+
+case else:
+end select
+end function
+    
+
+function modbus_callback_set_holding_register(address as word, data as word) as boolean
+modbus_callback_set_holding_register = true
+select case address
+
+
+    case temp_addr:
+        var_temp_set(data)
+        modbus_callback_set_holding_register=true
+        
+case else
+modbus_callback_set_holding_register = false
+end select
+end function
+    
+
+sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
+dim bytes as byte(255) = reply
+
+
+    if request_item.device_id=MODDevice1_DEVICE_ID 
+        AND request_item.protocol=modbus_RTU
+        AND request_item.interface_number=SER_TBT05_S1_NAME then
+        
+
+        if request_item.start_register=300 then
+            var_temp_raw_set(modbus_read_word(bytes,0))
+        end if
+    end if
+        
+end sub
+
+sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
+
+end sub
+
 sub on_firmware_update_start(byref current_fw_upg_state as pl_upg_state_t) 
     
 end sub
@@ -425,6 +519,13 @@ end sub
 
 sub callback_http_content_arrival(data as string)
     
+
+    if http_request_item.url = "http://tibbo.com" then
+        
+
+    sys.debugprint(data)
+    
+    end if
 end sub
 
 
@@ -462,82 +563,6 @@ function callback_http_open_romfile() as dword
     
 end function
 
-
-function modbus_callback_ReadCoilStatus(address as word) as boolean
-modbus_callback_ReadCoilStatus=false
-select case address
-
-case else:
-end select
-end function
-    
-
-function modbus_callback_ReadInputStatus(address as word) as boolean
-modbus_callback_ReadInputStatus=false
-select case address
-
-case else:
-end select
-end function
-    
-
-function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte
-modbus_callback_WriteSingleCoil=0
-select case address
-
-case else
-modbus_callback_WriteSingleCoil=2
-end select
-end function
-    
-
-function modbus_callback_ReadHoldingRegister(address as word) as word
-modbus_callback_ReadHoldingRegister=0
-select case address
-
-case else:
-end select
-end function
-    
-
-function modbus_callback_ReadInputRegister(address as word) as word
-modbus_callback_ReadInputRegister=0
-select case address
-
-case else:
-end select
-end function
-    
-
-function modbus_callback_set_holding_register(address as word, data as word) as boolean
-modbus_callback_set_holding_register = true
-select case address
-
-case else
-modbus_callback_set_holding_register = false
-end select
-end function
-    
-
-sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
-dim bytes as byte(255) = reply
-
-
-    if request_item.device_id=MODDevice1_DEVICE_ID
-        AND request_item.protocol=modbus_RTU
-        AND request_item.interface_number=SER_TBT05_S1_NAME then
-        
-
-        if request_item.start_register=300 then
-            var_temp_raw_set(modbus_read_word(bytes,0))
-        end if
-    end if
-        
-end sub
-
-sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
-
-end sub
 
 sub callback_sntp_failure(sntp_status as en_sntp_status_codes)
     
@@ -667,6 +692,52 @@ sub var_temp_raw_set(value as word)
         
         #if VARIABLES_DEBUG_PRINT
             sys.debugprint("VAR> temp_raw changed from " + str(value_old) + " to " +  str(temp_raw) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_temp_update() as word
+    
+end function
+            
+
+sub var_temp_set(value as word)
+    
+    dim value_old as word = temp
+    
+    
+    
+    temp=value
+    if value_old <> temp then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> temp changed from " + str(value_old) + " to " +  str(temp) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_ioline_update() as word
+    
+end function
+            
+
+sub var_ioline_set(value as word)
+    
+    dim value_old as word = ioline
+    
+    
+    
+    ioline=value
+    if value_old <> ioline then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> ioline changed from " + str(value_old) + " to " +  str(ioline) + "\r\n")
         #endif
     end if
     

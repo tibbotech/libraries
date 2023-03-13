@@ -3,6 +3,7 @@ include "global.tbh"
 'sock 11: tibbit 09 
 'sock 12: tibbit 18 
 'sock 1: tibbit 05 name TBT05_S1_NAME
+'sock 2: tibbit 21 
 
 
 
@@ -25,8 +26,8 @@ dim running_light as byte
 dim num_wln_failures as byte
 
 dim DNS_socket as byte
+
 dim upgrade_socket_http as byte=255
-dim modbus_slave_id  as byte
 
 dim SNTP_socket as byte
 dim var_poll_timer as dword
@@ -39,6 +40,8 @@ dim MQTTU as string=""
 dim MQTTP as string=""
 dim MQTTH as string=""
 dim temp_raw as word=0
+dim temp as word=0
+dim ioline as word=0
 
     dim MODBUS_MASTER_INTERFACE  as byte
 
@@ -47,6 +50,7 @@ dim response_data as word
 dim device_id as word
 
 dim register_address as word
+dim MODBUS_SLAVE_INTERFACE  as byte
 
 dim mqtt_username as string = ""
 dim mqtt_password as string = ""
@@ -134,9 +138,9 @@ sub on_sys_timer()
     #endif
             
 	dns_proc_timer()
-    http_proc_timer()
 
     modbus_proc_timer()
+    http_proc_timer()
 	sntp_proc_timer()
 
     if sys.timercountms >= var_poll_timer then
@@ -160,9 +164,21 @@ sub on_sys_timer()
         var_MQTTH_update()
 
         var_temp_raw_update()
+
+        var_temp_update()
+
+        var_ioline_update()
     end if
 
     mqtt_proc_timer()
+
+    timer_1s_lf276ggdlg9nar1w1cj_count = timer_1s_lf276ggdlg9nar1w1cj_count + 1
+    if timer_1s_lf276ggdlg9nar1w1cj_count > timer_1s_lf276ggdlg9nar1w1cj_timer then
+        
+var_temp_set(temp_raw)
+
+        timer_1s_lf276ggdlg9nar1w1cj_count = 0
+    end if
 
 end sub
 
@@ -173,6 +189,11 @@ sub on_sock_data_arrival()
 
     http_proc_data()
 	sntp_proc_data()
+
+    if sock.num=MODBUS_SLAVE_INTERFACE then
+        'modbus slave data
+        modbus_slave_receive(sock.getdata(255),MODBUS_SLAVE_INTERFACE,modbus_TCP)
+    end if
 	mqtt_proc_data()
 
 end sub
