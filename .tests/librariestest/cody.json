@@ -337,7 +337,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqo0y63yroyymej",
+                          "ID": "lf27zjf1h5cpb4dkxh5",
                           "LABEL": "Disabled",
                           "VALUE": "0"
                         }
@@ -345,7 +345,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqo4hq9r34etrt",
+                          "ID": "lf27zjf1ras05ge6w7",
                           "LABEL": "WEP64",
                           "VALUE": "1"
                         }
@@ -353,7 +353,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqonnc0k2axca",
+                          "ID": "lf27zjf1fzrq6eegh8t",
                           "LABEL": "WEP128",
                           "VALUE": "2"
                         }
@@ -361,7 +361,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqoouvo9yrul6",
+                          "ID": "lf27zjf1kgp39zp045",
                           "LABEL": "WPA1-PSK (TKIP)",
                           "VALUE": "3"
                         }
@@ -369,7 +369,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqoyofr29j1fd",
+                          "ID": "lf27zjf1ax42rdho99t",
                           "LABEL": "WPA1-PSK (AES)",
                           "VALUE": "4"
                         }
@@ -377,7 +377,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqoebxzsqm3nsa",
+                          "ID": "lf27zjf1tvvm1qoglwi",
                           "LABEL": "WPA2-PSK (TKIP)",
                           "VALUE": "5"
                         }
@@ -385,7 +385,7 @@
                       {
                         "id": "luis_item_option",
                         "settings": {
-                          "ID": "lf27pnqoew2gs5vtie8",
+                          "ID": "lf27zjf14c5jk6zazpk",
                           "LABEL": "WPA2-PSK (AES)",
                           "VALUE": "6"
                         }
@@ -781,7 +781,7 @@
       "id": "modbus_master",
       "settings": {
         "ID": "lf1z2e9vvne2kzruje",
-        "DEBUG_PRINT": "0",
+        "DEBUG_PRINT": "1",
         "MODBUSDEVICES": [
           {
             "id": "modbus_device",

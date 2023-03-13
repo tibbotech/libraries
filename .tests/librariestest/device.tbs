@@ -523,7 +523,7 @@ sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref
 dim bytes as byte(255) = reply
 
 
-    if request_item.device_id=MODDevice1_DEVICE_ID 
+    if request_item.device_id=MODDevice1_DEVICE_ID
         AND request_item.protocol=modbus_RTU
         AND request_item.interface_number=SER_TBT05_S1_NAME then
         

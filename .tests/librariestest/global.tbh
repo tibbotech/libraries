@@ -25,6 +25,7 @@
 #define DASHBOARD_SETTINGS_FILE "dashboard_settings.xtxt"
 #define HTTP_DEBUG_PRINT 0
 #define SNTP_DEBUG_PRINT 1
+#define MODBUS_DEBUG_PRINT 1
 #define MQTT_CONNECTION_TIMER 60
 #define MQTT_DEBUG_PRINT 1
 #define LCD_GRAPH_X 0
