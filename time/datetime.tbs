@@ -364,7 +364,7 @@ function datetime_next_cron(next_cron as crontab) as dword
 			dim curr_timestamp as dword
 			dim minutes_offset as integer
 			td_get_tzone_offset(datetime_tz_offset, minutes_offset)
-			timestamp = timestamp - (60*60*c_hour) - (60*c_mins)
+			timestamp = timestamp - (60*60*c_hour) - (60*c_mins) - secs
 			a.dd = c_date
 			a.mm = c_month
 			a.yy = year(days)
@@ -375,12 +375,14 @@ function datetime_next_cron(next_cron as crontab) as dword
 			curr_timestamp = datetime_current_timestamp()
 			
 			if timestamp + a.sunrise > curr_timestamp AND instr(1, next_cron.astro, "r", 1) > 0 then
-				timestamp = timestamp + a.sunrise
+				tmp = a.sunrise
+				timestamp = timestamp + tmp
 				found = true
 			end if
 			
 			if timestamp + a.sunset > curr_timestamp AND instr(1, next_cron.astro, "s", 1) > 0 and found <> true then
-				timestamp = timestamp + a.sunset
+				tmp = a.sunset
+				timestamp = timestamp + tmp
 				found = true
 			end if
 			
