@@ -85,6 +85,8 @@ sub datetime_string_format(byref result as string(14),
 	byref time_second_byte as byte)
 	datetime_time_to_str(result, time_daycount, time_mincount, time_second_byte)
 
+	dim am_pm as string(2) = "AM"
+	dim value as word
 	dim max as byte=len(format)
 	dim index as byte=1
 	dim dstr as string=""
@@ -100,14 +102,26 @@ sub datetime_string_format(byref result as string(14),
 		case "D":
 			dstr=dstr+mid(result,7,2)
 			index=index+2
-		case "h":
+		case "H":
 			dstr=dstr+mid(result,9,2)
+			index=index+2
+		case "h":
+			value = val(mid(result,9,2))
+			if value > 13 then
+				value = value - 12
+				am_pm = "PM"
+				dstr=dstr+"0"
+			end if
+			dstr=dstr+str(value)
 			index=index+2
 		case "m":
 			dstr=dstr+mid(result,11,2)
 			index=index+2
 		case "s":
 			dstr=dstr+mid(result,13,2)
+			index=index+2
+		case "t":
+			dstr=dstr+am_pm
 			index=index+2
 		case else:
 			dstr=dstr+cur_str
