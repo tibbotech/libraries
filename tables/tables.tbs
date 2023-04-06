@@ -799,7 +799,7 @@ no_field_found:
 			tbl_debugprint("YOU ARE WASTING MEMORY!!! Set TBL_MAX_TOTAL_NUM_FIELDS to "+str(field_index)+". It is now "+str(TBL_MAX_TOTAL_NUM_FIELDS)+".")
 		end if
 	
-		if display_<TBL_MAX_FIELD_NAME_LEN then
+		if max_fld_name_len<TBL_MAX_FIELD_NAME_LEN then
 			tbl_debugprint("YOU ARE WASTING MEMORY!!! Set TBL_MAX_FIELD_NAME_LEN to "+str(max_fld_name_len)+". It is now "+str(TBL_MAX_FIELD_NAME_LEN)+".")
 		end if
 
