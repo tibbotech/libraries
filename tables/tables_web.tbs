@@ -63,7 +63,11 @@ sub tbl_web_get_tables(byref selected_type as string)
 							sock.setdata(str(field_metadata.p2)+",")
 							sock.setdata(str(field_metadata.key)+",")
 							sock.setdata(str(field_metadata.romaddr_def)+",")
-							sock.setdata(field_metadata.field_display_name+",")
+							if field_metadata.field_display_name<>"" then
+								sock.setdata(field_metadata.field_display_name+",")
+							else
+								sock.setdata(field_metadata.field_name+",")
+							end if
 							dim df as string
 							tbl_get_field_def(table_name,field_metadata.field_name,df)
 							sock.setdata(df)
