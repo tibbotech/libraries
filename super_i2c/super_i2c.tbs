@@ -42,16 +42,12 @@ register_normal_slot:
 			if si2c_in_use(f)=NO then
 				si2c_in_use(f)=YES
 				si2c_user_signature(f)=signature
-				si2c_sda(f)=sda
-				si2c_scl(f)=scl
 				si2c_register=f
 
-				io.num=scl
-				io.state=HIGH
-				io.enabled=NO
-				io.num=sda
-				io.state=HIGH
-				io.enabled=NO
+				i2c.num=f
+				i2c.sdamap=sda
+				i2c.sclmap=scl
+				i2c.enabled=YES
 
 				#if SI2C_DEBUG_PRINT
 					si2c_debugprint("'"+si2c_user_signature(f)+"' register i2c #"+str(f))
@@ -72,16 +68,12 @@ register_normal_slot:
 
 		si2c_in_use(f)=YES
 		si2c_user_signature(f)=signature
-		si2c_sda(f)=sda
-		si2c_scl(f)=scl
 		si2c_register=f
 
-		io.num=scl
-		io.state=HIGH
-		io.enabled=YES
-		io.num=sda
-		io.state=HIGH
-		io.enabled=NO
+		i2c.num=f
+		i2c.sdamap=sda
+		i2c.sclmap=scl
+		i2c.enabled=YES
 
 		#if SI2C_DEBUG_PRINT
 			si2c_debugprint("'"+si2c_user_signature(f)+"' register i2c #"+str(f))
@@ -145,40 +137,11 @@ sub si2c_get(num as byte)
 end sub
 
 sub si2c_start()
-
-	io.num = si2c_scl(si2c_num)
-	io.state = HIGH
-	io.enabled = NO
-
-	while (si2c_is_busy(si2c_num))
-	wend
-	
-	io.num=si2c_scl(si2c_num)
-	io.enabled=YES
-	io.num=si2c_sda(si2c_num)
-	io.enabled=YES
-	
-	io.lineset(si2c_scl(si2c_num),HIGH)
-	io.lineset(si2c_sda(si2c_num),HIGH)
-	io.lineset(si2c_sda(si2c_num),LOW)
-	io.lineset(si2c_scl(si2c_num),LOW)
-	
+	i2c.start()
 end sub
 
 sub si2c_stop()
-
-	io.num = si2c_sda(si2c_num)
-	io.enabled = YES
-	io.lineset(si2c_sda(si2c_num),LOW)
-
-	io.num = si2c_scl(si2c_num)
-	io.enabled = NO
-	io.state = HIGH
-	while (si2c_is_busy(si2c_num))
-	wend
-	
-	io.lineset(si2c_sda(si2c_num),HIGH)
-
+	i2c.stop()
 end sub
 
 sub si2c_write(data as byte)
@@ -186,50 +149,10 @@ sub si2c_write(data as byte)
 	dim compval as byte						'Value to compare - MASK
 	dim BitData as boolean					'Comparison result (1 or 0)
 
-	if si2c_num>3 then
-		compval = &h80						'Initialize the MASK
-
-		io.num = si2c_scl(si2c_num)			'Select SSI_CLK line
-		io.state = LOW						'Initialize the transmition
-		io.enabled = YES
-
-		io.num = si2c_sda(si2c_num)			'Select SSI_SDA line
-		io.enabled=YES						'Set as output
-
-		for bitCnt = 0 to 7 step 1	
-			BitData = data AND compval		'Define the state of the bit(MSB-->LSB)
-			compval = compval / 2			'Move the comparision to the next bit(MSB-->LSB)
-
-			if(BitData) then 
-				io.state = HIGH				'Bit is 1
-			else 
-				io.state = LOW				'Bit is 0
-			end if
-
-			io.num = si2c_scl(si2c_num)		'Write the bit to I2C device
-			io.state = HIGH
-			io.enabled = NO
-			while (si2c_is_busy(si2c_num))			' Wait stretch SCL
-			wend
-	
-			io.state = LOW
-			io.enabled = YES
-			
-			io.num = si2c_sda(si2c_num)		'Select SSI_SDA line, NOTE: this must be the last
-											'statement in the loop so we can release the SSI_SDA
-											'line as soon as possible to alow for the ack
-		next bitCnt
-
-		io.num = si2c_sda(si2c_num)
-		io.enabled=NO						'Set SSI_SDA as input to allow ack receive
-
-		io.num = si2c_scl(si2c_num)			'Emulate the ACK frame
-		io.enabled=NO
-		io.state = HIGH
-		io.enabled=YES
-		io.state = LOW
+	if i2c.num>3 then
+		i2c.write(data)
 	else
-		ssi.channel=si2c_num
+		ssi.channel=i2c.num
 		ssi.str(chr(data),PL_SSI_ACK_RX)
 	end if
 end sub
@@ -238,56 +161,11 @@ function si2c_read(acknak_request as boolean) as byte
 	dim bitCnt as byte						'Bit counter
 	dim compval as byte						'Value to compare - MASK
 
-	if si2c_num > 3 then
-		si2c_read = 0
-		compval = &h80							'Initialize the MASK
-
-		io.num = si2c_sda(si2c_num)				'Select SSI_SDA line
-		io.state = HIGH
-		io.enabled = NO							'Set as input
-
-		io.num = si2c_scl(si2c_num)				'Select SSI_CLK line
-		io.state = LOW							'Initialize the transmition
-		io.enabled = YES
-
-		for bitCnt = 0 to 7 step 1
-			io.state = HIGH
-			io.enabled = NO
-			while (si2c_is_busy(si2c_num))			' Wait stretch SCL
-			wend
-			
-			io.num = si2c_sda(si2c_num)	
-			if(io.state = HIGH) then				'Devine the state of the bit
-				si2c_read = si2c_read OR compval	'Store the value of the bit
-			end if
-			compval = compval / 2					'Move the comparision to the next bit(MSB-->LSB)
-
-			io.num = si2c_scl(si2c_num)
-			io.state = LOW						'Clear the clock line (the data can change now...)
-			io.enabled = YES
-		next bitCnt
-
-		io.num = si2c_sda(si2c_num)				'Select SSI_SDA line
-		io.enabled = YES							'Enable SSI_DO as output
-
-		if acknak_request=true then				'Does user want to send an ack or not
-			io.state = LOW						'Bring Low for ACK
-		else
-			io.state = HIGH						'Bring high for NACK
-		end if	
-
-		io.num = si2c_scl(si2c_num)				'Select SSI_CLK line
-		io.state = HIGH							'Set SSI_CLK line
-		io.enabled = NO
-		io.state = LOW
-		io.enabled = YES
-
-		#if SI2C_DEBUG_PRINT
-			si2c_debugprint("i2c read data:"+ hex(si2c_read))
-		#endif
+	if i2c.num>3 then
+		si2c_read = i2c.read(acknak_request)
 	else
 		dim tmp as word=0
-		ssi.channel=si2c_num
+		ssi.channel=i2c.num
 		if acknak_request=true then
 			tmp=ssi.value(&hFFFE,9)/2
 		else
@@ -302,8 +180,6 @@ sub si2c_init()
 	for f=0 to SI2C_MAX_SLOTS-1
 		si2c_in_use(f)=NO
 		si2c_user_signature(f)=SI2C_UNUSED_SIGNATURE
-		si2c_sda(f)=PL_IO_NULL
-		si2c_scl(f)=PL_IO_NULL
 	next f
 end sub
 
