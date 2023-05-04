@@ -234,12 +234,12 @@ sub mqtt_connect_socket()
 			#else
 				sock.tlsinit(0)
 			#endif
-			sock.rxclear()
-			sock.txclear()
 		#endif
 	end if
 	sock.num=mqtt_sock_num
-	sock.targetip=mqtt_server_ip	
+	sock.targetip=mqtt_server_ip
+	sock.rxclear()
+	sock.txclear()
 	sock.connect()
 	mqtt_state=EN_MQTT_STATES_CONNECTING
 	mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*2*1000
