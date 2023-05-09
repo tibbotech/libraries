@@ -7,6 +7,8 @@ dim fw_buffer as string(128)=""
 dim pattern_timer as dword = sys.timercount32
 dim led_detect_timer as byte
 dim upgrade_socket_number as socket_assignment
+dim upgrade_buffer as string
+dim upgrade_buffer2 as string
 
 
 sub device_firmware_init(source as PL_FW_UPG_SOURCE, number as byte)
@@ -31,6 +33,7 @@ sub device_firmware_init(source as PL_FW_UPG_SOURCE, number as byte)
 	current_fw_upg_state.fw_page  = 0
 	current_fw_upg_state.fw_checksum =0 	
 	current_fw_upg_state.fw_total_remaining=0
+	upgrade_buffer=""
 	
 end sub
 
@@ -59,6 +62,28 @@ end sub
 ' 	end select	
 
 ' end sub
+
+sub upgrade_set_buffer(buffer as string)
+	if len(buffer)+len(upgrade_buffer)+len(upgrade_buffer2) <= 255 then
+		upgrade_buffer=upgrade_buffer+upgrade_buffer2+buffer
+	else
+		dim length as byte=255-len(upgrade_buffer)-len(upgrade_buffer2)
+		upgrade_buffer=upgrade_buffer+upgrade_buffer2+left(buffer,length)
+		upgrade_buffer2=mid(buffer,length+1,255)
+	end if
+end sub
+
+sub upgrade_buffer_read(byref data as string, count as byte)
+	data=left(upgrade_buffer,count)
+	if len(data)>=count then
+		upgrade_buffer=mid(upgrade_buffer,count+1,len(upgrade_buffer)-count)
+	else
+		dim rem as byte=count-len(data)
+		data=data+left(upgrade_buffer2,rem)
+		upgrade_buffer=right(upgrade_buffer2,len(upgrade_buffer2)-rem)
+		upgrade_buffer2=""
+	end if
+end sub
 
 function hex_mac(mac as string) as string
 	dim i as integer = 0
@@ -357,8 +382,8 @@ function device_firmware_read_32_uint() as dword
 									 
 	
 		case PL_FW_UPG_WEB:
-			sock.num=upgrade_socket_number.http_socket		 
-			l=sock.getdata(4)
+			upgrade_buffer_read(s,4)
+			l=s
 			device_firmware_read_32_uint =  l(0) + (l(1) shl 8) + (l(2) shl 16)  + (l(3) shl 24) 
 		case PL_FW_UPG_SOCK:
 			sock.num=upgrade_socket_number.upgrade_socket
@@ -384,8 +409,7 @@ function device_firmware_bytes_available() as dword
 	
 	select case current_fw_upg_state.source
 		case PL_FW_UPG_WEB:
-			sock.num=upgrade_socket_number.http_socket
-			device_firmware_bytes_available=sock.rxlen
+			device_firmware_bytes_available=len(upgrade_buffer)+len(upgrade_buffer2)
 		case PL_FW_UPG_BLE:		   	
 			device_firmware_bytes_available = bt.rxlen							 
 		case PL_FW_UPG_SOCK:
@@ -407,8 +431,7 @@ sub device_firmware_read_data(byref data as string, byref count as dword)
 
 	select case current_fw_upg_state.source
 		case PL_FW_UPG_WEB:
-			sock.num=upgrade_socket_number.http_socket
-			data = sock.getdata(count)	
+			upgrade_buffer_read(data,count)
 		case PL_FW_UPG_BLE:		
 			data = bt.getdata(count)							 
 		case PL_FW_UPG_SOCK:
