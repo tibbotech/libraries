@@ -18,7 +18,7 @@ dim lcd_graph_font as dword
 
 sub lcd_graph_start(min as real, max as real)
 	lcd_graph_index = 0
-	lcd_graph_step = LCD_GRAPH_WIDTH / LCD_GRAPH_MAX_POINTS
+	lcd_graph_step = (LCD_GRAPH_WIDTH + LCD_GRAPH_X) / LCD_GRAPH_MAX_POINTS
 	lcd_graph_min_y = min
 	lcd_graph_max_y = max
 	
@@ -55,11 +55,11 @@ sub lcd_draw_graph()
 	
 	if max > 0 then
 		for i=0 to max
-			x1 = i * lcd_graph_step
-			y1 = lcd_graph_zero - lcd_graph_points(i) * lcd_graph_ratio
-			x2 = (i + 1) * lcd_graph_step
-			y2 = lcd_graph_zero - lcd_graph_points(i + 1)  * lcd_graph_ratio
-			if y1 <= lcd_graph_draw_min_y AND y2 <= lcd_graph_draw_min_y then
+			x1 = i * lcd_graph_step + LCD_GRAPH_X
+			y1 = lcd_graph_zero - lcd_graph_points(i) * lcd_graph_ratio + LCD_GRAPH_Y
+			x2 = (i + 1) * lcd_graph_step + LCD_GRAPH_X
+			y2 = lcd_graph_zero - lcd_graph_points(i + 1)  * lcd_graph_ratio + LCD_GRAPH_Y
+			if y1 <= lcd_graph_draw_min_y AND y2 <= lcd_graph_draw_min_y AND y1 >= lcd_graph_draw_max_y AND y2 >= lcd_graph_draw_max_y then
 				lcd.forecolor=LCD_GRAPH_FORECOLOR
 				lcd.line(x1, y1, x2, y2)
 				#ifdef LCD_GRAPH_FILL
