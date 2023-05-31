@@ -1319,9 +1319,6 @@ end sub
 	sub cell__deinit_ppp()
 		'FLUSH the (garbage) SOCKET data
 		cell__sock_flush_all()
-			
-		'Release all sockets
-		cell__sock_release_all()
 	
 		'Disable Port
 		ppp.enabled = NO
