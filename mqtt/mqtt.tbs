@@ -69,7 +69,7 @@ dim mqtt_packet_identifier as word
 dim mqtt_sock_num as byte = 255
 dim mqtt_state as en_mqtt_states
 dim mqtt_connection_counter as dword
-dim mqtt_ping_counter as word
+dim mqtt_ping_counter as dword
 dim mqtt_server_port as word
 dim mqtt_server_address as string
 dim mqtt_server_ip as string(15)
@@ -195,6 +195,9 @@ sub mqtt_send_login()
 	dim buf as string
 	dim client_id, user_id, password as string	
 	dim size as dword=0
+	#if MQTT_DEBUG_PRINT=1
+		mqtt_debug_print("Login")
+	#endif
 	if mqtt_user = "" then
 		buf=chr(&h0)+chr(len(MQTT_PROTOCOL))+MQTT_PROTOCOL+chr(MQTT_LEVEL)+chr(&h02)+chr(0)+chr(&h3c)+chr(0)+chr(len(mqtt_client_id))+mqtt_client_id
 		buf=chr(CONNECT)+mqtt_build_remaining_length(len(buf)) + buf
@@ -242,7 +245,7 @@ sub mqtt_connect_socket()
 	sock.txclear()
 	sock.connect()
 	mqtt_state=EN_MQTT_STATES_CONNECTING
-	mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*2*1000
+	mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*1000
 end sub
 
 function mqtt_connect() as ok_ng
@@ -265,7 +268,7 @@ function mqtt_connect() as ok_ng
 	sock.num=mqtt_sock_num	
 	dim is_ip_address as boolean=true
 	dim b as byte
-	mqtt_connection_counter=sys.timercountms+MQTT_CONNECTION_TIMER*2*1000
+	mqtt_connection_counter=sys.timercountms+MQTT_CONNECTION_TIMER*1000
 	for b=1 to len(mqtt_server_address)
         dim s as string=mid(mqtt_server_address,b,1)
         dim ascii as word=asc(s)
@@ -356,27 +359,22 @@ sub mqtt_unsub(byref topic as string)
 end sub
 
 sub mqtt_ping()
-	
-	mqtt_ping_counter=mqtt_ping_counter-1
-	if mqtt_ping_counter=0 then
-		sock.num=mqtt_sock_num
-		if sock.rxlen=0 then
+	sock.num=mqtt_sock_num
+	mqtt_ping_counter=sys.timercountms+MQTT_PING_TIMER*1000
+	if sock.rxlen=0 then
+		#if MQTT_DEBUG_PRINT=1
+			mqtt_debug_print("Ping.")
+		#endif
+		mqtt_send_data(chr(PINGREQ)+chr(0))
+		mqtt_unreplied_ping_count=mqtt_unreplied_ping_count+1
+		if mqtt_unreplied_ping_count>3 then
+			mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
 			#if MQTT_DEBUG_PRINT=1
-				mqtt_debug_print("Ping.")
+			mqtt_debug_print("PING is unresponsive, disconnecting...")
 			#endif
-			mqtt_send_data(chr(PINGREQ)+chr(0))
-			mqtt_ping_counter=MQTT_PING_TIMER*2
-			mqtt_unreplied_ping_count=mqtt_unreplied_ping_count+1
-			if mqtt_unreplied_ping_count>3 then
-				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
-				#if MQTT_DEBUG_PRINT=1
-				mqtt_debug_print("PING is unresponsive, disconnecting...")
-				#endif
-				sock.discard()
-			end if
+			sock.discard()
 		end if
 	end if
-
 end sub
 
 sub mqtt_proc_timer()
@@ -384,33 +382,33 @@ sub mqtt_proc_timer()
 
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then exit sub
 	
-	if mqtt_state=EN_MQTT_STATES_LOGGED_IN AND sys.timercountms MOD 500=0 then 
+	if mqtt_state=EN_MQTT_STATES_LOGGED_IN AND mqtt_time_elapsed(mqtt_ping_counter) then 
 		mqtt_ping()
 	else
 		if mqtt_connection_counter<>0 then
-		if mqtt_time_elapsed(mqtt_connection_counter) then
-			mqtt_connection_counter=0
-			select case mqtt_state
-			case EN_MQTT_STATES_NOT_CONNECTED:
-				mqtt_connect_socket()
-				#if MQTT_DEBUG_PRINT=1
-					mqtt_debug_print("Retrying connection...")
-				#endif
-			case EN_MQTT_STATES_CONNECTING:
-				mqtt_connect_socket()
-				#if MQTT_DEBUG_PRINT=1
-					mqtt_debug_print("Connection timed out. Reconnecting...")
-				#endif
-			case EN_MQTT_STATES_CONNECTED:
-				mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
-				mqtt_connection_counter=sys.timercountms + MQTT_RECONNECT_TIME*2*1000
-				#if MQTT_DEBUG_PRINT=1
-					mqtt_debug_print("Unable to log in to server...")
-				#endif		
-			end select
-		end if
+			if mqtt_time_elapsed(mqtt_connection_counter) then
+				mqtt_connection_counter=0
+				select case mqtt_state
+				case EN_MQTT_STATES_NOT_CONNECTED:
+					mqtt_connect_socket()
+					#if MQTT_DEBUG_PRINT=1
+						mqtt_debug_print("Retrying connection...")
+					#endif
+				case EN_MQTT_STATES_CONNECTING:
+					mqtt_connect_socket()
+					#if MQTT_DEBUG_PRINT=1
+						mqtt_debug_print("Connection timed out. Reconnecting...")
+					#endif
+				case EN_MQTT_STATES_CONNECTED:
+					mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
+					mqtt_connection_counter=sys.timercountms + MQTT_RECONNECT_TIME*1000
+					#if MQTT_DEBUG_PRINT=1
+						mqtt_debug_print("Unable to log in to server...")
+					#endif
+				end select
+			end if
 		else
-			mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*2*1000
+			mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*1000
 		end if
 	end if
 			
@@ -435,9 +433,9 @@ sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_so
 	
 	if newstatesimple=PL_SSTS_CLOSED then
 		mqtt_state=EN_MQTT_STATES_NOT_CONNECTED
-		mqtt_connection_counter=sys.timercountms + MQTT_RECONNECT_TIME*2*1000
+		mqtt_connection_counter=sys.timercountms + MQTT_RECONNECT_TIME*1000
 		#if MQTT_DEBUG_PRINT=1
-		mqtt_debug_print("Lost server connection.")
+		mqtt_debug_print("Lost connection. Reconnecting in "+str(MQTT_RECONNECT_TIME)+" seconds...")
 		#endif
 	end if
 	select case newstate
@@ -453,7 +451,7 @@ sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_so
 				sock.tlshandshake("")
 			end if
 #endif
-			mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*2*1000
+			mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*1000
 		end if
 	case PL_SST_EST_TLS:
 		mqtt_send_login()
@@ -533,9 +531,9 @@ sub mqtt_proc_data()
 		case CONNACK:	#if MQTT_DEBUG_PRINT=1		
 							mqtt_debug_print("Connected to server.")
 						#endif
-						mqtt_ping_counter=MQTT_PING_TIMER*2
+						mqtt_ping_counter=sys.timercountms+MQTT_PING_TIMER*1000
 						mqtt_state=EN_MQTT_STATES_LOGGED_IN
-						mqtt_connection_counter=sys.timercountms + MQTT_CONNECTION_TIMER*2*1000
+						mqtt_connection_counter=sys.timercountms+MQTT_CONNECTION_TIMER*2*1000
 						callback_mqtt_connect_ok()
 						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
@@ -704,7 +702,7 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 	end if
 	
 	mqtt_send_data(buf)
-	mqtt_ping_counter=MQTT_PING_TIMER*2
+	mqtt_ping_counter=sys.timercountms+MQTT_PING_TIMER*1000
 
 end sub
 
