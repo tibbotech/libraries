@@ -7,8 +7,11 @@ include "global.tbh"
     const CELL__UDP_TARGET_PORT = "6559"
 #endif
 
+const CELL_INIT_SIGNATURE=&h1689
+
 'DEFINES-------------------------------------------------------------
 
+dim cell__init_flag as word = 0
 dim cell__udp_tx_socknum as byte
 
 dim cell__modem_restart_retry_param as byte = 0	'number of modem restart after a specified number of failed attempts to execute an AT-command
@@ -305,6 +308,16 @@ dim cell__at_cmd_storArray_numof_cmds as word
 'START FUNCTION------------------------------------------------------
 function cell__start(byref pin as string(CELL__16b_LEN), byref apn as string, 
 						byref username as string, byref password as string) as en_cell__status_phases
+
+	if cell__init_flag=CELL_INIT_SIGNATURE then
+		#if CELL__DEBUG_PRINT=1
+			cell__debugprint("library already initialized.")
+		#endif
+		exit function
+	end if
+
+	cell__init_flag=CELL_INIT_SIGNATURE
+
 	'Assign values
     cell__apn = apn
     cell__username = username
@@ -368,6 +381,11 @@ end function
 function cell__stop(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cell__op_at_phases, 
 						next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 							next_parse_phase as en_cell__op_parse_phases) as en_cell__status_phases
+
+	if cell__init_flag<>CELL_INIT_SIGNATURE then
+		exit function
+	end if
+	cell__init_flag=0
 	'PRINT
 	cell__debugprint_status(CELL__STOP_INITIATED, CELL__EMPTYSTRING)
 
@@ -1319,9 +1337,6 @@ end sub
 	sub cell__deinit_ppp()
 		'FLUSH the (garbage) SOCKET data
 		cell__sock_flush_all()
-			
-		'Release all sockets
-		cell__sock_release_all()
 	
 		'Disable Port
 		ppp.enabled = NO
@@ -4520,6 +4535,9 @@ START_HANDLER:
 
 'PROC_SYS_TIMER SUBROUTINES------------------------------------------
 sub cell__proc_sys_timer()
+	if cell__init_flag<>CELL_INIT_SIGNATURE then
+		exit sub
+	end if
 	'Set the serial-port number
     ser.num = CELL__DATA_SER_PORT
 	
@@ -5120,6 +5138,10 @@ sub cell__gps_proc_sys_timer()
 end sub
 
 sub cell__proc_on_ser_data_arrival()
+
+	if cell__init_flag<>CELL_INIT_SIGNATURE then
+		exit sub
+	end if
 	'FIRST:	check if it's the correct serial-port number
     if NOT CELL__SER_PORT_NUM_IS_CORRECT then
         EXIT SUB

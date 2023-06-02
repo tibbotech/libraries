@@ -5,7 +5,7 @@
 declare num_of_files as byte
 declare upload_started as boolean
 declare dns_socket, upgrade_socket as byte
-
+declare upgrade_buffer as string
 
 
 type pl_manifest
@@ -119,8 +119,7 @@ declare function device_firmware_upload_update() as no_yes
 declare function hex_mac(mac as string) as string
 
 declare sub set_baudrate(baudrate as dword)
-declare sub start_dns(domainName as string)
-declare sub DHCP_DNS_init()
+declare sub upgrade_set_buffer(buffer as string)
 
 
 declare function get_fw_upg_state() as pl_upg_state_t

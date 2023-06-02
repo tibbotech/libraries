@@ -18,7 +18,7 @@
 #endif
 
 #ifndef MQTT_PING_TIMER
-	#define MQTT_PING_TIMER 30
+	#define MQTT_PING_TIMER 60
 #endif
 
 #ifndef MQTT_CONNECTION_TIMER
@@ -32,7 +32,7 @@
 #endif
 
 #ifndef MQTT_RECONNECT_TIME
-    #define MQTT_RECONNECT_TIME 20
+    #define MQTT_RECONNECT_TIME 10
 #endif
 
 enum en_qos_choices
