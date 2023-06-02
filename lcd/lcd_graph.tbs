@@ -1,6 +1,6 @@
 include "global.tbh"
 
-dim lcd_graph_points as real(LCD_GRAPH_MAX_POINTS)
+dim lcd_graph_points as real(LCD_GRAPH_MAX_POINTS + 2)
 dim lcd_graph_index as byte = 0
 dim lcd_graph_step as real = 0
 
@@ -18,7 +18,7 @@ dim lcd_graph_font as dword
 
 sub lcd_graph_start(min as real, max as real)
 	lcd_graph_index = 0
-	lcd_graph_step = (LCD_GRAPH_WIDTH + LCD_GRAPH_X) / LCD_GRAPH_MAX_POINTS
+    lcd_graph_step = (LCD_GRAPH_WIDTH) * 100 / LCD_GRAPH_MAX_POINTS
 	lcd_graph_min_y = min
 	lcd_graph_max_y = max
 	
@@ -55,9 +55,9 @@ sub lcd_draw_graph()
 	
 	if max > 0 then
 		for i=0 to max
-			x1 = i * lcd_graph_step + LCD_GRAPH_X
+			x1 = (i * lcd_graph_step) / 100 + LCD_GRAPH_X
 			y1 = lcd_graph_zero - lcd_graph_points(i) * lcd_graph_ratio + LCD_GRAPH_Y
-			x2 = (i + 1) * lcd_graph_step + LCD_GRAPH_X
+			x2 = ((i + 1) * lcd_graph_step) / 100 + LCD_GRAPH_X
 			y2 = lcd_graph_zero - lcd_graph_points(i + 1)  * lcd_graph_ratio + LCD_GRAPH_Y
 			if y1 <= lcd_graph_draw_min_y AND y2 <= lcd_graph_draw_min_y AND y1 >= lcd_graph_draw_max_y AND y2 >= lcd_graph_draw_max_y then
 				lcd.forecolor=LCD_GRAPH_FORECOLOR
@@ -100,7 +100,7 @@ end sub
 
 sub lcd_graph_add_point(y as real)
 	dim i as byte
-	if lcd_graph_index < LCD_GRAPH_MAX_POINTS - 1 then
+	if lcd_graph_index <= LCD_GRAPH_MAX_POINTS then
 		lcd_graph_index = lcd_graph_index + 1
 	else
 		for i=1 to LCD_GRAPH_MAX_POINTS - 1
