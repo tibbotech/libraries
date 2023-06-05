@@ -611,6 +611,23 @@ function http_encode_url(unencoded_url as string) as string
 	
 end function
 
+function http_decode(encoded_string as string) as string
+
+    dim i, n as byte
+    dim chr_hex as string
+    for i = 1 to len(encoded_string)
+        if mid(encoded_string,i,1) = "%" then
+            chr_hex = mid(encoded_string,i+1,2)
+            n = val("&h" + chr_hex)
+            http_decode = http_decode + chr(n)
+            i = i + 2
+        else
+            http_decode = http_decode + mid(encoded_string,i,1)
+        end if
+    next
+
+end function
+
 sub http_dns_failure()
 	if http_request_item.domain_name<>dns_current_domain() then
 		exit sub
