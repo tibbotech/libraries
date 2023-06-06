@@ -79,6 +79,7 @@ end type
 declare function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
 declare function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword) as byte
 declare function http_encode_url(unencoded_url as string) as string
+declare function http_decode(encoded_string as string) as string
 declare function http_send_post_data(byref data as string) as word
 declare function http_get_domain_name(url as string) as string
 
