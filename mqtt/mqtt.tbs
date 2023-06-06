@@ -679,6 +679,11 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 		#endif
 		exit sub
 	end if
+	if mqtt_state = EN_MQTT_STATES_CONNECTING then
+		#if MQTT_DEBUG_PRINT=1
+			mqtt_debug_print("ERROR: mqtt_start() has not completed yet.")
+		#endif
+	end if
 	if mqtt_state<>EN_MQTT_STATES_LOGGED_IN then exit sub
 
 	dim buf as string
