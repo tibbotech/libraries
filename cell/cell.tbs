@@ -3969,7 +3969,9 @@ NEXT_FOR_HANDLER:
 			cell__ppp_ping_reply = CELL__NG
 			
 			'PRINT
-			cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
+			#if CELL__DEBUG_PRINT
+				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
+			#endif
 			
 			'CALLBACK
 			cell__callback_ppp_ping_failed()
@@ -3984,7 +3986,9 @@ NEXT_FOR_HANDLER:
 				cell__ppp_ping_reply = CELL__NG
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
+				#if CELL__DEBUG_PRINT
+					cell__debugprint_ppp_phase(PHASE_PPP_PING_FAILED, ddstr(source_ip))
+				#endif
 
 				'CALLBACK
 				cell__callback_ppp_ping_failed()
@@ -3997,7 +4001,9 @@ NEXT_FOR_HANDLER:
 				cell__ppp_ping_reply = CELL__OK
 
 				'PRINT
-				cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, ddstr(source_ip))
+				#if CELL__DEBUG_PRINT
+					cell__debugprint_ppp_phase(PHASE_PPP_PING_SUCCESSFUL, ddstr(source_ip))
+				#endif
 				
 				'Set next phase to transit to (e.g.,  PHASE_PPP_IPCP_CONNECT)
 				'***IMPORTANT: Make sure to set `next_parse_phase` to `PHASE_PARSE_IDLE`
