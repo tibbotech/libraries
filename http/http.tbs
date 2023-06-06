@@ -190,7 +190,6 @@ end function
 sub http_get_headers()
 
 	sock.num=http_request_item.socket
-	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	dim http_reply, next_byte as string
 	while http_request_item.state<>HTTP_HEADERS_PROCESSED 
 		if http_request_item.tls then
@@ -205,6 +204,7 @@ sub http_get_headers()
 			end if			
 		end if
 		next_byte=http_get_data(1)
+		http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 		if next_byte="\x0a" then
 			if http_request_item.state=REQUEST_SENT then
 				http_reply=left(http_reply,len(http_reply)-1)
@@ -261,8 +261,6 @@ sub http_get_headers()
 end sub
 
 sub http_get_content() 
-	
-	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	if http_request_item.chunked=true and http_request_item.remaining_response_content_length=0  then
 		if http_get_chunk_length()=NG then
 			exit sub
@@ -270,6 +268,7 @@ sub http_get_content()
 			http_debugprint("Chunk complete")
 		end if		
 	end if
+	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	if http_request_item.remaining_response_content_length=0 then
 		http_request_complete()
 		exit sub
@@ -375,6 +374,8 @@ sub http_init_request_socket()
 		sock_error=true
 	end if
 	sys.buffalloc()
+	sock.rxclear()
+	sock.txclear()
 	
 #if TLS_AVAILABLE
 	if http_request_item.domain_name<>http_last_domain then
@@ -392,9 +393,6 @@ sub http_init_request_socket()
 		end if	
 	end if	
 #endif
-
-	sock.rxclear()
-	sock.txclear()
 	if sock_error=false then
 		dim i as word
 		i=sys.timercount
