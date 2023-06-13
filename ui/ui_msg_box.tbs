@@ -52,14 +52,6 @@ LCD_LOCK
 LCD_UNLOCK
 	end if
 	
-	if kp.enabled=NO or kp.genkpevent<>NO then
-		kp.enabled=NO
-		kp.genkpevent=NO
-		kp.enabled=YES
-	else
-		kp.clearbuffer
-	end if
-
 wait:
 	mb_keycode=255			'mb_kycode is 255 by default, if a key is pressed, it will be changed to the key code of the pressed key
 	device_mb_interrupt()	'allow user to executes other procedures while inside the message box

@@ -7,6 +7,7 @@ dim ib_init as no_yes
 dim chr_init as no_yes	'flag used to decide if add a new character, or replace the current character.
 dim agg_cmd_progress as byte
 dim prev_icon as byte
+dim ui_mode as en_ui_mode
 
 public function device_settings_sg(setting_name as string(5),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
 	dim w1, w2, w3 as word
@@ -374,7 +375,7 @@ end function
 sub device_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref current_state as menu_key_actions)
 	select case key_event
 	case PL_KP_EVENT_PRESSED:
-		beep.play("-B**",PL_PAT_CANINT)
+		' beep.play("-B**",PL_PAT_CANINT)
 		select case key_code
 		case KEY_F1: 'F1
 			current_state=MENU_KEY_OUT
@@ -397,7 +398,7 @@ sub device_ib_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref c
 	select case key_event
 	case PL_KP_EVENT_PRESSED:
 
-		beep.play("-B**",PL_PAT_CANINT)
+		' beep.play("-B**",PL_PAT_CANINT)
 
 		select case key_code
 		case KEY_F1: 'F1
@@ -421,7 +422,7 @@ sub device_lb_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref c
 
 	select case key_event
 	case PL_KP_EVENT_PRESSED:
-		beep.play("-B**",PL_PAT_CANINT)
+		' beep.play("-B**",PL_PAT_CANINT)
 
 		select case key_code
 		case KEY_F1: 'F1,C
@@ -461,6 +462,46 @@ sub reset_keypad()
 
 end sub
 
+sub ui_exit_level()
+	lcd.forecolor=LCD_FORECOLOR
+	lcd.backcolor=LCD_BACKCOLOR
+	lcd_clear(0,0,lcd.width,lcd.height)
+	select case ui_mode
+		case UI_MODE_INPUT_BOX:
+			if input_box_result=INPUT_BOX_RESULT_OK then
+				if device_settings_sg(ui_setting_name,0,ib_edit_str,"",DEVICE_SET)<>EN_STG_STATUS_OK then 
+					input_box_result=INPUT_BOX_RESULT_FAIL
+				else
+					set_stg_modified()
+				end if
+			end if
+			if menu_current_lvl > 0 then
+				device_menu_pre("","","","","","","","")
+				ui_menu_out()
+			else
+				ui_menu(MENU_X,MENU_Y,MENU_W, MENU_H,"",MENU_SCRIPT_FILE,3,LCD_MENU_TOUT)
+			end if
+			ui_mode=UI_MODE_MENU
+			' ui_menu_call_ib=ib_result
+			' cached_ib_str=edit_str 
+		case else:
+	end select
+end sub
+
+sub ui_handle_kp(kp_event as pl_kp_event_codes, kp_code as byte)
+	select case ui_mode
+		case UI_MODE_NONE:
+			
+		case UI_MODE_MENU:
+			ui_menu_key_proc(kp_event,kp_code)
+		case UI_MODE_INPUT_BOX:
+			ui_input_box_key_proc(kp_event,kp_code)
+		case else:
+
+	end select
+	
+end sub
+
 '------------------------------------------------------------------------------
 sub entering_menu()
 	lcd.forecolor=LCD_FORECOLOR
@@ -468,5 +509,5 @@ sub entering_menu()
 	lcd_clear(0,0,lcd.width,lcd.height)
 	pat.play("RG~",PL_PAT_CANINT)
 	ui_menu(MENU_X,MENU_Y,MENU_W, MENU_H,"",MENU_SCRIPT_FILE,3,LCD_MENU_TOUT)
-	sys.reboot
+	ui_mode=UI_MODE_MENU
 end sub

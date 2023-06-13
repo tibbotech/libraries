@@ -17,7 +17,6 @@ declare sub ui_menu_addr_fill(start_addr as word)
 declare sub ui_menu_display(clear_menu as no_yes)
 declare sub ui_menu_string_parse(start_index as byte, d as menu_key_actions)
 declare sub ui_menu_cursor_display(color as word, force_print as no_yes)
-declare sub ui_menu_out()
 declare sub ui_menu_in()
 declare sub ui_back_current_lcd()
 declare sub ui_menu_scroll(refresh as no_yes)
@@ -25,7 +24,6 @@ declare sub menu_fade()
 declare function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_input_box_results
 declare function ui_menu_call_lb(byref item_data as string(60)) as ui_list_box_results
 
-declare sub ui_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 declare sub ui_menu_timer_proc()
 
 '------------------------ external ----------------------------- 
@@ -52,6 +50,7 @@ dim cached_ib_str as string(IB_MAX_LEN)
 
 dim ui_menu_exit_flag as no_yes
 dim menu_addr_array(MENU_MAX_ITEM_PER_LVL) as menu_display_item
+dim ui_setting_name as string(20)
 
 #if MENU_CURSOR_STYLE > 0
 	dim previous_display_index as byte
@@ -106,48 +105,30 @@ LCD_LOCK
 	
 LCD_UNLOCK	
 
-	if kp.enabled=NO or kp.genkpevent<>NO then
-		kp.enabled=NO
-		kp.genkpevent=NO
-		kp.enabled=YES
-	else
-		kp.clearbuffer
-	end if
 
-wait:
-	device_menu_interrupt()
-	if ui_menu_exit_flag=YES then goto key_pressed
-	if kp.enabled=NO then kp.enabled=YES
-	if kp.getkey(kp_event,kp_code)=OK then
-		if kp_event=PL_KP_EVENT_LOCKEDUP then
-			reset_keypad()
-			goto wait
-		end if	
-	
-		ui_menu_key_proc(kp_event,kp_code)
-	end if
+' wait:
 
-	if menu_result<>MENU_RESULT_TIMEOUT then
-		ui_menu=menu_result
-		goto key_pressed
-	end if
+' 	if menu_result<>MENU_RESULT_TIMEOUT then
+' 		ui_menu=menu_result
+' 		goto key_pressed
+' 	end if
 
-	if t<> sys.timercount then
-		t=sys.timercount
-		ui_menu_timer_proc
-	end if
-	if timeout=0 then
-		goto wait
-	else
-		if menu_timeout_ctr=0 then
-			ui_menu=MENU_RESULT_TIMEOUT
-key_pressed:		
-			if menu_result=MENU_RESULT_OK then
-			end if
-			exit function
-		end if
-		goto wait
-	end if	
+' 	if t<> sys.timercount then
+' 		t=sys.timercount
+' 		ui_menu_timer_proc
+' 	end if
+' 	if timeout=0 then
+' 		goto wait
+' 	else
+' 		if menu_timeout_ctr=0 then
+' 			ui_menu=MENU_RESULT_TIMEOUT
+' key_pressed:		
+' 			if menu_result=MENU_RESULT_OK then
+' 			end if
+' 			exit function
+' 		end if
+' 		goto wait
+' 	end if	
 end function
 
 '----------------------------------------------------------------------------
@@ -468,18 +449,21 @@ function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_
 		end if
 
 		lcd_clear(INPUT_BOX_X, INPUT_BOX_Y, INPUT_BOX_W, INPUT_BOX_H)
-		ib_result=ui_input_box(mask_str,edit_str,char_range,secret_mode,insert_mode,initial_pos,timeout,input_length)	
-		'special cases for settings
+		ui_setting_name=setting_name
+		ui_input_box(mask_str,edit_str,char_range,secret_mode,insert_mode,initial_pos,timeout,input_length)
+		ui_mode=UI_MODE_INPUT_BOX
+		' ib_result=ui_input_box(mask_str,edit_str,char_range,secret_mode,insert_mode,initial_pos,timeout,input_length)	
+		' 'special cases for settings
 		
-		if ib_result=INPUT_BOX_RESULT_OK then
-			if device_settings_sg(setting_name,b,edit_str,"",DEVICE_SET)<>EN_STG_STATUS_OK then 
-				ib_result=INPUT_BOX_RESULT_FAIL
-			else
-				set_stg_modified()
-			end if
-		end if
-		ui_menu_call_ib=ib_result
-		cached_ib_str=edit_str 
+		' if ib_result=INPUT_BOX_RESULT_OK then
+		' 	if device_settings_sg(setting_name,b,edit_str,"",DEVICE_SET)<>EN_STG_STATUS_OK then 
+		' 		ib_result=INPUT_BOX_RESULT_FAIL
+		' 	else
+		' 		set_stg_modified()
+		' 	end if
+		' end if
+		' ui_menu_call_ib=ib_result
+		' cached_ib_str=edit_str 
 	else
 		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),NO,0)
 	end if
@@ -529,7 +513,7 @@ LCD_LOCK
 	ui_menu_scroll(YES)
 	device_move_cursor(menu_addr_array(menu_item_index),ui_menu_desc_file)
 LCD_UNLOCK
-	if kp.enabled=NO then kp.enabled=YES
+	
 end sub
 
 '----------------------------------------------------------------------------
@@ -549,7 +533,7 @@ sub ui_menu_in()
 		
 	if flag_last_lvl=YES then exit sub
 	i=menu_addr_array(menu_item_index).display_string_addr
-	ui_back_current_lcd
+	ui_back_current_lcd()
 	menu_path_store(i)
 	if menu_addr_array(menu_item_index).display_item_type="F" then
 		ui_menu_addr_fill(i)
@@ -557,7 +541,7 @@ sub ui_menu_in()
 		if ui_menu_string="" then
 			ui_msg_box(EMPTY_FOLDER,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,STD_INPUT_WAIT_TIME)
 			device_menu_pre("","","","","","","","")
-			ui_menu_out
+			ui_menu_out()
 		else 
 			previous_display_index=menu_display_index
 			menu_display_index=0
@@ -593,31 +577,32 @@ setting:
 	case "I":
 		reprint=NO
 print_ib:
-		menu_fade
-		ib_result=ui_menu_call_ib(item_data,reprint)
-		if ib_result=INPUT_BOX_RESULT_FAIL then 
-			ui_msg_box(SYS_SETTING_VALUE_INVALID,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,0)
-			reprint=YES
-			goto print_ib
-		end if
-		device_menu_pre("","","","","","","","")
-		ui_menu_out
+		menu_fade()
+		ui_menu_call_ib(item_data,reprint)
+		' ib_result=ui_menu_call_ib(item_data,reprint)
+		' if ib_result=INPUT_BOX_RESULT_FAIL then 
+		' 	ui_msg_box(SYS_SETTING_VALUE_INVALID,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,0)
+		' 	reprint=YES
+		' 	goto print_ib
+		' end if
+		' device_menu_pre("","","","","","","","")
+		' ui_menu_out()
 	case "L":
-		menu_fade
+		menu_fade()
 		lb_result=ui_menu_call_lb(item_data)
 		device_menu_pre("","","","","","","","")
-		ui_menu_out
+		ui_menu_out()
 		
 	#if UI_TABLE_CONTROL	
 	case "T"
 		tb_result=ui_tbl_box(menu_pos_x, menu_pos_y, menu_width,menu_height,item_data)
 		device_menu_pre("","","","","","","","")
-		ui_menu_out
+		ui_menu_out()
 	#endif		
 	case else
 		ui_msg_box(INVALID_INPUT,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,"",NO,STD_INPUT_WAIT_TIME)
 		device_menu_pre("","","","","","","","")
-		ui_menu_out
+		ui_menu_out()
 	end select
 	
 	exit sub
@@ -631,7 +616,7 @@ command:
 		device_ui_menu_command(s)
 		device_menu_pre("","","","","","","","")		
 	end if
-	ui_menu_out
+	ui_menu_out()
 end sub
 
 '----------------------------------------------------------------------------
@@ -688,17 +673,17 @@ sub ui_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 	case PL_KP_EVENT_PRESSED:
 		select case ks
 		case MENU_KEY_UP:
-			ui_menu_up
+			ui_menu_up()
 			ui_menu_cursor_display(LCD_CURSORCOLOR, NO)
 			ui_menu_scroll(NO)
 		case MENU_KEY_DOWN:
-			ui_menu_down
+			ui_menu_down()
 			ui_menu_cursor_display(LCD_CURSORCOLOR, NO)
 			ui_menu_scroll(NO)
 		case MENU_KEY_OUT:
-			ui_menu_out		
+			ui_menu_out()
 		case MENU_KEY_IN:
-			ui_menu_in				
+			ui_menu_in()
 		end select
 	end select
  
