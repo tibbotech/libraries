@@ -107,12 +107,15 @@ sub datetime_string_format(byref result as string(14),
 			index=index+2
 		case "h":
 			value = val(mid(result,9,2))
-			if value > 13 then
+			if value >= 12 then
 				value = value - 12
 				am_pm = "PM"
-        if value < 10 then
-				  dstr=dstr+"0"
-        end if
+				if value >= 1 and value < 10 then
+						  dstr=dstr+"0"
+				end if
+			end if
+			if value = 0 then
+				value = 12
 			end if
 			dstr=dstr+str(value)
 			index=index+2

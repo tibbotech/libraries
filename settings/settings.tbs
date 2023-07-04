@@ -927,7 +927,6 @@ public function stg_restore_multiple(init_mode as en_stg_init_modes) as en_stg_s
 		dim fd_status as pl_fd_status_codes
 	#endif
 
-	romfile.open(STG_DESCRIPTOR_FILE)
 	
 	#if STG_STORAGE_MEMORY<>0
 		fd.filenum=stg_filenum
@@ -936,6 +935,7 @@ public function stg_restore_multiple(init_mode as en_stg_init_modes) as en_stg_s
 
 	if stg_num_settings>0 then
 		for f=0 to stg_num_settings-1
+            romfile.open(STG_DESCRIPTOR_FILE)
 			'do we need to initialize this setting?
 			
 			select case init_mode
