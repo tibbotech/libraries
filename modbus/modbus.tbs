@@ -5,12 +5,14 @@ declare sub modbus_queue_add(request_item as modbus_request_item)
 declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub modbus_master_send_next()
 declare sub modbus_debug_print(byref message as string)
+declare sub modbus_print_packet(byref s as string, is_send as boolean)
 declare function modbus_get_input_register(register as word) as word
 declare function modbus_get_holding_register(register as word) as word
 declare function modbus_queue_pop() as modbus_request_item
 declare function modbus_master_get_request(byref request_item as modbus_request_item) as string
 declare function modbus_crc16(data as byte(255), byte_cnt as byte) as word
 declare function modbus_time_elapsed(end_time as dword) as boolean
+
 
 
 dim modbus_queue_start as char
@@ -335,7 +337,7 @@ sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactio
 		dim crc as word = modbus_crc16(senddata, len(senddata))
 		senddata = senddata + chr(crc shr 8)
 		senddata = senddata + chr(crc and &HFF)
-	
+
 		ser.num=interface_number
 		ser.notifysent(1)
 		ser.setdata(senddata)
@@ -350,6 +352,10 @@ sub modbus_master_send_next()
 	dim prev_num as byte=0
 	dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
 	modbus_request_queue(modbus_queue_start).data = data
+
+	#if MODBUS_DEBUG_PRINT
+		modbus_print_packet(data, true)
+	#endif
 	if modbus_request_queue(modbus_queue_start).protocol=modbus_TCP then
 		prev_num=sock.num
 		sock.num=modbus_request_queue(modbus_queue_start).interface_number
@@ -419,12 +425,18 @@ function modbus_master_get_request(byref request_item as modbus_request_item) as
 	data = data + chr(request_item.request_function)
 	data = data + chr(request_item.start_register shr 8)
 	data = data + chr(request_item.start_register and &HFF)
-	if len(request_item.data) = 0 then
-		data = data + chr(request_item.count shr 8)
-		data = data + chr(request_item.count and &HFF)
-	else
-		data = data + request_item.data
-	end if
+	select case request_item.request_function
+		case ReadCoilStatus,ReadInputStatus,ReadHoldingRegisters,ReadInputRegisters:
+			data = data + chr(request_item.count shr 8)
+			data = data + chr(request_item.count and &HFF)
+		case WriteSingleCoil, PresetSingleRegister:
+			data = data + request_item.data
+		case WriteMultipleCoils, PresetMultipleRegisters:
+			data = data + chr(request_item.count shr 8)
+			data = data + chr(request_item.count and &HFF)
+			data = data + chr(request_item.count * 2)
+			data = data + request_item.data
+	end select
 	
 	if request_item.protocol=modbus_RTU then
 		dim crc as word = modbus_crc16(data, len(data))
@@ -478,6 +490,10 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	
 	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
 	modbusFunction = asc(mid(data, prefix_len + 2, 1))
+
+	#if MODBUS_DEBUG_PRINT
+		modbus_print_packet(data, false)
+	#endif
 	
 	select case modbusFunction
 		case ReadCoilStatus,ReadInputStatus:
@@ -584,6 +600,26 @@ end function
 function modbus_read_word(byref bytes as byte(255), start as byte) as word
 	modbus_read_word = (bytes(start) shl 8) or bytes(start + 1)
 end function
+
+sub modbus_print_packet(byref s as string, is_send as boolean)
+	#if MODBUS_DEBUG_PRINT
+		dim size as byte=len(s)
+		dim i as byte
+		dim packet as string=""
+		for i=0 to size-1
+			dim part as string(2)=mid(hex(asc(mid(s,i+1,1))),3,2)
+			if len(part)=1 then
+				part="0" + part
+			end if
+			packet = packet + part + " "
+		next i
+		if is_send then
+			modbus_debug_print("send: " + packet)
+		else
+			modbus_debug_print("recv: " + packet)
+		end if
+	#endif
+end sub
 
 sub modbus_debug_print(byref message as string)
 #if MODBUS_DEBUG_PRINT
