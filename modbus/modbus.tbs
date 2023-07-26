@@ -176,9 +176,6 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			if j <> 1 then
 				str_modbus = str_modbus + chr(modbusBits)
 			end if
-			if j < 128 then
-				str_modbus = str_modbus + chr(0)
-			end if
 			modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, str_modbus)
 			
 		case ReadInputStatus:				' Read DI
@@ -210,9 +207,6 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 			next i
 			if j <> 1 then
 				str_modbus = str_modbus + chr(modbusBits)
-			end if
-			if j < 128 then
-				str_modbus = str_modbus + chr(0)
 			end if
 			modbus_send(interface_number, protocol, transactionId, protocolId, modbusUnitId, modbusFunction, str_modbus)
 			
