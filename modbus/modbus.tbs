@@ -491,7 +491,7 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	
 	select case modbusFunction
 		case ReadCoilStatus,ReadInputStatus:
-			length = asc(mid(data,3,1))
+			length = asc(mid(data, prefix_len + 3, 1))
 			str_modbus = mid(data, prefix_len + 3, 3)
 		case WriteSingleCoil, PresetSingleRegister:
 			length = 3
@@ -523,7 +523,7 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	end if
 '	modbus_debug_print("reply for " + str(request_item.device_id))
 	if modbusFunction = ReadCoilStatus or modbusFunction = ReadInputStatus then
-		str_modbus = mid(data,4,length)
+		str_modbus = mid(data,4 + prefix_len,length)
 	else 
 		str_modbus = right(str_modbus,len(str_modbus) - 1)
 	end if
