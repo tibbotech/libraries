@@ -247,9 +247,9 @@ end sub
 
 sub on_sock_postdata()
 
-if upload_started=false then
+if upgrade_upload_started=false then
     device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
-    upload_started=true
+    upgrade_upload_started=true
 else
     device_firmware_upload_update()
 end if
@@ -261,9 +261,9 @@ sub on_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simp
 
 if sock.num=upgrade_socket_http AND newstatesimple=PL_SSTS_CLOSED then
     while sock.varlen <> 0
-        if upload_started=false then
+        if upgrade_upload_started=false then
             device_firmware_upload_async(PL_FW_UPG_HTTP, 0)
-            upload_started=true
+            upgrade_upload_started=true
         else
             device_firmware_upload_update()
         end if

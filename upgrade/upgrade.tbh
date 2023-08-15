@@ -3,7 +3,7 @@
 #define DISK_SIZE 4096
 
 declare num_of_files as byte
-declare upload_started as boolean
+declare upgrade_upload_started as boolean
 declare dns_socket, upgrade_socket as byte
 declare upgrade_buffer as string
 
