@@ -15,7 +15,7 @@ const TBT53_READ_ADDR = &h91
 	declare sub tbt53_debug_print(data as string)
 #endif
 
-dim i2c_num_tbt53 as byte
+dim tbt53_i2c_num as byte
 dim tbt53_init_flag as word
 
 function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as ok_ng

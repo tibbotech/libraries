@@ -1,8 +1,8 @@
 include "PIC_LVP.tbh"
 
-dim icsp_sda as pl_io_num = PL_IO_NULL
-dim icsp_scl as pl_io_num = PL_IO_NULL
-dim icsp_mclr as pl_io_num = PL_IO_NULL
+dim pic_icsp_sda as pl_io_num = PL_IO_NULL
+dim pic_icsp_sda as pl_io_num = PL_IO_NULL
+dim pic_icsp_mclr as pl_io_num = PL_IO_NULL
 
 ' Commands defined in PDF
 '
@@ -10,8 +10,7 @@ enum pic_lvp_cmd
 	CMD_LOAD_CONFIG                        = &h00,	' read  (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_PROGRAM_MEMORY       = &h02,	' write (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_DATA_MEMORY          = &h03,	' write (0) data(8) zero(6) (0)
-	CMD_READ_DATA_FROM_PROGRAM_MEMORY      = &h04,	' read  (0) data(14) (0)
-	CMD_READ_DATA_FROM_DATA_MEMORY         = &h05,	' read  (0) data(8) zero(6) (0)
+	CMD_READ_DATA_FROM_PROGRAM_MEMORY       = &h05,	' read  (0) data(8) zero(6) (0)
 	CMD_INCREMENT_ADDRESS                  = &h06,	' -
 	CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING = &h08,	' -
 	CMD_BULK_ERASE_PROGRAM_MEMORY          = &h09,	' -
@@ -90,7 +89,7 @@ end sub
 
 sub pic_set_reset(rv as boolean)
 
-	io.num = icsp_mclr
+	io.num = pic_icsp_mclr
 	io.enabled = YES
 	if rv then
 		io.state = LOW
@@ -110,11 +109,11 @@ end sub
 
 sub start_stop_bit()
 
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = NO
 	io.state = HIGH
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	io.state = HIGH
 	delay()
 	io.state = LOW
@@ -125,13 +124,13 @@ sub pic_send_bits(data as dword, numbits as byte)
 
 	dim i as byte
 
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = YES
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	
 	for i = 0 to numbits-1
-		io.lineset(icsp_sda, data and &h0001)
+		io.lineset(pic_icsp_sda, data and &h0001)
 		io.state = HIGH
 		'delay()
 		io.state = LOW
@@ -151,13 +150,13 @@ function pic_recv_bits() as word
 
 	start_stop_bit()
 	
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	
 	for i = 0 to 13
 		io.state = HIGH
 		delay()
 		io.state = LOW
-		res = (res shr 1) or ((io.lineget(icsp_sda) and &h1) shl 13)
+		res = (res shr 1) or ((io.lineget(pic_icsp_sda) and &h1) shl 13)
 	next i
 
 	start_stop_bit()
@@ -221,11 +220,11 @@ sub pic_send_bits_new(data as dword, numbits as byte)
 
 	data = data shl 32 - numbits
 	
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	
 	for i = 0 to numbits-1
 		'bit = ((data and &h80000000) shr 31)
-		io.lineset(icsp_sda, ((data and &h80000000) shr 31))
+		io.lineset(pic_icsp_sda, ((data and &h80000000) shr 31))
 		io.state = HIGH
 		io.state = LOW
 		data = data shl 1
@@ -240,22 +239,22 @@ function pic_recv_bits_new() as dword
 	
 	res = 0
 
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = NO
 	io.state = HIGH
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	
 	for i = 0 to 23
 		io.state = HIGH
 		'delay()
 		io.state = LOW
-		res = (res shl 1) or (io.lineget(icsp_sda) and &h1)
+		res = (res shl 1) or (io.lineget(pic_icsp_sda) and &h1)
 	next i
 
 	pic_recv_bits_new = res
 	
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = LOW
 	
@@ -446,11 +445,11 @@ end function
 
 sub pic_enter_lvp_mode(options as byte)
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = LOW
 	
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = LOW
 
@@ -458,7 +457,7 @@ sub pic_enter_lvp_mode(options as byte)
 	' Bring MCLR to V_il (low state)
 	delay_ms(10)
 	
-	io.num = icsp_mclr
+	io.num = pic_icsp_mclr
 	io.enabled = YES
 	io.state = HIGH
 	
@@ -493,17 +492,17 @@ end sub
 
 sub pic_leave_lvp_mode()
 
-	io.num = icsp_mclr
+	io.num = pic_icsp_mclr
 	io.state = HIGH
 	io.state = LOW
 	delay_ms(5)
 	io.state = HIGH
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = HIGH
 
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = HIGH
 	
@@ -1375,19 +1374,19 @@ end function
 
 sub pic_lvp_start(SCL as byte, SDA as byte, MCLR as byte) 
 
-	icsp_scl  = SCL
-	icsp_sda  = SDA
-	icsp_mclr = MCLR
+	pic_icsp_sda  = SCL
+	pic_icsp_sda  = SDA
+	pic_icsp_mclr = MCLR
 
-	io.num = icsp_mclr
+	io.num = pic_icsp_mclr
 	io.enabled = YES
 	io.state = HIGH
 
-	io.num = icsp_scl
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = LOW
 
-	io.num = icsp_sda
+	io.num = pic_icsp_sda
 	io.enabled = YES
 	io.state = LOW
 

@@ -41,7 +41,7 @@ enum EN_TBT62_CHANNEL
 	TBT62_CHANNEL_2
 end enum
 
-enum EN_TEMP_HUM_SENSOR_TYPE
+enum EN_TBT62_TEMP_HUM_SENSOR_TYPE
 	DHT11,
 	DHT22
 end enum
@@ -93,4 +93,4 @@ declare function tbt62_ID_Hex(SensorID as string(8)) as string(16)
 declare function tbt62_ow_get_temperature(byref temperature as real, sensorID as string(8), channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
 declare function tbt62_ow_get_temp_separate(byref temperature as real, sensorID as string(8), phase as EN_TBT62_ONEWIRE_GET_TEMP, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
 declare function tbt62_set_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as boolean
-declare function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+declare function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TBT62_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT

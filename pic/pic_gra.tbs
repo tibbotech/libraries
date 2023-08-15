@@ -9,7 +9,7 @@ const PIC_INIT_SIGNATURE=&h5092
 const PIC_STAMP="PIC> "
 const PIC_CR_LF=chr(13)+chr(10)
 
-const UARTFLAG = &h7E
+const PIC_UARTFLAG = &h7E
 '--------------------------------------------------------------------
 dim pic_init_flag as word
 dim pic_use_ssi as no_yes
@@ -1671,10 +1671,10 @@ sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enable
 		pic_reg_write(PIC_TXSTA,chr(value and &hDF))
 		pic_uart_flag=pic_uart_flag and &h7F
 
-		s=pic_reg_read(UARTFLAG,1)
+		s=pic_reg_read(PIC_UARTFLAG,1)
 		value=asc(s) and &hBF
 		value=value or &h80
-		pic_reg_write(UARTFLAG,chr(value and &hBF))
+		pic_reg_write(PIC_UARTFLAG,chr(value and &hBF))
 	end if
 
 	base=300*br
@@ -1792,9 +1792,9 @@ sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enable
 
 	pic_uart_flag=pic_uart_flag or &h80
 
-'	s=pic_reg_read(UARTFLAG,1)
+'	s=pic_reg_read(PIC_UARTFLAG,1)
 '	value=asc(s)
-'	pic_reg_write(UARTFLAG,chr(value or &h40))
+'	pic_reg_write(PIC_UARTFLAG,chr(value or &h40))
 
 	s=pic_reg_read(PIC_TRISA,1)
 	value=asc(s)
@@ -1806,12 +1806,12 @@ sub pic_ser_config(br as pic_brate_enum, par as pic_parity_mode_enum, irq_enable
 
 	pic_uart_flag=pic_uart_flag and &h8F
 	pic_uart_flag=pic_uart_flag or par
-	s=pic_reg_read(UARTFLAG,1)
+	s=pic_reg_read(PIC_UARTFLAG,1)
 	value=asc(s)
 	value=value and &h0F
 	value=value or par 
 	value=value or &h80
-	pic_reg_write(UARTFLAG,chr(value or par))
+	pic_reg_write(PIC_UARTFLAG,chr(value or par))
 end sub
 
 sub pic_ser_setsend(data as string, channel as byte)

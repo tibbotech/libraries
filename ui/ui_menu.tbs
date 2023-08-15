@@ -46,15 +46,15 @@ dim menu_item_index, menu_display_index, menu_start_index as byte 		'3 byte-size
 dim menu_timeout_ctr, menu_timeout, menu_access_level, menu_current_lvl as byte		
 dim menu_item_count as byte										
 dim menu_result as ui_menu_results													
-dim flag_last_lvl as no_yes		'is the current lvl the last lvl
+dim menu_flag_last_lvl as no_yes		'is the current lvl the last lvl
 
-dim cached_ib_str as string(IB_MAX_LEN)
+dim menu_cached_ib_str as string(IB_MAX_LEN)
 
 dim ui_menu_exit_flag as no_yes
 dim menu_addr_array(MENU_MAX_ITEM_PER_LVL) as menu_display_item
 
 #if MENU_CURSOR_STYLE > 0
-	dim previous_display_index as byte
+	dim menu_previous_display_index as byte
 #endif
 
 '=============================================================
@@ -90,8 +90,8 @@ public function ui_menu(
 	menu_item_index=0
 	menu_display_index=0
 	menu_result=MENU_RESULT_TIMEOUT
-	flag_last_lvl=NO
-	cached_ib_str=""
+	menu_flag_last_lvl=NO
+	menu_cached_ib_str=""
 	ui_menu_exit_flag=NO
 	ui_menu_addr_fill(1)
 	ui_menu_string_parse(0,MENU_KEY_IN)
@@ -291,12 +291,12 @@ sub ui_menu_cursor_display(color as word, force_print as no_yes)
 #else
 	x=menu_pos_x+ 1
 	lcd.linewidth=SCROLL_BORDER	
-	if menu_display_index <> previous_display_index and force_print=NO then 
+	if menu_display_index <> menu_previous_display_index and force_print=NO then 
 		lcd.forecolor=LCD_BACKCOLOR
-		y=menu_pos_y+(previous_display_index)*(lcd.fontheight+UM_VER_SPACING)-UM_VER_SPACING/2-3
+		y=menu_pos_y+(menu_previous_display_index)*(lcd.fontheight+UM_VER_SPACING)-UM_VER_SPACING/2-3
 		lcd.rectangle(x,y,x+menu_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+lcd.fontheight+UM_VER_SPACING)
 	end if
-	if menu_display_index <> previous_display_index or force_print=YES then
+	if menu_display_index <> menu_previous_display_index or force_print=YES then
 		lcd.forecolor=color
 		y=menu_pos_y+menu_display_index*(lcd.fontheight + UM_VER_SPACING)-UM_VER_SPACING/2-3
 		lcd.rectangle(x,y,x+menu_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+lcd.fontheight+UM_VER_SPACING)
@@ -344,7 +344,7 @@ LCD_LOCK
 LCD_UNLOCK
 	else
 #if MENU_CURSOR_STYLE > 0	
-		previous_display_index=menu_display_index
+		menu_previous_display_index=menu_display_index
 #endif
 		menu_display_index=menu_display_index - 1
 	end if
@@ -364,7 +364,7 @@ sub ui_menu_down()
 		menu_item_index=menu_item_index - 1
 		exit sub
 	end if
-	previous_display_index=menu_display_index
+	menu_previous_display_index=menu_display_index
 	menu_display_index=menu_display_index + 1
 	device_move_cursor(menu_addr_array(menu_item_index),ui_menu_desc_file)
 	if menu_display_index > MENU_DISPLAY_ITEM_PER_LVL-1 then
@@ -459,7 +459,7 @@ function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_
 		insert_mode=MENU_IB_INSERT
 		timeout=20	
 		if reprint=YES then
-			edit_str=cached_ib_str
+			edit_str=menu_cached_ib_str
 		end if
 		if INPUT_BOX_INIT_POS=0 then
 			initial_pos=1
@@ -479,7 +479,7 @@ function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_
 			end if
 		end if
 		ui_menu_call_ib=ib_result
-		cached_ib_str=edit_str 
+		menu_cached_ib_str=edit_str 
 	else
 		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),NO,0)
 	end if
@@ -492,7 +492,7 @@ sub ui_menu_out()
 	dim confirm_key, cancel_key as string(3)
 	dim return_key as byte
 	dim mb_popped as no_yes
-	flag_last_lvl=NO
+	menu_flag_last_lvl=NO
 	mb_popped=NO
 	if menu_current_lvl > 0 then 
 		menu_current_lvl=menu_current_lvl - 1
@@ -509,7 +509,7 @@ sub ui_menu_out()
 	ui_menu_lvl_path=left(ui_menu_lvl_path, len(ui_menu_lvl_path)-2)
 	addr=menu_covert_addr(right(ui_menu_lvl_path,2))
 	ui_menu_addr_fill(addr)
-	previous_display_index=menu_display_index
+	menu_previous_display_index=menu_display_index
 	if ui_menu_index_path<>"" then
 		menu_item_index=asc(right(ui_menu_index_path,1))
 		ui_menu_index_path=left(ui_menu_index_path,len(ui_menu_index_path)-1)
@@ -547,7 +547,7 @@ sub ui_menu_in()
 		dim tb_result as ui_tbl_box_results
 	#endif	
 		
-	if flag_last_lvl=YES then exit sub
+	if menu_flag_last_lvl=YES then exit sub
 	i=menu_addr_array(menu_item_index).display_string_addr
 	ui_back_current_lcd
 	menu_path_store(i)
@@ -559,7 +559,7 @@ sub ui_menu_in()
 			device_menu_pre("","","","","","","","")
 			ui_menu_out
 		else 
-			previous_display_index=menu_display_index
+			menu_previous_display_index=menu_display_index
 			menu_display_index=0
 			menu_start_index=0
 			menu_item_index=0
@@ -582,7 +582,7 @@ LCD_UNLOCK
 	if left(item_data,1)="S" then goto setting
 	if left(item_data,1)="C" then goto command
 setting:
-	flag_last_lvl=YES
+	menu_flag_last_lvl=YES
 	i=instr(1,item_data,chr(COMMA),1)
 	if i > 0 then
 		s=mid(item_data,i+1,1)
@@ -622,7 +622,7 @@ print_ib:
 	
 	exit sub
 command:
-	flag_last_lvl=YES
+	menu_flag_last_lvl=YES
 	i=instr(1,item_data,chr(COMMA),1)
 	if i > 0 then 
 		s=right(item_data,len(item_data)-i)

@@ -49,7 +49,7 @@ function tbt14_init(signature as string, data_pin as byte, clk_pin as byte, load
 	io.num=busy_pin
 	io.enabled=NO
 
-	dim n as dac_nums
+	dim n as en_tbt14_dac_nums
 	for n=DAC_1 to DAC_4
 		tbt14_set_mv(n,0, load_pin, busy_pin, tbt_channel)
 	next n
@@ -58,7 +58,7 @@ function tbt14_init(signature as string, data_pin as byte, clk_pin as byte, load
 #endif
 end function
 
-sub tbt14_set_mv(n as dac_nums, mv as integer, load_pin as byte, busy_pin as byte, tbt_channel as byte)
+sub tbt14_set_mv(n as en_tbt14_dac_nums, mv as integer, load_pin as byte, busy_pin as byte, tbt_channel as byte)
 'Sets the outputs of one DAC channel to output voltage expressed in mV.
 	
 	dim i as word
@@ -69,7 +69,7 @@ sub tbt14_set_mv(n as dac_nums, mv as integer, load_pin as byte, busy_pin as byt
 	tbt14_set(n,i, load_pin, busy_pin, tbt_channel)
 end sub
 
-sub tbt14_set(n as dac_nums,v as word, load_pin as byte, busy_pin as byte, tbt_channel as byte)
+sub tbt14_set(n as en_tbt14_dac_nums,v as word, load_pin as byte, busy_pin as byte, tbt_channel as byte)
 'Programs a 12-bit value into one DAC channel.
 'The range is from 0 (-10V) to 4095 (+10V).
 

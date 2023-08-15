@@ -6,14 +6,14 @@
 
 include "global.tbh"
 
-const UDP_SOCK_GET_SIGNATURE="UDP"
-const PREV_SER_NUM_STAMP="ad8b"
+const NCMD_UDP_SOCK_GET_SIGNATURE="UDP"
+const NCMD_PREV_SER_NUM_STAMP="ad8b"
 dim net_cmd_bcast_sel as no_yes
-dim fware_block_ctr as word
-dim prev_ser_num as string(4)
-public dim udp_sock as byte
-public dim num_sdf as byte
-public dim sdf_addr(MAX_NUM_SDF_LINES) as word
+dim net_cmd_fware_block_ctr as word
+dim net_cmd_prev_ser_num as string(4)
+public dim net_cmd_udp_sock as byte
+public dim net_cmd_num_sdf as byte
+public dim sdf_addr(NCMD_MAX_NUM_SDF_LINES) as word
 
 '-------------------------------------------------------------
 public sub net_cmd_init()
@@ -21,10 +21,10 @@ public sub net_cmd_init()
 
 	dim str_start,str_end as word
 	
-	udp_sock=sock_get(UDP_SOCK_GET_SIGNATURE)
+	net_cmd_udp_sock=sock_get(NCMD_UDP_SOCK_GET_SIGNATURE)
 	
 	'UDP65535
-	sock.num=udp_sock
+	sock.num=net_cmd_udp_sock
 
 	sock.txbuffrq(NCMD_TX_BUF_SIZE)
 	sock.rxbuffrq(NCMD_RX_BUF_SIZE)
@@ -32,28 +32,28 @@ public sub net_cmd_init()
 	sys.buffalloc
 	
 	'UDP65535
-	sock.num=udp_sock
+	sock.num=net_cmd_udp_sock
 	sock.protocol=PL_SOCK_PROTOCOL_UDP
 	sock.localportlist="65535"
 	sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
 	sock.reconmode=PL_SOCK_RECONMODE_3
 	sock.acceptbcast=YES
-	'Init sdf_addr array with offsets for lines from SDF_FILE
-	num_sdf=0
+	'Init sdf_addr array with offsets for lines from NCMD_SDF_FILE
+	net_cmd_num_sdf=0
 	
-	prev_ser_num=PREV_SER_NUM_STAMP
+	net_cmd_prev_ser_num=NCMD_PREV_SER_NUM_STAMP
 	
-	romfile.open(SDF_FILE) 'setting definition file
+	romfile.open(NCMD_SDF_FILE) 'setting definition file
 	str_start=1
 	str_end=romfile.find(str_start,chr(13),1)
 	while str_end<>0
-		if num_sdf>=MAX_NUM_SDF_LINES then
+		if net_cmd_num_sdf>=NCMD_MAX_NUM_SDF_LINES then
 			sys.halt
-			num_sdf=0 'you need to increase MAX_NUM_SDF_LINES to >= actual num of lines in SDF_FILE
+			net_cmd_num_sdf=0 'you need to increase NCMD_MAX_NUM_SDF_LINES to >= actual num of lines in NCMD_SDF_FILE
 		end if
 		
-		sdf_addr(num_sdf)=str_start
-		num_sdf=num_sdf+1
+		sdf_addr(net_cmd_num_sdf)=str_start
+		net_cmd_num_sdf=net_cmd_num_sdf+1
 		str_start=str_end+2	'because need to skip over LF
 		str_end=romfile.find(str_start,chr(13),1)
 	wend
@@ -62,12 +62,12 @@ end sub
 '-------------------------------------------------------------
 public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim ss as string (1)
-	dim stg_data as string(MAX_NET_CMD_LEN)
+	dim stg_data as string(NCMD_MAX_NCMD_LEN)
 	dim x,pos,pos2,f as byte
 	dim cmd_src_valid as no_yes
 	dim index as byte=0
 	dim s2 as string(64)
-	dim reply_str as string(MAX_NET_RPL_LEN)
+	dim reply_str as string(NCMD_MAX_NET_RPL_LEN)
 	dim ip_change_needed as no_yes
 	dim curr_block_num,num_sectors as word
 	dim setting_name as string(STG_MAX_SETTING_NAME_LEN)=""
@@ -75,12 +75,12 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim sock_interface as pl_sock_interfaces
 	dim i as word
 	dim ser_num as string(8)
-	dim s as string(MAX_NET_CMD_LEN)
-	dim cmd_data as string(MAX_NET_CMD_LEN)
+	dim s as string(NCMD_MAX_NCMD_LEN)
+	dim cmd_data as string(NCMD_MAX_NCMD_LEN)
 	dim cmd_bcast as no_yes
 	dim w as word
 	
-	if sock.num<>udp_sock then exit sub
+	if sock.num<>net_cmd_udp_sock then exit sub
 	sock_interface=sock.currentinterface
 	s=sock.getdata(255)
 	cmd_data="U"+sock.remoteip
@@ -116,10 +116,10 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 		ser_num=right(s,len(s)-x)
 		s=left(s,x-1)
 		
-		if prev_ser_num=ser_num then
+		if net_cmd_prev_ser_num=ser_num then
 			exit sub
 		else
-			prev_ser_num=ser_num
+			net_cmd_prev_ser_num=ser_num
 		end if
 	end if
 	
@@ -146,13 +146,13 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	case "X": 'echo command (device info) -----------------------
 		#if NET_AVAILABLE
 		if sock.currentinterface=PL_SOCK_INTERFACE_NET then
-			reply_str=net.mac+"/00000"+str(sock.localport)+get_x_flags_net(sock.currentinterface)+stg_get("ON",0)+"/"+stg_get("DN",0)+"/"+str(NUM_VSPD_SER_PORTS)
+			reply_str=net.mac+"/00000"+str(sock.localport)+get_x_flags_net(sock.currentinterface)+stg_get("ON",0)+"/"+stg_get("DN",0)+"/"+str(NCMD_NUM_VSPD_SER_PORTS)
 		end if
 		#endif
 		
 		#if WLN_AVAILABLE
 		if sock.currentinterface=PL_SOCK_INTERFACE_WLN then
-			reply_str=wln.mac+"/00000"+str(sock.localport)+get_x_flags_net(sock.currentinterface)+stg_get("ON",0)+"/"+stg_get("DN",0)+"/"+str(NUM_VSPD_SER_PORTS)
+			reply_str=wln.mac+"/00000"+str(sock.localport)+get_x_flags_net(sock.currentinterface)+stg_get("ON",0)+"/"+stg_get("DN",0)+"/"+str(NCMD_NUM_VSPD_SER_PORTS)
 		end if
 		#endif
 		goto reply_ok_have_data
@@ -282,7 +282,7 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 		
 		'verify password
 		stg_data=stg_get("PW",0)		
-		prev_ser_num=""
+		net_cmd_prev_ser_num=""
 		'we verify password only when NOT in the error mode
 		if error_mode=NO then
 			if right(s,len(s)-1)<> stg_data then goto reply_denied
@@ -341,7 +341,7 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 		
 		select case mid(s,2,1)
 		case "S","":
-			reply_str=str(num_sdf)
+			reply_str=str(net_cmd_num_sdf)
 			
 		case "U":
 			reply_str=str(8)
@@ -363,17 +363,17 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 		
 		select case mid(s,2,1)
 		case "S":
-d1:			if x>=num_sdf then goto reply_err
-			romfile.open(SDF_FILE)
+d1:			if x>=net_cmd_num_sdf then goto reply_err
+			romfile.open(NCMD_SDF_FILE)
 			romfile.pointer=sdf_addr(x)
 			
-			if x=num_sdf-1 then
+			if x=net_cmd_num_sdf-1 then
 				w=romfile.size-sdf_addr(x)	
 			else
 				w=sdf_addr(x+1)-sdf_addr(x)
 			end if
 
-			sock.num=udp_sock
+			sock.num=net_cmd_udp_sock
 			if w<233 then	'239-6  'A'+reply_str+'|'+serial number
 				reply_str=romfile.getdata(w)
 			
@@ -396,19 +396,19 @@ d1:			if x>=num_sdf then goto reply_err
 		case else:
 			goto reply_err
 		end select
-		sock.num=udp_sock
+		sock.num=net_cmd_udp_sock
 		goto reply_ok_have_data
 
 	case "Q" 'reset firmware upload process ---------------------
-		fware_block_ctr=0
+		net_cmd_fware_block_ctr=0
 		goto reply_ok
 
 
 	case "D" 'upload one data block of firmware -----------------
 		if len(s)<>131 then goto reply_err
 		curr_block_num=256*asc(mid(s,2,1))+asc(mid(s,3,1))
-		if curr_block_num>fware_block_ctr then goto reply_out_of_seq 'out of sequence		 
-		if curr_block_num<fware_block_ctr then goto reply_ok 'repeated block
+		if curr_block_num>net_cmd_fware_block_ctr then goto reply_out_of_seq 'out of sequence		 
+		if curr_block_num<net_cmd_fware_block_ctr then goto reply_ok 'repeated block
 		if curr_block_num>=fd.availableflashspace*2 then goto reply_out_of_mem 'no space to store new file
 		
 		'we fit two 128-byte packets into each sector
@@ -422,9 +422,9 @@ d1:			if x>=num_sdf then goto reply_err
 			fd.setsector(curr_block_num/2)
 		end if
 		'next block number
-		fware_block_ctr=fware_block_ctr+1
-		x=fware_block_ctr/256
-		reply_str=chr(x)+chr(fware_block_ctr-x*256) 
+		net_cmd_fware_block_ctr=net_cmd_fware_block_ctr+1
+		x=net_cmd_fware_block_ctr/256
+		reply_str=chr(x)+chr(net_cmd_fware_block_ctr-x*256) 
 		goto reply_ok_have_data
 
 
@@ -442,8 +442,8 @@ d1:			if x>=num_sdf then goto reply_err
 			fd.setsector(curr_block_num/2)
 		end if
 		
-		num_sectors=fware_block_ctr/2
-		if (fware_block_ctr and 1)<>0 then
+		num_sectors=net_cmd_fware_block_ctr/2
+		if (net_cmd_fware_block_ctr and 1)<>0 then
 			num_sectors=num_sectors+1
 		end if
 		'copy between areas of flash
@@ -493,7 +493,7 @@ reply_ok_have_data:
 add_seq_num:
  	
  	reply_str=reply_str+"|"+ser_num
-	sock.num=udp_sock 'restore socket (we may have changed it)
+	sock.num=net_cmd_udp_sock 'restore socket (we may have changed it)
 	sock.targetinterface=sock_interface
 	sock.setdata(reply_str)
 	sock.send

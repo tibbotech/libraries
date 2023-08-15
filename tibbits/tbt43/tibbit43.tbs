@@ -30,7 +30,7 @@ include "tibbit43.tbh"
 
 dim tibbit_43_library_initialized as boolean = false
 dim TIBBIT43_SETTINGS_LIST as TIBBIT43_SETTINGS(TIBBIT_43_MAX_NO)
-dim values as TIBBIT43_VALUES
+dim tbt43_values as TIBBIT43_VALUES
 
 sub tibbit_43_debug_print(byref print_data as string) 
 	
@@ -129,10 +129,10 @@ end function
 
 sub tibbit_43_init_readings()
 	
-	values.value(0) = ""
-	values.value(1) = ""
-	values.value(2) = ""
-	values.value(3) = ""
+	tbt43_values.value(0) = ""
+	tbt43_values.value(1) = ""
+	tbt43_values.value(2) = ""
+	tbt43_values.value(3) = ""
 
 end sub
 
@@ -169,22 +169,22 @@ function tibbit_43_parse_bindata(port as byte, data as string) as boolean
 	length=len(data)
 	pos = 1
 	for i = 0 to 3
-		values.value(i) = mid(data  , pos, 2)
+		tbt43_values.value(i) = mid(data  , pos, 2)
 		pos = pos + 2
 		if pos > length then
 			tibbit_43_parse_bindata=true
 			dim mode as string
 			if TIBBIT43_SETTINGS_LIST(port).command_mode=true then
 				mode="Command mode"
-				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
-				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + tbt43_values.value(0) + ", " + tbt43_values.value(1) + ", " + tbt43_values.value(2) + ", " + tbt43_values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,tbt43_values.value(0),tbt43_values.value(1),tbt43_values.value(2),tbt43_values.value(3))
 			else
 				mode="Data mode"
-				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
-				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + tbt43_values.value(0) + ", " + tbt43_values.value(1) + ", " + tbt43_values.value(2) + ", " + tbt43_values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,tbt43_values.value(0),tbt43_values.value(1),tbt43_values.value(2),tbt43_values.value(3))
 				dim i as byte
 				for i=0 to 3
-					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=values.value(i)
+					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=tbt43_values.value(i)
 				next i
 				TIBBIT43_SETTINGS_LIST(port).sample_count=TIBBIT43_SETTINGS_LIST(port).sample_count+1
 				if TIBBIT43_SETTINGS_LIST(port).sample_count>=TIBBIT_43_NO_OF_SAMPLES then
@@ -217,23 +217,23 @@ function tibbit_43_parse_ascii_or_hexdata(port as byte, data as string) as TIBBI
 	for i = 0 to 3
 		delim = instr(pos, data, ",", 1)
 		if delim <> 0 then
-			values.value(i) = mid(data, pos, delim - pos)
+			tbt43_values.value(i) = mid(data, pos, delim - pos)
 			pos = delim + 1
 			if pos > length then exit function
 		else
-			values.value(i) = mid(data, pos, length - pos + 1)	
+			tbt43_values.value(i) = mid(data, pos, length - pos + 1)	
 			dim mode as string
 			if TIBBIT43_SETTINGS_LIST(port).command_mode=true then
 				mode="Command mode"
-				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
-				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + tbt43_values.value(0) + ", " + tbt43_values.value(1) + ", " + tbt43_values.value(2) + ", " + tbt43_values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,tbt43_values.value(0),tbt43_values.value(1),tbt43_values.value(2),tbt43_values.value(3))
 			else
 				mode="Data mode"
-				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + values.value(0) + ", " + values.value(1) + ", " + values.value(2) + ", " + values.value(3))
-				callback_tibbit_43_data_arrival(mode,port,values.value(0),values.value(1),values.value(2),values.value(3))
+				tibbit_43_debug_print("Mode:" + mode +"\tPort:" + str(port) + "\tValues:\t" + tbt43_values.value(0) + ", " + tbt43_values.value(1) + ", " + tbt43_values.value(2) + ", " + tbt43_values.value(3))
+				callback_tibbit_43_data_arrival(mode,port,tbt43_values.value(0),tbt43_values.value(1),tbt43_values.value(2),tbt43_values.value(3))
 				dim i as byte
 				for i=0 to 3
-					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=values.value(i)
+					TIBBIT43_SETTINGS_LIST(port).samples(TIBBIT43_SETTINGS_LIST(port).sample_count).value(i)=tbt43_values.value(i)
 				next i
 				TIBBIT43_SETTINGS_LIST(port).sample_count=TIBBIT43_SETTINGS_LIST(port).sample_count+1
 				if TIBBIT43_SETTINGS_LIST(port).sample_count>=TIBBIT_43_NO_OF_SAMPLES then

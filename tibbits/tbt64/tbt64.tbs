@@ -6,32 +6,32 @@ include "global.tbh"
 
 #define TBT_PWM_MAX_NUM_OF_SOCKS	4
 
-#define I2C_SLAVE           &h00
-#define I2C_ID_MSB          &h01
-#define I2C_ID_LSB          &h02
-#define I2C_LOCK            &h03
-#define I2C_FW_VERSION_1    &h04
-#define I2C_FW_VERSION_2    &h05
-#define I2C_SIGNATURE_1     &h06
-#define I2C_SIGNATURE_2     &h07
-#define I2C_FREQ_RANGE      &h08
-#define I2C_RESERVED_1      &h09
-#define I2C_RESERVED_2      &h0A
-#define I2C_CH1_FREQ_MSB    &h0B
-#define I2C_CH1_FREQ_LSB    &h0C
-#define I2C_CH1_DUTY        &h0D
-#define I2C_CH1_ENABLE      &h0E
-#define I2C_CH1_FAULT       &h0F
-#define I2C_CH2_FREQ_MSB    &h10
-#define I2C_CH2_FREQ_LSB    &h11
-#define I2C_CH2_DUTY        &h12
-#define I2C_CH2_ENABLE      &h13
-#define I2C_CH2_FAULT       &h14
-#define I2C_CH3_FREQ_MSB    &h15
-#define I2C_CH3_FREQ_LSB    &h16
-#define I2C_CH3_DUTY        &h17
-#define I2C_CH3_ENABLE      &h18
-#define I2C_CH3_FAULT       &h19
+#define TBT64_I2C_SLAVE           &h00
+#define TBT64_I2C_ID_MSB          &h01
+#define TBT64_I2C_ID_LSB          &h02
+#define TBT64_I2C_LOCK            &h03
+#define TBT64_I2C_FW_VERSION_1    &h04
+#define TBT64_I2C_FW_VERSION_2    &h05
+#define TBT64_I2C_SIGNATURE_1     &h06
+#define TBT64_I2C_SIGNATURE_2     &h07
+#define TBT64_I2C_FREQ_RANGE      &h08
+#define TBT64_I2C_RESERVED_1      &h09
+#define TBT64_I2C_RESERVED_2      &h0A
+#define TBT64_I2C_CH1_FREQ_MSB    &h0B
+#define TBT64_I2C_CH1_FREQ_LSB    &h0C
+#define TBT64_I2C_CH1_DUTY        &h0D
+#define TBT64_I2C_CH1_ENABLE      &h0E
+#define TBT64_I2C_CH1_FAULT       &h0F
+#define TBT64_I2C_CH2_FREQ_MSB    &h10
+#define TBT64_I2C_CH2_FREQ_LSB    &h11
+#define TBT64_I2C_CH2_DUTY        &h12
+#define TBT64_I2C_CH2_ENABLE      &h13
+#define TBT64_I2C_CH2_FAULT       &h14
+#define TBT64_I2C_CH3_FREQ_MSB    &h15
+#define TBT64_I2C_CH3_FREQ_LSB    &h16
+#define TBT64_I2C_CH3_DUTY        &h17
+#define TBT64_I2C_CH3_ENABLE      &h18
+#define TBT64_I2C_CH3_FAULT       &h19
 
 type tbtPWM_type
 	channel as byte
@@ -116,7 +116,7 @@ function tbtPWM_init(signature as string, i2c_id as byte, data_pin as byte, clk_
 	
 	si2c_start()
 	si2c_write(tbtPWM_list(index).i2c_id OR TBT_PWM_ADDR_W)
-	si2c_write(I2C_SLAVE) 'I2C_ID_MSB
+	si2c_write(TBT64_I2C_SLAVE) 'TBT64_I2C_ID_MSB
 	' Restart I2C and read
 	si2c_start()
 	si2c_write(tbtPWM_list(index).i2c_id OR TBT_PWM_ADDR_R)
@@ -174,7 +174,7 @@ function tbtPWM_set_range(range as byte, tbt_channel as byte) as ok_ng
 				si2c_get(tbt_channel)
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write(I2C_FREQ_RANGE)
+				si2c_write(TBT64_I2C_FREQ_RANGE)
 				si2c_write(range)
 				si2c_stop()
 				exit for
@@ -195,7 +195,7 @@ function tbtPWM_set_frequency(frequency as word, channel as byte, tbt_channel as
 				si2c_get(tbt_channel)
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write((channel * 5) + I2C_CH1_FREQ_MSB)
+				si2c_write((channel * 5) + TBT64_I2C_CH1_FREQ_MSB)
 				si2c_write(frequency shr 8)
 				si2c_write(frequency and &h00FF)
 				si2c_stop()
@@ -221,7 +221,7 @@ function tbtPWM_set_duty(duty as byte, channel as byte, tbt_channel as byte) as 
 				si2c_get(tbt_channel)
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write((channel * 5) + I2C_CH1_DUTY)
+				si2c_write((channel * 5) + TBT64_I2C_CH1_DUTY)
 				si2c_write(duty)
 				si2c_stop()
 				exit for
@@ -246,7 +246,7 @@ function tbtPWM_set_enable(enable as boolean, channel as byte, tbt_channel as by
 				si2c_get(tbt_channel)
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write((channel * 5) + I2C_CH1_ENABLE)
+				si2c_write((channel * 5) + TBT64_I2C_CH1_ENABLE)
 				si2c_write(enable)
 				si2c_stop()
 				exit for
@@ -271,7 +271,7 @@ function tbtPWM_get_fault(channel as byte, tbt_channel as byte) as byte
 				si2c_get(tbt_channel)
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write((channel * 5) + I2C_CH1_FAULT)
+				si2c_write((channel * 5) + TBT64_I2C_CH1_FAULT)
 				' Restart I2C and read
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_R)
@@ -296,20 +296,20 @@ function tbtPWM_set_i2c_id(new_id as byte, tbt_channel as byte) as ok_ng
 				' UnLock I2C ID write
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write(I2C_LOCK)
+				si2c_write(TBT64_I2C_LOCK)
 				si2c_write(&hAA)	' Unlock value
 				si2c_stop()
 				' Set new I2C ID
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write(I2C_SLAVE)
+				si2c_write(TBT64_I2C_SLAVE)
 				si2c_write(new_id)
 				si2c_stop()
 				tbtPWM_list(i).i2c_id = new_id and &hFE
 				' Lock write
 				si2c_start()
 				si2c_write(tbtPWM_list(i).i2c_id OR TBT_PWM_ADDR_W)
-				si2c_write(I2C_LOCK)
+				si2c_write(TBT64_I2C_LOCK)
 				si2c_write(&h00)	' Lock value
 				si2c_stop()
 				

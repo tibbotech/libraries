@@ -18,7 +18,7 @@ declare datetime_lng as float
 declare datetime_convert_err as ok_ng
 declare datetime_format_err as ok_ng
 
-type crontab
+type datetime_crontab
 	minute as string(10)
 	hour as string(10)
 	day as string(10) 'day of month
@@ -28,7 +28,7 @@ type crontab
 	astro as string(3)
 end type
 
-type astro_struct  
+type datetime_astro_struct  
 	yy as byte 
 	mm as byte
 	dd as byte 
@@ -66,10 +66,10 @@ end type
 declare function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
 declare function datetime_current_timestamp() as dword
 declare function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
-declare function datetime_next_cron(next_cron as crontab) as dword
+declare function datetime_next_cron(next_cron as datetime_crontab) as dword
 declare function datetime_timestamp_to_string(timestamp as dword, byref format as string) as string
 declare sub datetime_from_timestamp(timestamp as dword, byref days as word, byref mins as word, byref secs as byte)
-declare sub datetime_astro(byref a as astro_struct)
+declare sub datetime_astro(byref a as datetime_astro_struct)
 declare sub datetime_type_convert(byref ts_str as string(14),byref time_daycount as word,byref time_mincount as word,byref bSec as byte, convert_dir as datetime_convert_dir)
 declare sub datetime_string_format(byref result as string(14), 
 	byref format as string(14),

@@ -36,12 +36,12 @@ declare sub tbt42_reg_write_bin(add as byte,data as byte, pin_cs as byte, channe
 declare function tbt42_reg_read_bin(add as byte, pin_cs as byte, channel as byte)as byte
 
 #if RTC_DEBUG_PRINT=1
-	declare sub rtc_debug_print(data as string)
+	declare sub tbt42_rtc_debug_print(data as string)
 #endif
 
 '--------------------------------------------------------------------
-dim spi_num_tbt42 as byte
-dim rtc_init_flag as word
+dim tbt42_i2c_num as byte
+dim tbt42_rtc_init_flag as word
 
 '==============================================================================
 function tbt42_init(use_ssi as no_yes,pin_cs as byte,pin_clk as byte,pin_mosi as byte,pin_miso as byte,byref channel as byte)as tbt42_errcheck
@@ -53,13 +53,13 @@ function tbt42_init(use_ssi as no_yes,pin_cs as byte,pin_clk as byte,pin_mosi as
 	
 	tbt42_init=TBT42_OK
 	#if RTC_DEBUG_PRINT=1
-		rtc_debug_print("++++++++++")
+		tbt42_rtc_debug_print("++++++++++")
 	#endif
-	rtc_init_flag=TBT42_INIT_SIGNATURE
+	tbt42_rtc_init_flag=TBT42_INIT_SIGNATURE
 
 	channel=sspi_register("TBT42",pin_mosi,pin_miso,pin_clk,SPI_MODE_1,use_ssi)
 	#if RTC_DEBUG_PRINT=1
-		rtc_debug_print("spi num:"+str(channel))
+		tbt42_rtc_debug_print("spi num:"+str(channel))
 	#endif
 
 	'SPI CS
@@ -101,9 +101,9 @@ function tbt42_init(use_ssi as no_yes,pin_cs as byte,pin_clk as byte,pin_mosi as
 	end if
 
 	#if RTC_DEBUG_PRINT=1
-		rtc_debug_print("----------")
+		tbt42_rtc_debug_print("----------")
 	#endif
-	sspi_get(spi_num_tbt42)
+	sspi_get(tbt42_i2c_num)
 	dim value as byte
 	value=tbt42_reg_read_bin(TBT42_CONTROL,pin_cs,channel)
 	tbt42_reg_write_bin(TBT42_CONTROL,value and &hFC,pin_cs,channel)
@@ -124,9 +124,9 @@ sub tbt42_rtc_get(byref wdaycount as word, byref wmincount as word, byref bsec a
 	
 	dim byear,bmonth,bday,bhour,bmin as byte
 
-	if rtc_init_flag<>TBT42_INIT_SIGNATURE then
+	if tbt42_rtc_init_flag<>TBT42_INIT_SIGNATURE then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("The lib is not initialized, call tbt42_init() first")
+			tbt42_rtc_debug_print("The lib is not initialized, call tbt42_init() first")
 		#endif
 		exit sub
 	end if
@@ -149,9 +149,9 @@ function tbt42_rtc_set(wdaycount as word, wmincount as word, bsec as byte, pin_c
 
 	tbt42_rtc_set=OK
 	
-	if rtc_init_flag<>TBT42_INIT_SIGNATURE then
+	if tbt42_rtc_init_flag<>TBT42_INIT_SIGNATURE then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("The lib is not initialized, call tbt42_init() first")
+			tbt42_rtc_debug_print("The lib is not initialized, call tbt42_init() first")
 		#endif
 		tbt42_rtc_set=NG
 		exit function
@@ -159,14 +159,14 @@ function tbt42_rtc_set(wdaycount as word, wmincount as word, bsec as byte, pin_c
 	
 	if bsec>59 then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("Maximum bsec number is 59")
+			tbt42_rtc_debug_print("Maximum bsec number is 59")
 		#endif
 		tbt42_rtc_set=NG
 		exit function
 	end if
 	if wmincount>1439 then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("Maximum wmincount number is 1439.")
+			tbt42_rtc_debug_print("Maximum wmincount number is 1439.")
 		#endif
 		tbt42_rtc_set=NG
 		exit function
@@ -195,22 +195,22 @@ function tbt42_alarm_set(wdaycount as word, wmincount as word, bsec as byte, ena
 	
 	tbt42_alarm_set=NG
 	
-	if rtc_init_flag<>TBT42_INIT_SIGNATURE then
+	if tbt42_rtc_init_flag<>TBT42_INIT_SIGNATURE then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("The lib is not initialized, call tbt42_init() first")
+			tbt42_rtc_debug_print("The lib is not initialized, call tbt42_init() first")
 		#endif
 		exit function
 	end if
 
 	if bsec>59 then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("Maximum bsec number is 59.")
+			tbt42_rtc_debug_print("Maximum bsec number is 59.")
 		#endif
 		exit function
 	end if
 	if wmincount>1439 then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("Maximum wmincount number is 1439.")
+			tbt42_rtc_debug_print("Maximum wmincount number is 1439.")
 		#endif
 		exit function
 	end if
@@ -287,9 +287,9 @@ function tbt42_alarm_setting_get(byref wdaycount as word, byref wmincount as wor
 	
 	dim byear,bmonth,bday,bhour,bmin as byte
 
-	if rtc_init_flag<>TBT42_INIT_SIGNATURE then
+	if tbt42_rtc_init_flag<>TBT42_INIT_SIGNATURE then
 		#if RTC_DEBUG_PRINT=1
-			rtc_debug_print("The lib is not initialized, call tbt42_init() first")
+			tbt42_rtc_debug_print("The lib is not initialized, call tbt42_init() first")
 		#endif
 		exit function
 	end if
@@ -466,7 +466,7 @@ sub tbt42_reg_write_bin(add as byte, data as byte, pin_cs as byte, channel as by
 end sub
 
 #if RTC_DEBUG_PRINT=1
-sub rtc_debug_print(data as string)
+sub tbt42_rtc_debug_print(data as string)
 	sys.debugprint(TBT42_STAMP+data+TBT42_CR_LF)
 end sub
 #endif

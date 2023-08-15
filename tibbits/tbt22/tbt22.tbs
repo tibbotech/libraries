@@ -157,8 +157,8 @@ function tbt22_get_index(tbt_channel as byte) as byte
 	sys.debugprint("Channel not found\r\n")
 end function
 
-'function tbt22_rtd_config(mode as rtd_conv_mode, byref status as byte, r_in_normal_0_degree_C as real)as ok_ng
-function tbt22_rtd_config(mode as rtd_conv_mode, sensor as rtd_sensor_type, int_pin as byte, tbt_channel as byte)as ok_ng
+'function tbt22_rtd_config(mode as en_tbt22_rtd_conv_mode, byref status as byte, r_in_normal_0_degree_C as real)as ok_ng
+function tbt22_rtd_config(mode as en_tbt22_rtd_conv_mode, sensor as en_tbt22_rtd_sensor_type, int_pin as byte, tbt_channel as byte)as ok_ng
 	dim tmp,count as byte = 0
 	dim index as byte = tbt22_get_index(tbt_channel)
  	

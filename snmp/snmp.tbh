@@ -51,31 +51,31 @@ end enum
 #define SNMP_TIBBO_TRAPS chr(&h2b) + chr(&h06) + chr(&h01) + chr(&h04) + chr(&h01) + chr(&h81) + chr(&ha2) + chr(&h02) + chr(&h02) + chr(&h03) ' .1.3.6.1.4.1.20738.2.3
 
 ' Settings 
-enum TrapType
+enum SnmpTrapType
 	TrapDigital
 	TrapCounter
 	TrapAnalog
 end enum
 
-enum TrapDigitalType
+enum SnmpTrapDigitalType
 	TrapDigitalRise
 	TrapDigitalEdge
 end enum
 
-enum TrapAnalogType
+enum SnmpTrapAnalogType
 	TrapAnalogBelow
 	TrapAnalogAbove
 	TrapAnalogBetween
 	TrapAnalogOutOfRange
 end enum
 
-type trap
+type snmp_trap
 	enable as no_yes
 	specific as byte
 	channel as byte
-	ttype as TrapType
-	dtype as TrapDigitalType
-	atype as TrapAnalogType
+	ttype as SnmpTrapType
+	dtype as SnmpTrapDigitalType
+	atype as SnmpTrapAnalogType
 	counter_limit as word
 	analog_limit1 as real
 	analog_limit2 as real
@@ -87,11 +87,11 @@ declare snmp_set_public as string(20)
 declare snmp_set_contact as string(20)
 declare snmp_set_location as string(20)
 
-declare sock_snmp as byte
-declare sock_trap as byte
-declare traps_enable as boolean
-declare traps(4) as trap
-declare trap_receiver as string(12)
+declare snmp_sock_snmp as byte
+declare snmp_sock_trap as byte
+declare snmp_traps_enable as boolean
+declare snmp_traps(4) as snmp_trap
+declare snmp_trap_receiver as string(12)
 
 ' Functions & Subs
 declare function snmp_initialize(byref password as string, byref contact as string, byref location as string) as boolean

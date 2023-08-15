@@ -32,12 +32,12 @@
 	#define TBT22_MAX_NUM_OF_SOCKS 1
 #endif
 
-enum rtd_conv_mode
+enum en_tbt22_rtd_conv_mode
 	tbt22_conversion_with_50_hz_mode,
 	tbt22_conversion_with_60_hz_mode
 end enum
 
-enum rtd_sensor_type
+enum en_tbt22_rtd_sensor_type
 	PT100=0,
 	PT200,
 	PT500,
@@ -57,7 +57,7 @@ declare function tbt_rtd_init(signature as string, data_pin as byte, clk_pin as 
 ' Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return NG, meaning that
 ' there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
 
-declare function tbt22_rtd_config(mode as rtd_conv_mode, sensor as rtd_sensor_type, int_pin as byte, tbt_channel as byte)as ok_ng
+declare function tbt22_rtd_config(mode as en_tbt22_rtd_conv_mode, sensor as en_tbt22_rtd_sensor_type, int_pin as byte, tbt_channel as byte)as ok_ng
 ' MAX31865 provide the notch frequencies for the noise rejection filter.
 ' Input noise is attenuated by a third-order digital "sinc" filter.Noise from 50Hz or 60Hz power sources(includeing harmonics of the
 ' ac power's fundamental frequency)is attenuated by 82dB.

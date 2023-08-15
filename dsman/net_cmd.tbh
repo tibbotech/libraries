@@ -1,28 +1,28 @@
 '=============================================================
 '		NET_CMD.TBS
 '=============================================================
-#ifndef LOGIN_TOUT_CONST
-#define LOGIN_TOUT_CONST 600
+#ifndef NCMD_LOGIN_TOUT_CONST
+#define NCMD_LOGIN_TOUT_CONST 600
 #endif
 
-#ifndef MAX_NUM_SDF_LINES
-#define MAX_NUM_SDF_LINES 14
+#ifndef NCMD_MAX_NUM_SDF_LINES
+#define NCMD_MAX_NUM_SDF_LINES 14
 #endif
 
-#ifndef MAX_NET_CMD_LEN
-#define MAX_NET_CMD_LEN 131 'max length of network command
+#ifndef NCMD_MAX_NCMD_LEN
+#define NCMD_MAX_NCMD_LEN 131 'max length of network command
 #endif
 
-#ifndef MAX_NET_RPL_LEN
-#define MAX_NET_RPL_LEN 255 'max length of network replies
+#ifndef NCMD_MAX_NET_RPL_LEN
+#define NCMD_MAX_NET_RPL_LEN 255 'max length of network replies
 #endif
 
-#ifndef NUM_VSPD_SER_PORTS
-#define NUM_VSPD_SER_PORTS 0 'num of serial ports for remote access (with VSPD, etc.)
+#ifndef NCMD_NUM_VSPD_SER_PORTS
+#define NCMD_NUM_VSPD_SER_PORTS 0 'num of serial ports for remote access (with VSPD, etc.)
 #endif
 
-#ifndef SDF_FILE
-#define SDF_FILE "sdf.xtxt"
+#ifndef NCMD_SDF_FILE
+#define NCMD_SDF_FILE "sdf.xtxt"
 #endif
 
 #ifndef NCMD_TX_BUF_SIZE
@@ -34,13 +34,13 @@
 #endif
 
 
-const CMD_ESC_CHAR = "@"
-const PAT_BLINK_BOTH_IN_TURNS_FAST=	"GRGRGRGR**"
-const PAT_GREEN_LOOP=			"G~"
+const NCMD_ESC_CHAR = "@"
+const NCMD_PAT_BLINK_BOTH_IN_TURNS_FAST=	"GRGRGRGR**"
+const NCMD_PAT_GREEN_LOOP=			"G~"
 
-declare num_sdf as byte
-declare sdf_addr(MAX_NUM_SDF_LINES) as word
-declare udp_sock as byte
+declare net_cmd_num_sdf as byte
+declare net_cmd_sdf_addr(NCMD_MAX_NUM_SDF_LINES) as word
+declare net_cmd_udp_sock as byte
 
 declare sub net_cmd_init
 declare sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)

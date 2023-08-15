@@ -1,4 +1,4 @@
-enum ext_line_name
+enum en_tbt41_ext_line_name
 	EXT_LINE_1=0,
 	EXT_LINE_2=1,
 	EXT_LINE_3=2,
@@ -22,19 +22,19 @@ declare function tbt41_init(byref signature as string, use_ssi as no_yes, pin_cl
 'Note that there is a limited number of SSI channels so if you set use_ssi=YES this function may return TBT41_NO_SSI_AVAILABLE, meaning that
 'there are no free SSI channels left. This doesn't mean failure. Rather, it means that comms will proceed in bit banging mood.
 
-declare function tbt41_line_out_enable(num as ext_line_name,en as no_yes, channel as byte)as ok_ng
+declare function tbt41_line_out_enable(num as en_tbt41_ext_line_name,en as no_yes, channel as byte)as ok_ng
 'Configures the specified line (num) to be an input (en=NO) or outpur (en=YES).
 'The function will return NG if the execution fails.
 
-declare function tbt41_line_pup_enable(num as ext_line_name, en as no_yes, channel as byte)as ok_ng
+declare function tbt41_line_pup_enable(num as en_tbt41_ext_line_name, en as no_yes, channel as byte)as ok_ng
 'If en=YES and the corresponding line (num) is configured for input, then this line will be pulled up with a 100 KOhm resistor.
 'The function will return NG if the execution fails.
 
-declare function tbt41_line_set(num as ext_line_name, state as low_high, channel as byte) as ok_ng
+declare function tbt41_line_set(num as en_tbt41_ext_line_name, state as low_high, channel as byte) as ok_ng
 'Sets the output state of the specified line (num). For this to work the line has to be configured as output.
 'The function will return NG if the execution fails.
 
-declare function tbt41_line_get(num as ext_line_name, byref state as low_high, channel as byte)as ok_ng
+declare function tbt41_line_get(num as en_tbt41_ext_line_name, byref state as low_high, channel as byte)as ok_ng
 'Reads the state of the specified line (num). The value will be returned in the state variable.
 'The function will return NG if the execution fails.
 

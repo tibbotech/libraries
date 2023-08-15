@@ -13,8 +13,8 @@ const TOPIC_TIMESTAMP="iothub-creation-time-utc="
 
 dim azure_state as en_azure_states
 dim azure_rid as dword=0
-dim device_bound_message_topic as string(64)
-dim server_bound_message_topic as string
+dim azure_device_bound_message_topic as string(64)
+dim azure_server_bound_message_topic as string
 dim azure_init_flag as word = 0
 dim azure_num_of_suback as byte
 dim azure_dps_sock as byte = 255
@@ -53,8 +53,8 @@ public sub azure_start(byref device_id as string, byref scope_id as string, byre
 	azure_current_scope_id=scope_id
 	azure_current_dps_server=dps_url
 	azure_current_primary_key=symmetricKey
-	server_bound_message_topic="devices/"+azure_current_device_id+"/messages/events/"
-	device_bound_message_topic="devices/"+azure_current_device_id+"/messages/devicebound/"
+	azure_server_bound_message_topic="devices/"+azure_current_device_id+"/messages/events/"
+	azure_device_bound_message_topic="devices/"+azure_current_device_id+"/messages/devicebound/"
 	azure_state=EN_AZURE_NOT_CONNECTED
 	
 end sub
@@ -68,7 +68,7 @@ public sub azure_on_connected()
 		exit sub
 	end if
 
-	mqtt_sub(device_bound_message_topic+"#",QOS_AT_MOST_ONCE)
+	mqtt_sub(azure_device_bound_message_topic+"#",QOS_AT_MOST_ONCE)
 	mqtt_sub(AZURE_TOPIC_METHOD+"#",QOS_AT_MOST_ONCE)
 	mqtt_sub(AZURE_TOPIC_RESULT+"#",QOS_AT_MOST_ONCE)
 	mqtt_sub(AZURE_TOPIC_PROPERTY_DESIRED+"#",QOS_AT_MOST_ONCE)
@@ -310,17 +310,17 @@ public sub azure_send_telemetry()
 			
 	dim pos as byte
 	if ts<>"" then
-		pos=instr(1,server_bound_message_topic,TOPIC_TIMESTAMP,1)
+		pos=instr(1,azure_server_bound_message_topic,TOPIC_TIMESTAMP,1)
 		if pos>0 then
-				server_bound_message_topic=left(server_bound_message_topic,pos-1)+TOPIC_TIMESTAMP+ts
+				azure_server_bound_message_topic=left(azure_server_bound_message_topic,pos-1)+TOPIC_TIMESTAMP+ts
 		else
-			server_bound_message_topic=server_bound_message_topic+TOPIC_TIMESTAMP+ts
+			azure_server_bound_message_topic=azure_server_bound_message_topic+TOPIC_TIMESTAMP+ts
 		end if
 	end if
 	
 	sock.num=mqtt_sock_num
 	sock.notifysent(0)
-	mqtt_publish(server_bound_message_topic,json,QOS_AT_MOST_ONCE,false)					
+	mqtt_publish(azure_server_bound_message_topic,json,QOS_AT_MOST_ONCE,false)					
 	callback_on_telemetry_sent()
 
 end sub

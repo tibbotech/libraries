@@ -9,10 +9,10 @@
 '	specific functions. User can use device_input_box_pre() to prepare the input 
 '	box including printing of buttons, and use device_ib_key_proc() to process the 
 '	keys. 
-'	Another important feature of this input box is the "mask", the mask is used
+'	Another important feature of this input box is the "mask", the ib_mask is used
 '	when editing string that requires special format.(ex. time 12:00, ip 192.168.001.001)
 '	For example, the mask_str for time would be "  :  ", and for ip, it would be
-'	"   .   .   .   " these special characters in the mask string will be displayed
+'	"   .   .   .   " these special characters in the ib_mask string will be displayed
 '	even the string is empty, and this characters will be uneditable.
 '
 '*********************************************************************************
@@ -25,12 +25,12 @@ declare sub ib_str_pos_increament(restart as no_yes)
 declare sub ui_input_box_timer_proc()
 declare sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc as byte, byref insert_mode as no_yes)
 '--------------------------------------------------------------------------------
-dim chr_asc, lcd_pos_index, sourcestr_index, ib_len, display_len, display_start_index, ib_input_length as byte
-dim cursor_x, prev_x as word
-dim sourcestr, mask as string(IB_MAX_LEN)
+dim ib_chr_asc, ib_lcd_pos_index, ib_sourcestr_index, ib_len, ib_display_len, ib_display_start_index, ib_input_length as byte
+dim ib_cursor_x, ib_prev_x as word
+dim ib_sourcestr, ib_mask as string(IB_MAX_LEN)
 dim ib_str as string(IB_MAX_LEN+2)
 dim ib_secret_mode, ib_insert_mode as no_yes
-dim input_type as input_box_char_ranges
+dim ib_input_type as input_box_char_ranges
 dim input_box_result as ui_input_box_results
 dim ib_timeout_ctr, ib_timeout as byte
 
@@ -62,50 +62,50 @@ public function ui_input_box(
 	romfile.open(LCD_FIX_FONT)
 	lcd.setfont(romfile.offset)	
 	lcd.texthorizontalspacing=UIB_HOR_SPACING
-	sourcestr=""
-	mask=mask_str
+	ib_sourcestr=""
+	ib_mask=mask_str
 	ib_secret_mode=secret_mode
 	ib_insert_mode=insert_mode
 	ib_timeout_ctr=timeout
 	ib_timeout=timeout
 	ib_input_length=0
 	input_box_result=INPUT_BOX_RESULT_TIMEOUT
-	input_type=char_range
+	ib_input_type=char_range
 	w2=lcd.getprintwidth("0")+lcd.texthorizontalspacing
 	w1=INPUT_BOX_W
 	w1=w1/w2
-	display_len=w1-2
-	sourcestr_index=0
-	display_start_index=0
-	lcd_pos_index=0
-	chr_asc=255
+	ib_display_len=w1-2
+	ib_sourcestr_index=0
+	ib_display_start_index=0
+	ib_lcd_pos_index=0
+	ib_chr_asc=255
 
-	'prepare mask string
-	if mask="" then
+	'prepare ib_mask string
+	if ib_mask="" then
 		for i=1 to len(edit_str)
-			mask=mask + chr(&h20)		'adding space for unfilled part of the mask
+			ib_mask=ib_mask + chr(&h20)		'adding space for unfilled part of the ib_mask
 		next i
 	end if
 	i=0
 	do
-		i=instr(i+1,mask,chr(&h20),1)
+		i=instr(i+1,ib_mask,chr(&h20),1)
 		if i=0 then exit do
 		ib_input_length=ib_input_length+1
 	loop while true
 	
 	if ib_input_length<input_length then ib_input_length=input_length
 	
-	'prepare sourcestr, sourcestr is the actual raw string(without mask characters) we are editing
+	'prepare ib_sourcestr, ib_sourcestr is the actual raw string(without ib_mask characters) we are editing
 	for i=1 to len(edit_str)
-		if mid(mask,i,1)=chr(&h20) then 
-			sourcestr=sourcestr+mid(edit_str,i,1)
-			if lcd_pos_index<initial_pos then ib_str_pos_increament(no)
+		if mid(ib_mask,i,1)=chr(&h20) then 
+			ib_sourcestr=ib_sourcestr+mid(edit_str,i,1)
+			if ib_lcd_pos_index<initial_pos then ib_str_pos_increament(no)
 		end if
 	next i
 	
-	if insert_mode=no and len(sourcestr)=0 then 
-		sourcestr=chr(&h20)
-		mask=mask + chr(&h20)
+	if insert_mode=no and len(ib_sourcestr)=0 then 
+		ib_sourcestr=chr(&h20)
+		ib_mask=ib_mask + chr(&h20)
 		ib_str_pos_increament(no)
 	end if
 	
@@ -125,7 +125,7 @@ wait:
 	end if
 	if input_box_result<>INPUT_BOX_RESULT_TIMEOUT then
 		ui_input_box=input_box_result
-		initial_pos=sourcestr_index
+		initial_pos=ib_sourcestr_index
 		goto key_pressed
 	end if
 	
@@ -140,11 +140,11 @@ wait:
 	else
 		if ib_timeout_ctr=0 then
 			ui_input_box=INPUT_BOX_RESULT_TIMEOUT
-			initial_pos=sourcestr_index
+			initial_pos=ib_sourcestr_index
 key_pressed:		
 			if input_box_result=INPUT_BOX_RESULT_OK then
-				edit_str=sourcestr
-				mask_str=mask
+				edit_str=ib_sourcestr
+				mask_str=ib_mask
 			end if
 			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str),lcd.fontheight+2)
 			device_input_box_post(mask_str,edit_str,char_range ,secret_mode,insert_mode,initial_pos,timeout,input_length)
@@ -187,43 +187,43 @@ end function
 sub ib_str_pos_increament(restart as no_yes)
 'Move the cursor in the input box to the right
 increment_pos:
-	if sourcestr_index=len(sourcestr) and ib_insert_mode=NO and right(sourcestr,1) <> chr(&h20) and len(sourcestr) < ib_input_length then
-		sourcestr=sourcestr + chr(&h20)
-		mask=mask + chr(&h20)
+	if ib_sourcestr_index=len(ib_sourcestr) and ib_insert_mode=NO and right(ib_sourcestr,1) <> chr(&h20) and len(ib_sourcestr) < ib_input_length then
+		ib_sourcestr=ib_sourcestr + chr(&h20)
+		ib_mask=ib_mask + chr(&h20)
 	end if 
-    if sourcestr_index < len(sourcestr) then
-		sourcestr_index=sourcestr_index+1	
-		lcd_pos_index=lcd_pos_index + 1 
-		if mid(mask,lcd_pos_index,1) <> chr(&h20) and not(lcd_pos_index > len(mask)) then
-			lcd_pos_index=lcd_pos_index + 1
+    if ib_sourcestr_index < len(ib_sourcestr) then
+		ib_sourcestr_index=ib_sourcestr_index+1	
+		ib_lcd_pos_index=ib_lcd_pos_index + 1 
+		if mid(ib_mask,ib_lcd_pos_index,1) <> chr(&h20) and not(ib_lcd_pos_index > len(ib_mask)) then
+			ib_lcd_pos_index=ib_lcd_pos_index + 1
 		end if
-		if lcd_pos_index - display_start_index+1 > display_len then
-			display_start_index=lcd_pos_index - display_len +1
+		if ib_lcd_pos_index - ib_display_start_index+1 > ib_display_len then
+			ib_display_start_index=ib_lcd_pos_index - ib_display_len +1
 		end if
 	else
 		if restart=YES then
-			sourcestr_index=1
-			lcd_pos_index=1
-			display_start_index=0
+			ib_sourcestr_index=1
+			ib_lcd_pos_index=1
+			ib_display_start_index=0
 		end if
 	end if
 	
-	chr_asc=asc(mid(sourcestr,sourcestr_index,1))
+	ib_chr_asc=asc(mid(ib_sourcestr,ib_sourcestr_index,1))
 end sub
 
 '--------------------------------------------------------------------------------
 sub ib_str_pos_decreament()
 'Move the cursor in the input box to the left
-	if lcd_pos_index > 0 then
-		lcd_pos_index=lcd_pos_index - 1 
-		sourcestr_index=sourcestr_index-1	
-		if mid(mask,lcd_pos_index,1) <> chr(&h20) and lcd_pos_index > 0  then
-			lcd_pos_index=lcd_pos_index - 1
+	if ib_lcd_pos_index > 0 then
+		ib_lcd_pos_index=ib_lcd_pos_index - 1 
+		ib_sourcestr_index=ib_sourcestr_index-1	
+		if mid(ib_mask,ib_lcd_pos_index,1) <> chr(&h20) and ib_lcd_pos_index > 0  then
+			ib_lcd_pos_index=ib_lcd_pos_index - 1
 		end if
-		if display_start_index > 0 then display_start_index=display_start_index-1
+		if ib_display_start_index > 0 then ib_display_start_index=ib_display_start_index-1
 	end if
 	
-	chr_asc=asc(mid(sourcestr,sourcestr_index,1))
+	ib_chr_asc=asc(mid(ib_sourcestr,ib_sourcestr_index,1))
 end sub
 
 '--------------------------------------------------------------------------------
@@ -231,20 +231,20 @@ sub ib_backspace()
 'Remove the character that on the left of the cursor.
 	dim s1, s2 as string(IB_MAX_LEN)
 	dim i,j,k as byte
-	if sourcestr_index > 0 then
-		s1=left(sourcestr, sourcestr_index-1)
-		s2=right(sourcestr, len(sourcestr)-sourcestr_index)
+	if ib_sourcestr_index > 0 then
+		s1=left(ib_sourcestr, ib_sourcestr_index-1)
+		s2=right(ib_sourcestr, len(ib_sourcestr)-ib_sourcestr_index)
 		j=0
-		for i=1 to len(mask)
-			if mid(mask,i,1)=chr(&h20) then
+		for i=1 to len(ib_mask)
+			if mid(ib_mask,i,1)=chr(&h20) then
 				j=j+1
 			else
 				k=i
 			end if
 		next i
-		sourcestr=s1+s2
-		if len(sourcestr) < j and len(mask) > k then
-			mask=left(mask, len(mask)-1)
+		ib_sourcestr=s1+s2
+		if len(ib_sourcestr) < j and len(ib_mask) > k then
+			ib_mask=left(ib_mask, len(ib_mask)-1)
 		end if
 		ib_str_pos_decreament
 	end if
@@ -255,28 +255,28 @@ sub ib_delete()
 'Remove the character that right above the cursor
 	dim s1, s2 as string(IB_MAX_LEN)
 	dim i,j,k as byte
-	if sourcestr_index > len(sourcestr) or sourcestr_index=0 then exit sub
+	if ib_sourcestr_index > len(ib_sourcestr) or ib_sourcestr_index=0 then exit sub
 	if ib_insert_mode=YES then
-		if sourcestr_index=len(sourcestr) then exit sub
-		s1=left(sourcestr, sourcestr_index)
-		s2=right(sourcestr, len(sourcestr)-sourcestr_index-1)	
+		if ib_sourcestr_index=len(ib_sourcestr) then exit sub
+		s1=left(ib_sourcestr, ib_sourcestr_index)
+		s2=right(ib_sourcestr, len(ib_sourcestr)-ib_sourcestr_index-1)	
 	else
-		if sourcestr_index > 0 then sourcestr_index=sourcestr_index - 1
-		s1=left(sourcestr, sourcestr_index-1) 
-		s2=right(sourcestr, len(sourcestr)-sourcestr_index)
+		if ib_sourcestr_index > 0 then ib_sourcestr_index=ib_sourcestr_index - 1
+		s1=left(ib_sourcestr, ib_sourcestr_index-1) 
+		s2=right(ib_sourcestr, len(ib_sourcestr)-ib_sourcestr_index)
 		if len(s1)+len(s2)=0 then s2= chr(&h20)
 	end if		
 	j=0
-	for i=1 to len(mask)
-		if mid(mask,i,1)=chr(&h20) then
+	for i=1 to len(ib_mask)
+		if mid(ib_mask,i,1)=chr(&h20) then
 			j=j+1
 		else
 			k=i
 		end if
 	next i
-	sourcestr=s1+s2
-	if len(sourcestr) < j and len(mask) > k then
-		mask=left(mask, len(mask)-1)
+	ib_sourcestr=s1+s2
+	if len(ib_sourcestr) < j and len(ib_mask) > k then
+		ib_mask=left(ib_mask, len(ib_mask)-1)
 	end if
 
 end sub
@@ -294,15 +294,15 @@ sub ib_insert(s as string(1))
 	dim s2 as string(IB_MAX_LEN)
 	dim i,j as byte
 	j=0
-	for i=1 to len(mask)
-		if mid(mask,i,1)=chr(&h20) then
+	for i=1 to len(ib_mask)
+		if mid(ib_mask,i,1)=chr(&h20) then
 			j=j+1
 		end if
 	next i
-	s2=right(sourcestr, len(sourcestr)-sourcestr_index)
-	if len(mask)<IB_MAX_LEN and len(sourcestr)<ib_input_length+1 then 
-		sourcestr=left(sourcestr, sourcestr_index)+s+s2
-		if len(sourcestr)>j then mask=mask + chr(&h20)
+	s2=right(ib_sourcestr, len(ib_sourcestr)-ib_sourcestr_index)
+	if len(ib_mask)<IB_MAX_LEN and len(ib_sourcestr)<ib_input_length+1 then 
+		ib_sourcestr=left(ib_sourcestr, ib_sourcestr_index)+s+s2
+		if len(ib_sourcestr)>j then ib_mask=ib_mask + chr(&h20)
 		ib_str_pos_increament(RESTART)
 	end if
 end sub
@@ -310,8 +310,8 @@ end sub
 '--------------------------------------------------------------------------------
 sub ib_overwrite(s as string(1))
 	dim s2 as string(IB_MAX_LEN)
-	s2=right(sourcestr, len(sourcestr)-sourcestr_index)	
-	sourcestr=left(sourcestr, sourcestr_index-1)+s+s2
+	s2=right(ib_sourcestr, len(ib_sourcestr)-ib_sourcestr_index)	
+	ib_sourcestr=left(ib_sourcestr, ib_sourcestr_index-1)+s+s2
 end sub
 
 '--------------------------------------------------------------------------------
@@ -319,54 +319,54 @@ sub ib_print()
 	dim i, b as byte
 	dim s1, s2 as string(IB_MAX_LEN)
 	if ib_secret_mode=YES then
-		for i=1 to len(sourcestr)
-			if mid(sourcestr,i,1)=chr(&h20) then
+		for i=1 to len(ib_sourcestr)
+			if mid(ib_sourcestr,i,1)=chr(&h20) then
 				s2=s2+chr(&h20)
 			else
 				s2=s2+"*"
 			end if
 		next i
-		if chr_asc<>255 then
+		if ib_chr_asc<>255 then
 
-			s2=left(s2,sourcestr_index-1)+mid(sourcestr,sourcestr_index,1)+right(s2,len(sourcestr)-sourcestr_index)
+			s2=left(s2,ib_sourcestr_index-1)+mid(ib_sourcestr,ib_sourcestr_index,1)+right(s2,len(ib_sourcestr)-ib_sourcestr_index)
 		end if
-		if len(sourcestr)>ib_input_length then
+		if len(ib_sourcestr)>ib_input_length then
 			s2=left(s2,ib_input_length)
-			sourcestr=left(sourcestr,ib_input_length)
+			ib_sourcestr=left(ib_sourcestr,ib_input_length)
 			ib_str_pos_decreament()
 		end if		
-		s2=ib_insert_format(s2,mask)
+		s2=ib_insert_format(s2,ib_mask)
 	else
-		if len(sourcestr)>ib_input_length then
-			sourcestr=left(sourcestr,ib_input_length)
+		if len(ib_sourcestr)>ib_input_length then
+			ib_sourcestr=left(ib_sourcestr,ib_input_length)
 			ib_str_pos_decreament()
 		end if	
-		s2=ib_insert_format(sourcestr,mask)
+		s2=ib_insert_format(ib_sourcestr,ib_mask)
 	end if 
-	if len(s2)>display_len then
-		if display_start_index > 0 then
-			if len(s2) - display_start_index <= display_len  then
-				s1=mid(s2,display_start_index,display_len)
+	if len(s2)>ib_display_len then
+		if ib_display_start_index > 0 then
+			if len(s2) - ib_display_start_index <= ib_display_len  then
+				s1=mid(s2,ib_display_start_index,ib_display_len)
 				if ib_str <> "<" + s1 + "]" then
 					ib_str="<" + s1 + "]" 
 				end if
 			else
-				if ib_str <> "<" + mid(s2,display_start_index,display_len)+ ">" then
-					ib_str="<" + mid(s2,display_start_index,display_len)+ ">" 
+				if ib_str <> "<" + mid(s2,ib_display_start_index,ib_display_len)+ ">" then
+					ib_str="<" + mid(s2,ib_display_start_index,ib_display_len)+ ">" 
 				else
 					goto print
 				end if
 			end if
 		else 
-			ib_str="["+mid(s2,display_start_index,display_len)+ ">"
+			ib_str="["+mid(s2,ib_display_start_index,ib_display_len)+ ">"
 		end if		
 	else
-	 	b=display_len-len(s2)
+	 	b=ib_display_len-len(s2)
 		for i=1 to b
 		s2=s2 + chr(&h20)
 		next i
 		ib_str="["+ s2 + "]"
-		display_start_index=0
+		ib_display_start_index=0
 		if len(ib_str) < ib_len then	
 			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str+"]"),lcd.fontheight+2)	
 		end if
@@ -383,34 +383,34 @@ sub ib_str_pos_selector()
 	dim pos as word
 	dim w as word
 	dim s1,s2 as string(IB_MAX_LEN)
-	pos=lcd_pos_index - display_start_index +1
-	if pos > display_len+1 then
+	pos=ib_lcd_pos_index - ib_display_start_index +1
+	if pos > ib_display_len+1 then
 		exit sub
 	end if
 	s1=mid(ib_str,pos,1)
 	s2=left(ib_str,pos-1)
 	w=lcd.getprintwidth(s1)
-	cursor_x=lcd.getprintwidth(s2)
-	cursor_x=INPUT_BOX_X+cursor_x
+	ib_cursor_x=lcd.getprintwidth(s2)
+	ib_cursor_x=INPUT_BOX_X+ib_cursor_x
 	if ib_insert_mode=YES then
-		lcd_clear(prev_x+w+2,INPUT_BOX_Y-1,1,lcd.fontheight+2)
-		lcd.fill(cursor_x+w+2,INPUT_BOX_Y-1,1,lcd.fontheight+2)
-		prev_x=cursor_x	
+		lcd_clear(ib_prev_x+w+2,INPUT_BOX_Y-1,1,lcd.fontheight+2)
+		lcd.fill(ib_cursor_x+w+2,INPUT_BOX_Y-1,1,lcd.fontheight+2)
+		ib_prev_x=ib_cursor_x	
 	else
 		'lcd_clear(INPUT_BOX_X,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,lcd.getprintwidth(ib_str),INPUT_BOX_CURSOR_WIDTH)
-		lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)
-		lcd.fill(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)	
+		lcd_clear(ib_cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)
+		lcd.fill(ib_cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)	
 	end if
 #else
 	dim s2 as string(IB_MAX_LEN)
 	dim pos as word
-	pos=lcd_pos_index - display_start_index +2
-	if pos > display_len+1 then
+	pos=ib_lcd_pos_index - ib_display_start_index +2
+	if pos > ib_display_len+1 then
 		exit sub
 	end if
 	s2=left(ib_str,pos-1)
-	cursor_x=lcd.getprintwidth(s2)
-	cursor_x=INPUT_BOX_X+cursor_x
+	ib_cursor_x=lcd.getprintwidth(s2)
+	ib_cursor_x=INPUT_BOX_X+ib_cursor_x
 #endif
 end sub
 
@@ -419,42 +419,42 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 	dim s1, s2 as string(IB_MAX_LEN)
 	select case dir
 	case INPUT_BOX_CHANGE_CHR_BACKWARD:
-		select case chr_asc
+		select case ib_chr_asc
 		case &h41:
-			if input_type=INPUT_BOX_CHAR_RANGE_AZ then chr_asc=&h7A	'A->z
-			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h39	'A->9
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_AZ then ib_chr_asc=&h7A	'A->z
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09AZ then ib_chr_asc=&h39	'A->9
 			
-		case &h61:chr_asc=&h5A	'a->Z
+		case &h61:ib_chr_asc=&h5A	'a->Z
 
 		case &h30:
-			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h7A	'0->z
-			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h39	'0->9
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09AZ then ib_chr_asc=&h7A	'0->z
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09 then ib_chr_asc=&h39	'0->9
 		
 		case else
-			chr_asc=chr_asc-1
+			ib_chr_asc=ib_chr_asc-1
 		end select
 	case INPUT_BOX_CHANGE_CHR_FORWARD:
-		select case chr_asc
+		select case ib_chr_asc
 		case &h20:
-			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h30	'space->0
-			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h41	'space->A
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09 then ib_chr_asc=&h30	'space->0
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09AZ then ib_chr_asc=&h41	'space->A
 			
-		case &h39:chr_asc=&h20	'9->space
-		case &h5A:chr_asc=&h61	'Z->a
+		case &h39:ib_chr_asc=&h20	'9->space
+		case &h5A:ib_chr_asc=&h61	'Z->a
 		
 		case &h7A:
-			if input_type=INPUT_BOX_CHAR_RANGE_AZ then chr_asc=&h20	'z->space
-			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h30	'z->0
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_AZ then ib_chr_asc=&h20	'z->space
+			if ib_input_type=INPUT_BOX_CHAR_RANGE_09AZ then ib_chr_asc=&h30	'z->0
 		
 		case else
-			chr_asc=chr_asc+1
+			ib_chr_asc=ib_chr_asc+1
 		end select	
 	end select
 verified:	
-	s1=left(sourcestr,sourcestr_index-1)
-	s2=right(sourcestr,len(sourcestr)-sourcestr_index)
-	sourcestr=s1+chr(chr_asc)+s2
-	lcd.print(chr(chr_asc),cursor_x+2,INPUT_BOX_Y+3)
+	s1=left(ib_sourcestr,ib_sourcestr_index-1)
+	s2=right(ib_sourcestr,len(ib_sourcestr)-ib_sourcestr_index)
+	ib_sourcestr=s1+chr(ib_chr_asc)+s2
+	lcd.print(chr(ib_chr_asc),ib_cursor_x+2,INPUT_BOX_Y+3)
 #if INPUT_BOX_CURSOR_STYLE > 0 	
 	ib_str_pos_selector
 #endif
@@ -462,17 +462,17 @@ end sub
 
 '--------------------------------------------------------------------------------
 sub ib_delete_all()
-	sourcestr=""
-	sourcestr_index=0
-	lcd_pos_index=0
-	display_start_index=0
+	ib_sourcestr=""
+	ib_sourcestr_index=0
+	ib_lcd_pos_index=0
+	ib_display_start_index=0
 	ib_print()
 	ib_str_pos_selector()
 end sub
 
 '--------------------------------------------------------------------------------
 sub ib_type_in_style(s as string(1), insert_mode as no_yes)
-	chr_asc=asc(s)
+	ib_chr_asc=asc(s)
 	if insert_mode=YES then
 		ib_insert(s)
 	else
@@ -490,8 +490,8 @@ public sub ui_input_box_key_proc(key_event as pl_kp_event_codes, key_code as byt
 	ib_timeout_ctr=ib_timeout
 	key_action=INPUT_BOX_NONE
 
-	device_ib_key_proc(key_event,key_code,key_action,chr_asc,insert_mode)
-	ui_input_box_action(key_action,chr_asc,insert_mode)
+	device_ib_key_proc(key_event,key_code,key_action,ib_chr_asc,insert_mode)
+	ui_input_box_action(key_action,ib_chr_asc,insert_mode)
 
 end sub
 
@@ -511,8 +511,8 @@ sub ui_input_box_timer_proc()
 	end if
 	'device specific timer behavior. for example, user repeatedly press a one key to scroll through characters, and stopped for 3 second,
 	'the input box cursor move to the next position.
-	device_ib_timer_event(key_action,chr_asc,insert_mode)		
-	ui_input_box_action(key_action,chr_asc,insert_mode)
+	device_ib_timer_event(key_action,ib_chr_asc,insert_mode)		
+	ui_input_box_action(key_action,ib_chr_asc,insert_mode)
 end sub
 
 '--------------------------------------------------------------------------------
@@ -521,7 +521,7 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 
 	select case key_action
 	case INPUT_BOX_INPUT:			'adding character to the input string
-		ib_type_in_style(chr(chr_asc),insert_mode)
+		ib_type_in_style(chr(ib_chr_asc),insert_mode)
 	case INPUT_BOX_CHAR_FORWARD:	'scrolling through characters forward (ex. A->B->C...)
 		ib_chr_changing(INPUT_BOX_CHANGE_CHR_FORWARD)
 	case INPUT_BOX_CHAR_BACKWARD:	'scrolling through characters backward (ex. C->B->A...)
@@ -545,8 +545,8 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 	case INPUT_BOX_DELETE_ALL:
 		ib_delete_all()
 	case INPUT_BOX_CONFIRM:
-		sourcestr=ib_insert_format(sourcestr, mask)
-		sourcestr=remove_trailing_chr(sourcestr, chr(&h20)) 
+		ib_sourcestr=ib_insert_format(ib_sourcestr, ib_mask)
+		ib_sourcestr=remove_trailing_chr(ib_sourcestr, chr(&h20)) 
 		input_box_result=INPUT_BOX_RESULT_OK 	
 	case INPUT_BOX_CANCEL:
 		input_box_result=INPUT_BOX_RESULT_CANCEL

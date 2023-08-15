@@ -4,35 +4,35 @@
 	
 
 
-const BG_BLUE=41736
-const BG_GREEN=17704
-const BG_RED=31
-const BG_YELLOW=1631
-const TXT_GRAY=46486
+const UI_BG_BLUE=41736
+const UI_BG_GREEN=17704
+const UI_BG_RED=31
+const UI_BG_YELLOW=1631
+const UI_TXT_GRAY=46486
 
-const SETTING_VAL_X=MENU_X
-const SETTING_VAL_Y=MENU_H+MENU_Y-7
-const SETTING_VAL_W=MENU_W
-const SETTING_VAL_H=23
+const UI_SETTING_VAL_X=MENU_X
+const UI_SETTING_VAL_Y=MENU_H+MENU_Y-7
+const UI_SETTING_VAL_W=MENU_W
+const UI_SETTING_VAL_H=23
 
-const KEY_F1=0
-const KEY_F2=1
-const KEY_F3=2
-const KEY_F4=3
+const UI_KEY_F1=0
+const UI_KEY_F2=1
+const UI_KEY_F3=2
+const UI_KEY_F4=3
 
-const EXIT_MENU = "Device will exit the programming mode now.`Continue?"
-const INVALID_INPUT = "INTERNAL ERROR (invalid input type)"
-const EMPTY_FOLDER = "This folder is empty"
-const SYS_ERROR_REBOOT = "INTERNAL ERROR. Device will now reboot."
-const COMMAND_ERROR_INIT = "Invalid data detected. You may have to reinitialize and/or restore from backup at least some of this device's data. Press OK to continue."
-const COMMAND_SETTING_FAILURE="FATAL SYSTEM FAILURE:`Setting error.`The system is not function properly. Device initialization may help."
-const COMMAND_REBOOT="Reboot the device?"
-const COMMAND_LOGOUT="Are you sure you want to logout?"
-const COMMAND_REBOOT_NOTICE="The device will reboot now."
-const SYS_SETTING_VALUE_INVALID="Setting value is invalid."
-const SYS_CALCULATE_WPA_KEY="The device is calculating the Wi-Fi security key. This is done in WPA-PSK and WPA2-PSK modes after the change of the access point name or password."
+const UI_EXIT_MENU = "Device will exit the programming mode now.`Continue?"
+const UI_INVALID_INPUT = "INTERNAL ERROR (invalid input type)"
+const UI_EMPTY_FOLDER = "This folder is empty"
+const UI_SYS_ERROR_REBOOT = "INTERNAL ERROR. Device will now reboot."
+const UI_COMMAND_ERROR_INIT = "Invalid data detected. You may have to reinitialize and/or restore from backup at least some of this device's data. Press OK to continue."
+const UI_COMMAND_SETTING_FAILURE="FATAL SYSTEM FAILURE:`Setting error.`The system is not function properly. Device initialization may help."
+const UI_COMMAND_REBOOT="Reboot the device?"
+const UI_COMMAND_LOGOUT="Are you sure you want to logout?"
+const UI_COMMAND_REBOOT_NOTICE="The device will reboot now."
+const UI_SYS_SETTING_VALUE_INVALID="Setting value is invalid."
+const UI_SYS_CALCULATE_WPA_KEY="The device is calculating the Wi-Fi security key. This is done in WPA-PSK and WPA2-PSK modes after the change of the access point name or password."
 
-const ICON_FILE = "icon.bmp"
+const UI_ICON_FILE = "icon.bmp"
 
 enum en_mb_keys
 	MBK_COMMAND_CONFIRM,

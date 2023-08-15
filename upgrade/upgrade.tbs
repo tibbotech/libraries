@@ -1,11 +1,11 @@
 include "global.tbh"
 
-dim upload_started as boolean = false
+dim upgrade_upload_started as boolean = false
 dim current_fw_upg_state as pl_upg_state_t
-dim isBtConnected as boolean = false
-dim fw_buffer as string(128)=""
-dim pattern_timer as dword = sys.timercount32
-dim led_detect_timer as byte
+dim upgrade_isBtConnected as boolean = false
+dim upgrade_fw_buffer as string(128)=""
+dim upgrade_pattern_timer as dword = sys.timercount32
+dim upgrade_led_detect_timer as byte
 dim upgrade_socket_number as socket_assignment
 dim upgrade_buffer as string
 dim upgrade_buffer2 as string
@@ -39,16 +39,16 @@ end sub
 
 ' sub led_upgrade_pattern()
 
-' 	if sys.timercount32-pattern_timer>=1 then
-' 		if led_detect_timer<4 then
-' 			led_detect_timer=led_detect_timer+1
+' 	if sys.timercount32-upgrade_pattern_timer>=1 then
+' 		if upgrade_led_detect_timer<4 then
+' 			upgrade_led_detect_timer=upgrade_led_detect_timer+1
 ' 		else
-' 			led_detect_timer=0
+' 			upgrade_led_detect_timer=0
 ' 		end if
-' 		pattern_timer = sys.timercount32
+' 		upgrade_pattern_timer = sys.timercount32
 ' 	end if
 	
-' 	select case led_detect_timer
+' 	select case upgrade_led_detect_timer
 ' 	case 0:
 ' 		set_LED(&b00001)
 ' 	case 1:
@@ -284,11 +284,11 @@ sub device_firmware_write_tios_app(fw as string)
 	if (current_fw_upg_state.fw_page mod 2 ) = 0 then
 		if current_fw_upg_state.fw_remaining=0 then
 			fw=fw+strgen(FW_UPG_BLK_LEN-len(fw),"\x00")
-			fw_buffer=fw
+			upgrade_fw_buffer=fw
 			fw=""
 			goto set_sector
 		else
-			fw_buffer=fw
+			upgrade_fw_buffer=fw
 		end if
 	else 
 set_sector:
@@ -296,7 +296,7 @@ set_sector:
 			fw=fw+strgen(FW_UPG_BLK_LEN-len(fw),"\x00")
 		end if
 		fd.flush()
-		fd.setbuffer(fw_buffer , 0)
+		fd.setbuffer(upgrade_fw_buffer , 0)
 		fd.setbuffer(fw, 128) 	
 		 
 		fd.setsector(current_fw_upg_state.fw_sector)			 				

@@ -14,7 +14,7 @@ const SLED_CR_LF=chr(13)+chr(10)
 #endif
 
 '--------------------------------------------------------------------
-dim spi_num_tbt57 as byte
+dim tbt57_spi_num as byte
 
 '====================================================================
 function tbt57_sled_init(byref spi_num as byte, pin_cs as byte, pin_clk as byte, pin_mosi as byte, pin_miso as byte)as tbt57_errcheck
@@ -31,7 +31,7 @@ function tbt57_sled_init(byref spi_num as byte, pin_cs as byte, pin_clk as byte,
 		sled_debug_print("Starting configuration...")
 	#endif
 	
-	'the following will set correct SSI channel number in spi_num_tbt57
+	'the following will set correct SSI channel number in tbt57_spi_num
 	tbt57_sled_init=tbt57_init("RGBW_Driver_top_bitmap.bin",spi_num,pin_cs,pin_clk,pin_mosi,pin_miso)
 	select case tbt57_sled_init
 	case TBT57_OK:

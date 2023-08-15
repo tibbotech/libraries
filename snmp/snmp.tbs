@@ -6,8 +6,8 @@ declare function snmp_get_command(byref data as string, pos as byte, byref value
 declare function snmp_get_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
 declare function snmp_set_command_sequence(byref data as string, pos as byte, lengthPacket as byte) as boolean
 
-dim sock_snmp as byte
-dim sock_trap as byte
+dim snmp_sock_snmp as byte
+dim snmp_sock_trap as byte
 dim requestID as dword
 
 ' Settings
@@ -17,9 +17,9 @@ dim snmp_set_contact as string(20)
 dim snmp_set_location as string(20)
 
 '	Traps
-dim traps_enable as boolean
-dim traps(4) as trap
-dim trap_receiver as string(12)
+dim snmp_traps_enable as boolean
+dim snmp_traps(4) as snmp_trap
+dim snmp_trap_receiver as string(12)
 
 function snmp_initialize(byref password as string, byref contact as string, byref location as string) as boolean
 	
@@ -397,7 +397,7 @@ sub snmp_send_trap(byref trapID as string, specific as byte, typeValue as byte, 
 	
 	sock_num = sock.num
 	
-	sock.num = sock_trap
+	sock.num = snmp_sock_trap
 	sock.targetinterface = current_interface
 	
 	select case current_interface
@@ -434,33 +434,33 @@ sub snmp_trap_check_digital(channel as byte)
 	
 	dim i as byte
 	
-	' if traps_enable = true then
+	' if snmp_traps_enable = true then
 	' 	for i = 0  to 3
-	' 		if traps(i).enable = true and traps(i).channel = channel then
-	' 			if traps(i).ttype = TrapDigital then
-	' 				if traps(i).dtype = TrapDigitalRise then		' Rise
-	' 					if param_io(channel).io_state = LOW and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 		if snmp_traps(i).enable = true and snmp_traps(i).channel = channel then
+	' 			if snmp_traps(i).ttype = TrapDigital then
+	' 				if snmp_traps(i).dtype = TrapDigitalRise then		' Rise
+	' 					if param_io(channel).io_state = LOW and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
-	' 					if param_io(channel).io_state = HIGH and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if param_io(channel).io_state = HIGH and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
 	' 				else											' Edge
-	' 					if param_io(channel).io_state = HIGH and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if param_io(channel).io_state = HIGH and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, chr(&h01), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
-	' 					if param_io(channel).io_state = LOW and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if param_io(channel).io_state = LOW and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, chr(&h00), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
 	' 				end if
 	' 			end if
-	' 			if traps(i).ttype = TrapCounter then
-	' 				if io_cn(channel).counter >= traps(i).counter_limit then	' Counter Limit Fire
-	' 					snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, str(io_cn(channel).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 			if snmp_traps(i).ttype = TrapCounter then
+	' 				if io_cn(channel).counter >= snmp_traps(i).counter_limit then	' Counter Limit Fire
+	' 					snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, str(io_cn(channel).counter), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 				end if
 	' 			end if
 	' 		end if
@@ -473,51 +473,51 @@ sub snmp_trap_check_analog(channel as byte, floatPart as boolean)
 
 	dim i as byte
 	
-	' if traps_enable = true then
+	' if snmp_traps_enable = true then
 	' 	for i = 0  to 3
-	' 		if traps(i).enable = true and traps(i).channel = channel then
-	' 			if traps(i).ttype = TrapAnalog then
-	' 				if traps(i).atype = TrapAnalogBelow then		' Below
-	' 					if analog_float_values(channel) < traps(i).analog_limit1 and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 		if snmp_traps(i).enable = true and snmp_traps(i).channel = channel then
+	' 			if snmp_traps(i).ttype = TrapAnalog then
+	' 				if snmp_traps(i).atype = TrapAnalogBelow then		' Below
+	' 					if analog_float_values(channel) < snmp_traps(i).analog_limit1 and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
-	' 					if analog_float_values(channel) >= traps(i).analog_limit1 and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if analog_float_values(channel) >= snmp_traps(i).analog_limit1 and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
 	' 				end if
 
-	' 				if traps(i).atype = TrapAnalogAbove then		' Above
-	' 					if analog_float_values(channel) > traps(i).analog_limit1 and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 				if snmp_traps(i).atype = TrapAnalogAbove then		' Above
+	' 					if analog_float_values(channel) > snmp_traps(i).analog_limit1 and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
-	' 					if analog_float_values(channel) <= traps(i).analog_limit1 and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
-	' 					end if
-	' 				end if
-					
-	' 				if traps(i).atype = TrapAnalogBetween then		' Between
-	' 					if analog_float_values(channel) > traps(i).analog_limit1 and analog_float_values(channel) < traps(i).analog_limit2 and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
-	' 					end if
-	' 					if (analog_float_values(channel) <= traps(i).analog_limit1 or analog_float_values(channel) >= traps(i).analog_limit2) and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if analog_float_values(channel) <= snmp_traps(i).analog_limit1 and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
 	' 				end if
 					
-	' 				if traps(i).atype = TrapAnalogOutOfRange then		' Out Of Range
-	' 					if (analog_float_values(channel) < traps(i).analog_limit1 or analog_float_values(channel) > traps(i).analog_limit2) and traps(i).fired = NO then	'Need TRAP
-	' 						traps(i).fired = YES
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 				if snmp_traps(i).atype = TrapAnalogBetween then		' Between
+	' 					if analog_float_values(channel) > snmp_traps(i).analog_limit1 and analog_float_values(channel) < snmp_traps(i).analog_limit2 and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
-	' 					if (analog_float_values(channel) >= traps(i).analog_limit1 and analog_float_values(channel) <= traps(i).analog_limit2) and traps(i).fired = YES then	'Need reset TRAP
-	' 						traps(i).fired = NO
-	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					if (analog_float_values(channel) <= snmp_traps(i).analog_limit1 or analog_float_values(channel) >= snmp_traps(i).analog_limit2) and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 				end if
+					
+	' 				if snmp_traps(i).atype = TrapAnalogOutOfRange then		' Out Of Range
+	' 					if (analog_float_values(channel) < snmp_traps(i).analog_limit1 or analog_float_values(channel) > snmp_traps(i).analog_limit2) and snmp_traps(i).fired = NO then	'Need TRAP
+	' 						snmp_traps(i).fired = YES
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h01), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
+	' 					end if
+	' 					if (analog_float_values(channel) >= snmp_traps(i).analog_limit1 and analog_float_values(channel) <= snmp_traps(i).analog_limit2) and snmp_traps(i).fired = YES then	'Need reset TRAP
+	' 						snmp_traps(i).fired = NO
+	' 						snmp_send_trap(SNMP_TIBBO_TRAPS + chr(&h02), snmp_traps(i).specific, SNMP_INTEGER, snmp_integer_to_bin(analog_values(channel)), SNMP_TIBBO_PIN_TABLE_ROOT + chr(&h05) + chr(channel))
 	' 					end if
 	' 				end if
 	' 			end if

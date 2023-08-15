@@ -42,7 +42,7 @@ dim lb_timeout_ctr, lb_timeout as byte
 dim listbox_pos_x, listbox_pos_y, listbox_height, listbox_width as word
 dim listbox_item_spacing, listbox_display_max, listbox_display_index, listbox_item_index, listbox_start_index, listbox_item_count as byte
 dim list_box_result as ui_list_box_results
-dim font_height as byte
+dim lb_font_height as byte
 dim lb_interrupt_flag as no_yes
 
 #if LIST_BOX_CURSOR_STYLE > 0
@@ -73,8 +73,8 @@ public function ui_list_box(
 	ui_listbox_string=""
 	listbox_height=list_height
 	listbox_width=list_width
-	font_height=lcd.fontheight
-	listbox_item_spacing=font_height + ULB_VER_SPACING
+	lb_font_height=lcd.fontheight
+	listbox_item_spacing=lb_font_height + ULB_VER_SPACING
 	listbox_display_max=(list_height-2)/listbox_item_spacing
 	lb_timeout_ctr=timeout
 	lb_timeout=timeout  
@@ -226,8 +226,8 @@ public function ui_list_box_ext(
 	ui_listbox_string=""
 	listbox_height=list_height
 	listbox_width=list_width
-	font_height=lcd.fontheight
-	listbox_item_spacing=font_height + ULB_VER_SPACING
+	lb_font_height=lcd.fontheight
+	listbox_item_spacing=lb_font_height + ULB_VER_SPACING
 	listbox_display_max=(list_height-2)/listbox_item_spacing
 	lb_timeout_ctr=timeout
 	lb_timeout=timeout  
@@ -393,19 +393,19 @@ sub ui_listbox_cursor_display(disable as no_yes)
 	romfile.open(SMALL_ICON_FILE)
 	lcd_clear(listbox_pos_x, listbox_pos_y, SCROLL_CURSOR_WIDTH, listbox_height)
 	x=listbox_pos_x + 1
-	y=listbox_pos_y + listbox_display_index * (font_height + ULB_VER_SPACING)+(font_height/2)-3
+	y=listbox_pos_y + listbox_display_index * (lb_font_height + ULB_VER_SPACING)+(lb_font_height/2)-3
 	ui_listbox_scroll(NO,disable)
 	lcd.bmp(romfile.offset,x,y,19,0,5,8)
 #elif LIST_BOX_CURSOR_STYLE=1
 	x=listbox_pos_x+SCROLL_BORDER/2+SCROLL_CURSOR_WIDTH/2
 	if listbox_display_index <> previous_listbox_index then 
 		lcd.forecolor=LCD_BACKCOLOR
-		y=listbox_pos_y+SCROLL_BORDER/2+SCROLL_CURSOR_WIDTH+(previous_listbox_index)*(font_height+ULB_VER_SPACING)-ULB_VER_SPACING/2-3
-		lcd.rectangle(x,y,x+listbox_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+font_height+ULB_VER_SPACING)
+		y=listbox_pos_y+SCROLL_BORDER/2+SCROLL_CURSOR_WIDTH+(previous_listbox_index)*(lb_font_height+ULB_VER_SPACING)-ULB_VER_SPACING/2-3
+		lcd.rectangle(x,y,x+listbox_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+lb_font_height+ULB_VER_SPACING)
 	end if
 	if disable<>YES then lcd.forecolor=LCD_CURSORCOLOR
-	y=listbox_pos_y+SCROLL_BORDER/2+SCROLL_CURSOR_WIDTH+listbox_display_index * (font_height + ULB_VER_SPACING)-ULB_VER_SPACING/2-3
-	lcd.rectangle(x,y,x+listbox_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+font_height+ULB_VER_SPACING)
+	y=listbox_pos_y+SCROLL_BORDER/2+SCROLL_CURSOR_WIDTH+listbox_display_index * (lb_font_height + ULB_VER_SPACING)-ULB_VER_SPACING/2-3
+	lcd.rectangle(x,y,x+listbox_width-SCROLL_CURSOR_WIDTH-SCROLL_BAR_WIDTH-SCROLL_BORDER-CURSOR_BAR_LEN_OFFSET,y+lb_font_height+ULB_VER_SPACING)
 	lcd.forecolor=LCD_FORECOLOR
 	ui_listbox_scroll(NO,disable)
 #else

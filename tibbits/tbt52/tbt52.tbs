@@ -17,7 +17,7 @@ declare sub param_read(pin_int as byte,channel as byte)
 declare sub param_write(pin_int as byte,channel as byte)
 declare sub tbt52_delay_msecond(value as word)
 
-dim i2c_num_tbt52 as byte
+dim tbt52_i2c_num as byte
 dim tbt52_init_flag as word
 dim tbt52_channel as tbt52_nums
 

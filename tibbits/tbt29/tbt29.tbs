@@ -41,7 +41,7 @@ declare sub tbt29_delay_msecond(value as word)
 	declare sub tbt29_debug_print(data as string)
 #endif
 
-dim i2c_num_tbt29 as byte
+dim tbt29_i2c_num as byte
 dim tbt29_init_flag as word
 
 '==============================================================================

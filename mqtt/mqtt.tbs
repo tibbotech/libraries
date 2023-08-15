@@ -62,7 +62,7 @@ type mqtt_proc_data_variable
 	
 end type
 
-dim proc_data_state as en_mqtt_proc_data_states 
+dim mqtt_proc_data_state as en_mqtt_proc_data_states 
 dim mqtt_proc_data_variables as mqtt_proc_data_variable
 dim mqtt_init_flag as word
 dim mqtt_packet_identifier as word
@@ -476,7 +476,7 @@ sub mqtt_publish_reply()
 			buf=chr(PUBREC) + chr(2) + mqtt_proc_data_variables.packet_identifier
 			mqtt_send_data(buf)
 		end if		
-		proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+		mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 	end if		
 end sub
 
@@ -488,7 +488,7 @@ sub mqtt_proc_data()
 	if sock.num<>mqtt_sock_num then exit sub
 	dim buf as string = mqtt_sock_peekdata(5)
 	
-	if proc_data_state=EN_MQTT_PD_STATES_READING_HEADER then
+	if mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER then
 		
 		if (len(buf) < 2) then exit sub
 		dim tmr as dword
@@ -510,7 +510,7 @@ sub mqtt_proc_data()
 			mqtt_proc_data_variables.fixed_header_length = mqtt_proc_data_variables.fixed_header_length + 1
 			
 		loop while continuation_bit
-		proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD
+		mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD
 		mqtt_proc_data_variables.message_type=asc(left(buf,1))
 		mqtt_proc_data_variables.qos=(mqtt_proc_data_variables.message_type and &h06) shr 1
 		mqtt_proc_data_variables.message_type=(mqtt_proc_data_variables.message_type and &hF0)
@@ -535,9 +535,9 @@ sub mqtt_proc_data()
 						mqtt_state=EN_MQTT_STATES_LOGGED_IN
 						mqtt_connection_counter=sys.timercountms+MQTT_CONNECTION_TIMER*2*1000
 						callback_mqtt_connect_ok()
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
-		case PUBLISH:	select case proc_data_state
+		case PUBLISH:	select case mqtt_proc_data_state
 						case EN_MQTT_PD_STATES_READING_PAYLOAD:
 							if mqtt_sock_peeklen()<2 then exit sub
 							dim topic_length_bytes as byte(2)=mqtt_sock_getdata(2)
@@ -554,7 +554,7 @@ sub mqtt_proc_data()
 								#endif
 								mqtt_publish_reply()
 							else	
-								proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD_DATA
+								mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD_DATA
 							end if
 						case EN_MQTT_PD_STATES_READING_PAYLOAD_DATA:
 							buf=mqtt_sock_getdata(mqtt_proc_data_variables.remaining_length)						
@@ -569,42 +569,42 @@ sub mqtt_proc_data()
 		case PUBACK:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Publish ack.")
 						#endif
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case PUBREC:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Publish rec.")
 						#endif
 						buf=chr(PUBREL+2) + chr(2) + mqtt_proc_data_variables.packet_identifier
 						mqtt_send_data(buf)
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case PUBREL:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Publish rel.")
 						#endif 
 						buf=chr(PUBCOMP) + chr(2) + mqtt_proc_data_variables.packet_identifier
 						mqtt_send_data(buf)		
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case PUBCOMP:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Publish comp.")
 						#endif
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case SUBACK:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Subscribe ack.")
 						#endif
 						callback_mqtt_sub_ok()
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case UNSUBACK:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Unsubscribe ack.")
 						#endif
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
 		case PINGRESP:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Ping response.")
 						#endif
-						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
+						mqtt_proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 						mqtt_unreplied_ping_count=0
 	end select
 

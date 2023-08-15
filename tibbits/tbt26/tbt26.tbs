@@ -5,12 +5,12 @@
 include "global.tbh"
 
 '--------------------------------------------------------------------
-const IR_INIT_SIGNATURE=&h4952
-const IR_STAMP="IRP> "
-const IR_CR_LF=chr(13)+chr(10)
-const MAX_IR_CMD_LEN=250
+const TBT26_IR_INIT_SIGNATURE=&h4952
+const TBT26_IR_STAMP="IRP> "
+const TBT26_IR_CR_LF=chr(13)+chr(10)
+const TBT26_MAX_IR_CMD_LEN=250
 
-dim bcount as dword=0
+dim tbt26_bcount as dword=0
 
 '--------------------------------------------------------------------
 #if IR_DEBUG_PRINT=1
@@ -20,14 +20,14 @@ dim bcount as dword=0
 declare sub tbt26_start_send(byref carrier as string, length as word)
 
 '--------------------------------------------------------------------
-dim spi_num_tbt26 as byte
-dim ir_init_flag as word
+dim tbt26_spi_num as byte
+dim tbt26_ir_init_flag as word
 dim tbt26_carrier as no_yes
 dim tbt26_freq_div as word
 dim tbt26_multiplier as float=1
 
 '====================================================================
-function tbt26_init() as errcheck
+function tbt26_init() as en_tbt26_errcheck
 'Call this function to initialize the Tibbit.
 'This library requires an SSI channel. If all channels are already occupied then this function will return TBT26_NO_SSI_AVAILABLE.
 	dim delay as dword
@@ -38,15 +38,15 @@ function tbt26_init() as errcheck
 	#if IR_DEBUG_PRINT=1
 		ir_debug_print("++++++++++")
 	#endif
-	ir_init_flag=IR_INIT_SIGNATURE
+	tbt26_ir_init_flag=TBT26_IR_INIT_SIGNATURE
 
-	spi_num_tbt26=ssi_get("IR")
-	if spi_num_tbt26=255 then
+	tbt26_spi_num=ssi_get("IR")
+	if tbt26_spi_num=255 then
 		tbt26_init=TBT26_NO_SSI_AVAILABLE
 		exit function
 	end if
 	
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
 	'SPI CS
 	io.num=TBT26_SPI_CS
@@ -70,7 +70,7 @@ function tbt26_init() as errcheck
 	io.enabled=NO
 
 	'setup SSI channel
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	ssi.mode=PL_SSI_MODE_2
 	ssi.clkmap=TBT26_SPI_CLK
 	ssi.dimap=TBT26_SPI_MISO
@@ -149,11 +149,11 @@ sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq_div as wor
 	tbt26_carrier=carrier
 	tbt26_freq_div=freq_div
 
-	if ir_init_flag<>IR_INIT_SIGNATURE then
+	if tbt26_ir_init_flag<>TBT26_IR_INIT_SIGNATURE then
 		tbt26_init()
 	end if
 
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
 	if carrier=NO then
 		io.lineset(TBT26_SPI_CS,LOW) 
@@ -258,11 +258,11 @@ function tbt26_get_data_nec() as string
 
 	tbt26_multiplier=26
 
-	if ir_init_flag<>IR_INIT_SIGNATURE then
+	if tbt26_ir_init_flag<>TBT26_IR_INIT_SIGNATURE then
 		tbt26_init()
 	end if
 
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
 	io.lineset(TBT26_SPI_CS,LOW) 	'Read Status
 	ssi.value(&h03,8)
@@ -346,7 +346,7 @@ sub tbt26_write_duration(data as word)
 	ssi.value(tmp,8)
 	tmp=gg SHR 8
 	ssi.value(tmp,8)
-	bcount=bcount+2
+	tbt26_bcount=tbt26_bcount+2
 end sub
 
 sub tbt26_write_byte_nec(data as byte)
@@ -367,9 +367,9 @@ sub tbt26_write_byte_nec(data as byte)
 end sub
 
 sub tbt26_transmit(inverted as no_yes)
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
-	sys.debugprint("sending" + lstr(bcount)+"\r\n")
+	sys.debugprint("sending" + lstr(tbt26_bcount)+"\r\n")
 	
 	io.lineset(TBT26_SPI_CS,LOW)	'Transmission start command
 	ssi.value(&h02,8)
@@ -437,11 +437,11 @@ function tbt26_get_data() as string
 	dim data_low,data_high,data_len as byte
 	dim f as byte	
 
-	if ir_init_flag<>IR_INIT_SIGNATURE then
+	if tbt26_ir_init_flag<>TBT26_IR_INIT_SIGNATURE then
 		tbt26_init()
 	end if
 
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
 	io.lineset(TBT26_SPI_CS,LOW) 	'Read Status
 	ssi.value(&h03,8)
@@ -465,7 +465,7 @@ function tbt26_get_data() as string
 	data_high = ssi.value(&h00,8)
 	io.lineset(TBT26_SPI_CS,HIGH)
 
-	if data_high>0 or data_low>MAX_IR_CMD_LEN or data_low<10 then
+	if data_high>0 or data_low>TBT26_MAX_IR_CMD_LEN or data_low<10 then
 		tbt26_get_data=""
 		exit function
 	end if
@@ -530,7 +530,7 @@ sub tbt26_play_back(byref dt as string, inverted as no_yes)
 		 tbt26_write_duration((asc(mid(s,f+1,1)) SHL 8) + asc(mid(s,f,1)))
 	next f
 '	for f=1 to len(s)
-'		bcount=bcount+1
+'		tbt26_bcount=tbt26_bcount+1
 '		dim bb as byte=asc(mid(s,f,1))
 '		ssi.value(bb,8)
 '	next f
@@ -540,13 +540,13 @@ end sub
 
 sub tbt26_start_send(byref carrier as string, length as word)
 	dim data_low,data_high as byte
-	bcount=0
+	tbt26_bcount=0
 	
-	if ir_init_flag<>IR_INIT_SIGNATURE then
+	if tbt26_ir_init_flag<>TBT26_IR_INIT_SIGNATURE then
 		tbt26_init()
 	end if
 	
-	ssi.channel=spi_num_tbt26
+	ssi.channel=tbt26_spi_num
 	
 	'sys.debugprint("sendlen" + str(length)+"\r\n")
 	
@@ -590,6 +590,6 @@ end sub
 
 #if IR_DEBUG_PRINT=1
 sub ir_debug_print(data as string)
-	sys.debugprint(IR_STAMP+data+IR_CR_LF)
+	sys.debugprint(TBT26_IR_STAMP+data+TBT26_IR_CR_LF)
 end sub
 #endif

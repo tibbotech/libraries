@@ -55,8 +55,8 @@ declare sub tbt36_error()
 	declare sub adxl_debug_print(data as string)
 #endif
 
-dim format as byte
-dim i2c_num_tbt36 as byte
+dim tbt36_format as byte
+dim tbt36_i2c_num as byte
 dim tbt36_init_flag as word
 
 '==============================================================================
@@ -91,26 +91,26 @@ function tbt36_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 		goto leave
 	end if
 
-	format=&h00
+	tbt36_format=&h00
 	#if TBT_36_RESOLUTION=TBT_36_RESOLUTION_FULL
-		format=format or &h08
+		tbt36_format=tbt36_format or &h08
 	#endif
 
 	#if TBT_36_RANGE=TBT_36_RANGE_1P5G
-		format=format or &h00
+		tbt36_format=tbt36_format or &h00
 	#elif TBT_36_RANGE=TBT_36_RANGE_3G
-		format=format or &h01
+		tbt36_format=tbt36_format or &h01
 	#elif TBT_36_RANGE=TBT_36_RANGE_6G
-		format=format or &h02
+		tbt36_format=tbt36_format or &h02
 	#else
-		'when format= 12G mode ,it should be full resolution mode
-		format=format or &h0B
+		'when tbt36_format= 12G mode ,it should be full resolution mode
+		tbt36_format=tbt36_format or &h0B
 	#endif
 	
 	'Set sampling rate 100 samples per second. 
 	tbt36_write_reg(TBT36_REG_BW_RATE,&h0A)
 	'set resolution + range
-	tbt36_write_reg(TBT36_REG_DATA_FORMAT,format)
+	tbt36_write_reg(TBT36_REG_DATA_FORMAT,tbt36_format)
 	'set measure bit
 	tbt36_write_reg(TBT36_REG_POWER_CTL,&h08)
 	'set as bypass mode

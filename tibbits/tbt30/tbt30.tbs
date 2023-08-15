@@ -30,7 +30,7 @@ declare sub tbt30_delay_msecond(value as word)
 #endif
 
 '--------------------------------------------------------------------
-dim i2c_num_tbt30 as byte
+dim tbt30_i2c_num as byte
 dim tbt30_init_flag as word
 
 '====================================================================

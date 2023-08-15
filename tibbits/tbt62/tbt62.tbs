@@ -670,7 +670,7 @@ function tbt62_set_mode(mode as EN_TBT62_MODE, channel as EN_TBT62_CHANNEL, tbt_
 	
 end function
 
-function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
+function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real, sensor as EN_TBT62_TEMP_HUM_SENSOR_TYPE, channel as EN_TBT62_CHANNEL, tbt_channel as byte) as EN_TBT62_FAULT
 
 	dim sensdata as string(5)
 	dim cs as byte

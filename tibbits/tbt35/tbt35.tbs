@@ -20,9 +20,9 @@ const TBT35_CMD_START_CONVERSION	=&h12
 #endif
 declare sub tbt35_delay_msecond(value as word)
 
-dim i2c_num_tbt35 as byte
+dim tbt35_i2c_num as byte
 dim tbt35_init_flag as word
-dim a0,b1,b2,c12 as float=0
+dim tbt35_a0,tbt35_b1,tbt35_b2,tbt35_c12 as float=0
 '==============================================================================
 function tbt35_init(byref signature as string, use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref channel as byte) as ok_ng
 'Call this function to initialize the Tibbit.
@@ -57,270 +57,270 @@ function tbt35_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	i2c.start()
 	i2c.write(TBT35_READ_ADDR)
 
-	'a0
+	'tbt35_a0
 	tmp=i2c.read(ACK)
 	a0_tmp=tmp*256
 	tmp=i2c.read(ACK)
 	a0_tmp=a0_tmp+tmp
 
-	'b1
+	'tbt35_b1
 	tmp=i2c.read(ACK)
 	b1_tmp=tmp*256
 	tmp=i2c.read(ACK)
 	b1_tmp=b1_tmp+tmp
 
-	'b2
+	'tbt35_b2
 	tmp=i2c.read(ACK)
 	b2_tmp=tmp*256
 	tmp=i2c.read(ACK)
 	b2_tmp=b2_tmp+tmp
 
-	'c12
+	'tbt35_c12
 	tmp=i2c.read(ACK)
 	c12_tmp=tmp*256
 	tmp=i2c.read(NACK)
 	c12_tmp=c12_tmp+tmp
 	i2c.stop()
 
-	'a0 :signed, integer bits=12,fractional bits=3
-	a0=a0_tmp and &h7FF8
-	a0=a0/8
+	'tbt35_a0 :signed, integer bits=12,fractional bits=3
+	tbt35_a0=a0_tmp and &h7FF8
+	tbt35_a0=tbt35_a0/8
 
 	tmp2=a0_tmp and &h0007
 	'Negative coefficients are coded in 2's complement notation
 	if a0_tmp and &h8000 then
-		a0=4095-a0
+		tbt35_a0=4095-tbt35_a0
 		tmp2=&h7-a0_tmp
 	end if
 	'f2
 	if tmp2 and &h04 then
-		a0=a0+0.5
+		tbt35_a0=tbt35_a0+0.5
 	end if
 	'f1
 	if tmp2 and &h02 then
-		a0=a0+0.25
+		tbt35_a0=tbt35_a0+0.25
 	end if
 	'f0
 	if tmp2 and &h01 then
-		a0=a0+0.125
+		tbt35_a0=tbt35_a0+0.125
 	end if
 	
 	if a0_tmp and &h8000 then
-		a0=-a0
+		tbt35_a0=-tbt35_a0
 	end if
 
-	'b1	:signed, integer bits=2,fractional bits=13
-	b1=b1_tmp and &h6000
-	b1=b1/8192
+	'tbt35_b1	:signed, integer bits=2,fractional bits=13
+	tbt35_b1=b1_tmp and &h6000
+	tbt35_b1=tbt35_b1/8192
 	tmp2=b1_tmp and &h1FFF
 
 	'Negative coefficients are coded in 2's complement notation
 	if b1_tmp and &h8000 then
-		b1=3-b1
+		tbt35_b1=3-tbt35_b1
 		tmp2= &h1FFF-b1_tmp
 	end if
 	'f12
 	if tmp2 and &h1000 then
-		b1=b1+0.5
+		tbt35_b1=tbt35_b1+0.5
 	end if
 	'f11
 	if tmp2 and &h800 then
-		b1=b1+0.25
+		tbt35_b1=tbt35_b1+0.25
 	end if
 	'f10
 	if tmp2 and &h400 then
-		b1=b1+0.125
+		tbt35_b1=tbt35_b1+0.125
 	end if
 	'f9
 	if tmp2 and &h200 then
-		b1=b1+0.0625
+		tbt35_b1=tbt35_b1+0.0625
 	end if
 	'f8
 	if tmp2 and &h100 then
-		b1=b1+0.03125
+		tbt35_b1=tbt35_b1+0.03125
 	end if
 	'f7
 	if tmp2 and &h80 then
-		b1=b1+0.015625
+		tbt35_b1=tbt35_b1+0.015625
 	end if
 	'f6
 	if tmp2 and &h40 then
-		b1=b1+0.0078125
+		tbt35_b1=tbt35_b1+0.0078125
 	end if
 	'f5
 	if tmp2 and &h20 then
-		b1=b1+0.00390625
+		tbt35_b1=tbt35_b1+0.00390625
 	end if
 	'f4
 	if tmp2 and &h10 then
-		b1=b1+0.001953125
+		tbt35_b1=tbt35_b1+0.001953125
 	end if
 	'f3
 	if tmp2 and &h08 then
-		b1=b1+0.0009765625
+		tbt35_b1=tbt35_b1+0.0009765625
 	end if
 	'f2
 	if tmp2 and &h04 then
-		b1=b1+0.00048828125
+		tbt35_b1=tbt35_b1+0.00048828125
 	end if
 	'f1
 	if tmp2 and &h02 then
-		b1=b1+0.000244140625
+		tbt35_b1=tbt35_b1+0.000244140625
 	end if
 	'f0
 	if tmp2 and &h01 then
-		b1=b1+0.0001220703125
+		tbt35_b1=tbt35_b1+0.0001220703125
 	end if
 
 	if b1_tmp and &h8000 then
-		b1=-b1
+		tbt35_b1=-tbt35_b1
 	end if
 
-	'b2	:signed, integer bits=1,fractional bits=14
-	b2=b2_tmp and &h4000
-	b2=b2/16384
+	'tbt35_b2	:signed, integer bits=1,fractional bits=14
+	tbt35_b2=b2_tmp and &h4000
+	tbt35_b2=tbt35_b2/16384
 	tmp2=b2_tmp and &h3FFF
 
 	'Negative coefficients are coded in 2's complement notation
 	if b2_tmp and &h8000 then
-		b2=1-b2
+		tbt35_b2=1-tbt35_b2
 		tmp2=&h3FFF-b2_tmp
 	end if
 
 	'f13
 	if tmp2 and &h2000 then
-		b2=b2+0.5
+		tbt35_b2=tbt35_b2+0.5
 	end if
 	'f12
 	if tmp2 and &h1000 then
-		b2=b2+0.25
+		tbt35_b2=tbt35_b2+0.25
 	end if
 	'f11
 	if tmp2 and &h800 then
-		b2=b2+0.125
+		tbt35_b2=tbt35_b2+0.125
 	end if
 	'f10
 	if tmp2 and &h400 then
-		b2=b2+0.0625
+		tbt35_b2=tbt35_b2+0.0625
 	end if
 	'f9
 	if tmp2 and &h200 then
-		b2=b2+0.03125
+		tbt35_b2=tbt35_b2+0.03125
 	end if
 	'f8
 	if tmp2 and &h100 then
-		b2=b2+0.015625
+		tbt35_b2=tbt35_b2+0.015625
 	end if
 	'f7
 	if tmp2 and &h80 then
-		b2=b2+0.0078125
+		tbt35_b2=tbt35_b2+0.0078125
 	end if
 	'f6
 	if tmp2 and &h40 then
-		b2=b2+0.00390625
+		tbt35_b2=tbt35_b2+0.00390625
 	end if
 	'f5
 	if tmp2 and &h20 then
-		b2=b2+0.001953125
+		tbt35_b2=tbt35_b2+0.001953125
 	end if
 	'f4
 	if tmp2 and &h10 then
-		b2=b2+0.0009765625
+		tbt35_b2=tbt35_b2+0.0009765625
 	end if
 	'f3
 	if tmp2 and &h08 then
-		b2=b2+0.00048828125
+		tbt35_b2=tbt35_b2+0.00048828125
 	end if
 	'f2
 	if tmp2 and &h04 then
-		b2=b2+0.000244140625
+		tbt35_b2=tbt35_b2+0.000244140625
 	end if
 	'f1
 	if tmp2 and &h02 then
-		b2=b2+0.0001220703125
+		tbt35_b2=tbt35_b2+0.0001220703125
 	end if
 	'f0
 	if tmp2 and &h01 then
-		b2=b2+0.00006103515625
+		tbt35_b2=tbt35_b2+0.00006103515625
 	end if
 
 	if b2_tmp and &h8000 then
-		b2=-b2
+		tbt35_b2=-tbt35_b2
 	end if
 
-	'c12;signed, integer bits=0,fractional bits=13,dec pt zero pad=9
+	'tbt35_c12;signed, integer bits=0,fractional bits=13,dec pt zero pad=9
 	tmp2=c12_tmp /4
 	tmp2=tmp2 and &h1FFF
 
 	'Negative coefficients are coded in 2's complement notation
 	if c12_tmp and &h8000 then
-		c12=-c12
+		tbt35_c12=-tbt35_c12
 		tmp2=&h1FFF-b2_tmp
 	end if
 
-	c12=0.0
+	tbt35_c12=0.0
 	'f12
 	if tmp2 and &h1000 then
-		c12=c12+0.0009765625
+		tbt35_c12=tbt35_c12+0.0009765625
 	end if
 	'f11
 	if tmp2 and &h800 then
-		c12=c12+0.00048828125
+		tbt35_c12=tbt35_c12+0.00048828125
 	end if
 	'f10
 	if tmp2 and &h400 then
-		c12=c12+0.000244140625
+		tbt35_c12=tbt35_c12+0.000244140625
 	end if
 	'f9
 	if tmp2 and &h200 then
-		c12=c12+0.0001220703125
+		tbt35_c12=tbt35_c12+0.0001220703125
 	end if
 	'f8
 	if tmp2 and &h100 then
-		c12=c12+0.00006103515625
+		tbt35_c12=tbt35_c12+0.00006103515625
 	end if
 	'f7
 	if tmp2 and &h80 then
-		c12=c12+0.000030517578125
+		tbt35_c12=tbt35_c12+0.000030517578125
 	end if
 	'f6
 	if tmp2 and &h40 then
-		c12=c12+0.0000152587890625
+		tbt35_c12=tbt35_c12+0.0000152587890625
 	end if
 	'f5
 	if tmp2 and &h20 then
-		c12=c12+0.00000762939453125
+		tbt35_c12=tbt35_c12+0.00000762939453125
 	end if
 	'f4
 	if tmp2 and &h10 then
-		c12=c12+0.000003814697265625
+		tbt35_c12=tbt35_c12+0.000003814697265625
 	end if
 	'f3
 	if tmp2 and &h08 then
-		c12=c12+0.0000019073486328125
+		tbt35_c12=tbt35_c12+0.0000019073486328125
 	end if
 	'f2
 	if tmp2 and &h04 then
-		c12=c12+0.00000095367431640625
+		tbt35_c12=tbt35_c12+0.00000095367431640625
 	end if
 	'f1
 	if tmp2 and &h02 then
-		c12=c12+0.000000476837158203125
+		tbt35_c12=tbt35_c12+0.000000476837158203125
 	end if
 	'f0
 	if tmp2 and &h01 then
-		c12=c12+0.0000002384185791015625
+		tbt35_c12=tbt35_c12+0.0000002384185791015625
 	end if
 
 	if c12_tmp and &h8000 then
-		c12=-c12
+		tbt35_c12=-tbt35_c12
 	end if
 
 	#if TBT35_DEBUG_PRINT=1
-		tbt35_debug_print("a0  :"+ftostr(a0,FTOSTR_MODE_AUTO,36))
-		tbt35_debug_print("b1  :"+ftostr(b1,FTOSTR_MODE_AUTO,36))
-		tbt35_debug_print("b2  :"+ftostr(b2,FTOSTR_MODE_AUTO,36))
-		tbt35_debug_print("c12 :"+ftostr(c12,FTOSTR_MODE_AUTO,36))
+		tbt35_debug_print("tbt35_a0  :"+ftostr(tbt35_a0,FTOSTR_MODE_AUTO,36))
+		tbt35_debug_print("tbt35_b1  :"+ftostr(tbt35_b1,FTOSTR_MODE_AUTO,36))
+		tbt35_debug_print("tbt35_b2  :"+ftostr(tbt35_b2,FTOSTR_MODE_AUTO,36))
+		tbt35_debug_print("tbt35_c12 :"+ftostr(tbt35_c12,FTOSTR_MODE_AUTO,36))
 	#endif
 
 	#if TBT35_DEBUG_PRINT=1
@@ -388,12 +388,12 @@ function tbt35_get_kpa(channel as byte)as float
 	padc=padc /64
 	tadc=tadc /64
 
-	'Pcomp = a0 + (b1 + c12 .Tadc) . Padc + b2 . Tadc
-	c12x2=c12*tadc
-	a1=b1+c12x2
+	'Pcomp = tbt35_a0 + (tbt35_b1 + tbt35_c12 .Tadc) . Padc + tbt35_b2 . Tadc
+	c12x2=tbt35_c12*tadc
+	a1=tbt35_b1+c12x2
 	a1x1=a1*padc
-	y1=a0+a1x1
-	a2x2=b2*tadc
+	y1=tbt35_a0+a1x1
+	a2x2=tbt35_b2*tadc
 	pcomp=y1+a2x2
 	
 	'kpa=pcomp*(115-50)/1023 +50

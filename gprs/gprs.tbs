@@ -54,7 +54,7 @@ const GPRS_PAP_CONFREQ_STR=chr(&h00)+ chr(&h00)
 const GPRS_CCP_CONFREQ_STR=""
 
 const GPRS_IPCP_CONFREQ_STR=chr(&h03)+ chr(&h06)+chr(&h00)+ chr(&h00)+ chr(&h00)+ chr(&h00)
-const PING_STR="45 00 00 20 9a 00 00 00 20 01 00 00 00 00 00 00 00 00 00 00 08 00 30 39 02 00 01 00 61 62 63 64 "
+const GPRS_PING_STR="45 00 00 20 9a 00 00 00 20 01 00 00 00 00 00 00 00 00 00 00 08 00 30 39 02 00 01 00 61 62 63 64 "
 '                                             -cs-- --our ip--- --ping ip-- 
 
 const GPRS_INIT_SIGNATURE=&h125D
@@ -995,8 +995,8 @@ sub gprs_ping_send()
 	dim cs as dword
 	
 	gprs_cmd=""
-	for f=0 to len(PING_STR)/3-1
-		gprs_cmd=gprs_cmd+chr(val("&h"+mid(PING_STR,f*3+1,3)))
+	for f=0 to len(GPRS_PING_STR)/3-1
+		gprs_cmd=gprs_cmd+chr(val("&h"+mid(GPRS_PING_STR,f*3+1,3)))
 	next f
 
 	insert(gprs_cmd,13,gprs_ppp_ip)

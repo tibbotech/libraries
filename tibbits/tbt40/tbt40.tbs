@@ -25,7 +25,7 @@ declare function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
 #endif
 
 '--------------------------------------------------------------------
-dim i2c_num_tbt40 as byte
+dim tbt40_i2c_num as byte
 dim tbt40_init_flag as word
 
 '==============================================================================

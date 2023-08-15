@@ -90,7 +90,7 @@ function tbt41_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	next r
 end function
 
-function tbt41_line_out_enable(num as ext_line_name,en as no_yes, channel as byte)as ok_ng
+function tbt41_line_out_enable(num as en_tbt41_ext_line_name,en as no_yes, channel as byte)as ok_ng
 'Configures the specified line (num) to be an input (en=NO) or outpur (en=YES).
 'The function will return NG if the execution fails.
 	
@@ -109,7 +109,7 @@ function tbt41_line_out_enable(num as ext_line_name,en as no_yes, channel as byt
 	tbt41_line_out_enable=OK
 end function
 
-function tbt41_line_pup_enable(num as ext_line_name, en as no_yes, channel as byte)as ok_ng
+function tbt41_line_pup_enable(num as en_tbt41_ext_line_name, en as no_yes, channel as byte)as ok_ng
 'If en=YES and the corresponding line (num) is configured for input, then this line will be pulled up with a 100 KOhm resistor.
 'The function will return NG if the execution fails.
 	
@@ -128,7 +128,7 @@ function tbt41_line_pup_enable(num as ext_line_name, en as no_yes, channel as by
 	tbt41_line_pup_enable=OK
 end function
 
-function tbt41_line_set(num as ext_line_name,state as low_high, channel as byte)as ok_ng
+function tbt41_line_set(num as en_tbt41_ext_line_name,state as low_high, channel as byte)as ok_ng
 'Sets the output state of the specified line (num). For this to work the line has to be configured as output.
 'The function will return NG if the execution fails.
 	
@@ -151,7 +151,7 @@ function tbt41_line_set(num as ext_line_name,state as low_high, channel as byte)
 	tbt41_line_set=OK
 end function
 
-function tbt41_line_get(num as ext_line_name, byref state as low_high, channel as byte)as ok_ng
+function tbt41_line_get(num as en_tbt41_ext_line_name, byref state as low_high, channel as byte)as ok_ng
 'Reads the state of the specified line (num). The value will be returned in the state variable.
 'The function will return NG if the execution fails.
 	

@@ -19,7 +19,7 @@
 	#define TBT26_SAMPLE_RATE 20
 #endif
 
-enum errcheck
+enum en_tbt26_errcheck
 	TBT26_OK,
 	TBT26_INIT_FAILURE,
 	TBT26_NO_SSI_AVAILABLE
@@ -30,7 +30,7 @@ end enum
 
 
 'DECLARATIONS--------------------------------------------------------
-declare function tbt26_init()as errcheck
+declare function tbt26_init()as en_tbt26_errcheck
 'Call this function to initialize the Tibbit.
 'This library requires an SSI channel. If all channels are already occupied then this function will return TBT26_NO_SSI_AVAILABLE.
 
