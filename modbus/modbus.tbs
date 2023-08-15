@@ -43,7 +43,7 @@ dim modbus_crc_table_hi as byte(256) = {
 	&H00,&HC1,&H81,&H40,&H01,&HC0,&H80,&H41,&H01,&HC0,&H80,&H41,&H00,&HC1,&H81,&H40
 }
 
-dim modbus_crc_table_hi as byte(256) = {
+dim modbus_crc_table_lo as byte(256) = {
 	&H00,&HC0,&HC1,&H01,&HC3,&H03,&H02,&HC2,&HC6,&H06,&H07,&HC7,&H05,&HC5,&HC4,&H04,
 	&HCC,&H0C,&H0D,&HCD,&H0F,&HCF,&HCE,&H0E,&H0A,&HCA,&HCB,&H0B,&HC9,&H09,&H08,&HC8,
 	&HD8,&H18,&H19,&HD9,&H1B,&HDB,&HDA,&H1A,&H1E,&HDE,&HDF,&H1F,&HDD,&H1D,&H1C,&HDC,
@@ -584,7 +584,7 @@ function modbus_crc16(data as byte(255), byte_cnt as byte) as word
 		idx = crc_hi xor data(data_index)
 		data_index = data_index + 1
 		crc_hi = crc_lo xor modbus_crc_table_hi(idx)
-		crc_lo = modbus_crc_table_hi(idx)
+		crc_lo = modbus_crc_table_lo(idx)
 	next i
 	
 	modbus_crc16 = (crc_hi shl 8) or crc_lo
