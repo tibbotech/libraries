@@ -92,6 +92,9 @@ enum input_box_key_actions
 	INPUT_BOX_BACKSPACE
 end enum
 
+declare input_box_result as ui_input_box_results
+declare ib_edit_str as string(IB_MAX_LEN)
+
 '--------------------------------------------------------------------------------
 declare function ui_input_box(
 	byref mask_str as string(IB_MAX_LEN),
