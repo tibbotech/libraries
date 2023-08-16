@@ -8,6 +8,7 @@ dim chr_init as no_yes	'flag used to decide if add a new character, or replace t
 dim agg_cmd_progress as byte
 dim prev_icon as byte
 dim ui_mode as en_ui_mode
+dim ui_active as boolean=false
 
 public function device_settings_sg(setting_name as string(5),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
 	dim w1, w2, w3 as word
@@ -496,6 +497,10 @@ sub ui_handle_kp(kp_event as pl_kp_event_codes, kp_code as byte)
 			ui_menu_key_proc(kp_event,kp_code)
 		case UI_MODE_INPUT_BOX:
 			ui_input_box_key_proc(kp_event,kp_code)
+		case UI_MODE_LIST:
+			ui_list_box_key_proc(kp_event,kp_code)
+		case UI_MODE_MSG:
+			ui_msg_box_key_proc(kp_event,kp_code)
 		case else:
 
 	end select
@@ -504,6 +509,7 @@ end sub
 
 '------------------------------------------------------------------------------
 sub entering_menu()
+	ui_active=true
 	lcd.forecolor=LCD_FORECOLOR
 	lcd.backcolor=LCD_BACKCOLOR
 	lcd_clear(0,0,lcd.width,lcd.height)

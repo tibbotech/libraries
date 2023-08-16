@@ -66,6 +66,7 @@ end enum
 
 declare ui_mode as en_ui_mode
 declare ui_setting_name as string(20)
+declare ui_active as boolean
 
 
 declare sub device_menu_pre(
@@ -175,3 +176,4 @@ declare sub set_stg_modified()
 declare sub entering_menu()
 declare sub ui_exit_level()
 declare sub ui_menu_out()
+declare sub ui_menu_exit()

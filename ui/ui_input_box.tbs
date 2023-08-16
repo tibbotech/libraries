@@ -431,8 +431,8 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 		case &h20:
 			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h30	'space->0
 			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h41	'space->A
-			
-		case &h39:chr_asc=&h20	'9->space
+		case &h39:chr_asc=&h2e  '9->.
+		case &h2e:chr_asc=&h20	'.->space
 		case &h5A:chr_asc=&h61	'Z->a
 		
 		case &h7A:
@@ -444,9 +444,13 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 		end select	
 	end select
 verified:	
+	dim prev as string=mid(sourcestr,sourcestr_index,1)
+	dim w as byte=lcd.getprintwidth(mid(sourcestr,sourcestr_index,1))
 	s1=left(sourcestr,sourcestr_index-1)
 	s2=right(sourcestr,len(sourcestr)-sourcestr_index)
 	sourcestr=s1+chr(chr_asc)+s2
+	
+	lcd_clear(cursor_x+1,INPUT_BOX_Y,w,lcd.fontheight)
 	lcd.print(chr(chr_asc),cursor_x+2,INPUT_BOX_Y+3)
 #if INPUT_BOX_CURSOR_STYLE > 0 	
 	ib_str_pos_selector

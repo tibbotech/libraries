@@ -378,6 +378,7 @@ function ui_menu_call_lb(byref item_data as string(60)) as ui_list_box_results
 	pos1=instr(1,item_data,chr(COMMA),2)
 	pos2=instr(1,item_data,chr(COMMA),3)
 	setting_name=mid(item_data,pos1+1,pos2-pos1-1)
+	ui_setting_name=setting_name
 	b=0
 	
 	if device_settings_sg(setting_name,b,listbox_state,"",DEVICE_GET)=EN_STG_STATUS_OK then
@@ -391,11 +392,7 @@ function ui_menu_call_lb(byref item_data as string(60)) as ui_list_box_results
 		timeout=20
 		
 		'adjust list box position
-		lb_result=ui_list_box(LIST_BOX_X, LIST_BOX_Y, LIST_BOX_W, LIST_BOX_H, listbox_data, listbox_state,NO, timeout)
-		if lb_result=LIST_BOX_RESULT_OK then 	
-			if device_settings_sg(setting_name,b,listbox_state,"",DEVICE_SET)=EN_STG_STATUS_OK then set_stg_modified()
-		end if
-		ui_menu_call_lb=lb_result
+		ui_list_box(LIST_BOX_X, LIST_BOX_Y, LIST_BOX_W, LIST_BOX_H, listbox_data, listbox_state,NO, timeout)
 	else
 		ui_msg_box(COMMAND_SETTING_FAILURE,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,device_mb_get_key(MBK_OK),NO,0)
 	end if
@@ -484,11 +481,8 @@ sub ui_menu_out()
 		mb_popped=YES
 		confirm_key=device_mb_get_key(MBK_YES)
 		cancel_key=device_mb_get_key(MBK_NO)
-		return_key=ui_msg_box(EXIT_MENU,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,confirm_key+cancel_key,NO,0)
-		if instr(1,confirm_key,chr(return_key),1)> 0 then
-			ui_menu_exit_flag=YES
-			exit sub
-		end if
+		ui_msg_box(EXIT_MENU,MSG_BOX_X,MSG_BOX_Y,MSG_BOX_W,MSG_BOX_H,PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER,confirm_key+cancel_key,NO,0)
+		exit sub
 	end if 
 	ui_menu_lvl_path=left(ui_menu_lvl_path, len(ui_menu_lvl_path)-2)
 	addr=menu_covert_addr(right(ui_menu_lvl_path,2))
@@ -590,8 +584,8 @@ print_ib:
 	case "L":
 		menu_fade()
 		lb_result=ui_menu_call_lb(item_data)
-		device_menu_pre("","","","","","","","")
-		ui_menu_out()
+'		device_menu_pre("","","","","","","","")
+'		ui_menu_out()
 		
 	#if UI_TABLE_CONTROL	
 	case "T"
