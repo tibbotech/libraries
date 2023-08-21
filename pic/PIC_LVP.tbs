@@ -10,7 +10,8 @@ enum pic_lvp_cmd
 	CMD_LOAD_CONFIG                        = &h00,	' read  (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_PROGRAM_MEMORY       = &h02,	' write (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_DATA_MEMORY          = &h03,	' write (0) data(8) zero(6) (0)
-	CMD_READ_DATA_FROM_PROGRAM_MEMORY       = &h05,	' read  (0) data(8) zero(6) (0)
+    CMD_READ_DATA_FROM_PROGRAM_MEMORY      = &h04,	' read  (0) data(14) (0)
+	CMD_READ_DATA_FROM_DATA_MEMORY         = &h05,	' read  (0) data(8) zero(6) (0)
 	CMD_INCREMENT_ADDRESS                  = &h06,	' -
 	CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING = &h08,	' -
 	CMD_BULK_ERASE_PROGRAM_MEMORY          = &h09,	' -

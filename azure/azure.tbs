@@ -32,7 +32,6 @@ dim azure_http_buf as string
 dim azure_assigned_status as boolean
 
 declare azure_current_url as string
-declare mqtt_sock_num as byte
 
 declare function azure_generate_sas_token(byref resourceUri as string, byref signingKey as string, expiresInMins as word) as string
 declare sub azure_debugprint(byref print_data as string)
