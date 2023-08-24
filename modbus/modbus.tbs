@@ -484,10 +484,6 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	
 	modbusUnitId = asc(mid(data, prefix_len + 1, 1))
 	modbusFunction = asc(mid(data, prefix_len + 2, 1))
-
-	#if MODBUS_DEBUG_PRINT
-		modbus_print_packet(data, false)
-	#endif
 	
 	select case modbusFunction
 		case ReadCoilStatus,ReadInputStatus:
@@ -521,6 +517,11 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		modbus_debug_print("incorrect device")
 		exit sub
 	end if
+
+	#if MODBUS_DEBUG_PRINT
+		modbus_print_packet(data, false)
+	#endif
+
 '	modbus_debug_print("reply for " + str(request_item.device_id))
 	if modbusFunction = ReadCoilStatus or modbusFunction = ReadInputStatus then
 		str_modbus = mid(data,4 + prefix_len,length)
