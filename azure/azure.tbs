@@ -491,6 +491,7 @@ sub azure_mqtt_start()
 	dim user_name as string=azure_assigned_hub+"/"+azure_current_device_id+"/"+AZURE_MQTT_API_VERSION	
 	dim resourceUri as string= azure_assigned_hub+"%2Fdevices%2F"+azure_current_device_id
 	azure_sas_token="SharedAccessSignature sr="+azure_assigned_hub+"%2Fdevices%2F"+azure_current_device_id+"&sig="+azure_generate_sas_token(resourceUri, azure_current_primary_key, 525600)
+	mqtt_stop()
 	mqtt_start(azure_interface,azure_assigned_hub,8883,user_name,azure_sas_token,azure_current_device_id,true)
 
 end sub
