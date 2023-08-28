@@ -428,7 +428,7 @@ public sub azure_store_telemetry(message_type as string, message_value as string
 	dim ts as string(36)
 	rtc.getdata(daycounts,mincounts,seconds)
 	azure_get_timestring(ts,daycounts,mincounts,seconds)
-	tbl_result=tbl_select("events","events")
+	tbl_result=tbl_select("Azure","Azure")
 	tbl_result=tbl_field_sg("time",ts,EN_TBL_SET)
 	tbl_result=tbl_field_sg("type",message_type,EN_TBL_SET)
 	tbl_result=tbl_field_sg("value",message_value,EN_TBL_SET)
