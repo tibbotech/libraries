@@ -1,7 +1,5 @@
 include "global.tbh"
 
-const HTTP_TLS_BUFF_PAGES=40
-
 dim http_start_called as boolean=false
 dim http_methods(6) as string(7) = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH"}
 dim http_request_item as http_request_type

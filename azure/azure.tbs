@@ -388,6 +388,56 @@ sub azure_set_datetime(byref dt_string as string)
 		
 end sub
 
+sub azure_get_timestring(byref ts_str as string(20),	
+	byref time_daycount as word,
+	byref time_mincount as word,
+	byref time_second_byte as byte)
+	dim time_year_str, time_month_str, time_date_str, time_hour_str, time_minute_str, time_second_str as string(4)
+
+	time_year_str=str(year(time_daycount)+2000)
+	time_month_str=str(month(time_daycount))
+	time_date_str=str(date(time_daycount))
+	time_hour_str=str(hours(time_mincount))
+	time_minute_str=str(minutes(time_mincount))
+	time_second_str=str(time_second_byte)
+
+	if len(time_hour_str) < 2 then 
+		time_hour_str="0"+time_hour_str 
+	end if
+	if len(time_minute_str) < 2 then 
+		time_minute_str="0"+time_minute_str 
+	end if
+	if len(time_second_str) < 2 then 
+		time_second_str="0"+time_second_str 
+	end if
+	if len(time_date_str) < 2 then 
+		time_date_str="0"+time_date_str 
+	end if
+	if len(time_month_str) < 2 then 
+		time_month_str="0"+time_month_str 
+	end if
+	ts_str=time_year_str+"-"+time_month_str+"-"+time_date_str+"T"+time_hour_str+":"+time_minute_str+":"+time_second_str
+	ts_str=ts_str+".000Z"
+
+end sub
+
+public sub azure_store_telemetry(message_type as string, message_value as string)
+	dim tbl_result as en_tbl_status_codes	
+	dim daycounts, mincounts as word
+	dim seconds as byte
+	dim ts as string(36)
+	rtc.getdata(daycounts,mincounts,seconds)
+	azure_get_timestring(ts,daycounts,mincounts,seconds)
+	tbl_result=tbl_select("events","events")
+	tbl_result=tbl_field_sg("time",ts,EN_TBL_SET)
+	tbl_result=tbl_field_sg("type",message_type,EN_TBL_SET)
+	tbl_result=tbl_field_sg("value",message_value,EN_TBL_SET)
+	tbl_result=tbl_record_add("")
+	#if AZURE_DEBUG_PRINT
+		azure_debugprint("Telemetry stored: Type: " + message_type + "  Value: " + message_value)
+	#endif
+end sub
+
 public sub azure_on_telemetry_sent()
 
 	if sock.num<>mqtt_sock_num then
