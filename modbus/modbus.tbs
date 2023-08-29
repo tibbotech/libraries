@@ -339,6 +339,17 @@ sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactio
 	end if
 end sub
 
+sub modbus_proc_ser_data_sent()
+	if modbus_queue_start = -1 then
+		exit sub
+	end if
+	if ser.num=modbus_request_queue(modbus_queue_start).interface_number then
+		dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
+		ser.setdata(data)
+		ser.send()
+	end if
+end sub
+
 sub modbus_master_send_next()
 	if modbus_queue_start = -1 then
 		exit sub
@@ -362,9 +373,7 @@ sub modbus_master_send_next()
 	else if modbus_request_queue(modbus_queue_start).protocol=modbus_RTU then
 		prev_num=ser.num
 		ser.num=modbus_request_queue(modbus_queue_start).interface_number
-'		ser.notifysent(1)
-		ser.setdata(data)
-		ser.send()
+		ser.notifysent(ser.txbuffsize-len(data))
 		ser.num=prev_num
 	end if
 	modbus_request_queue(modbus_queue_start).timestamp=sys.timercountms

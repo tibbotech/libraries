@@ -34,7 +34,7 @@ end type
 #define MODBUS_PWM_PULSE_HOLDING_REGISTER 100
 #define MODBUS_PWM_PERIOD_HOLDING_REGISTER 200
 #ifndef MODBUS_TIMEOUT
-	#define MODBUS_TIMEOUT 400
+	#define MODBUS_TIMEOUT 500
 #endif
 #ifndef MODBUS_MAX_REQUESTS
 	#define MODBUS_MAX_REQUESTS 20
@@ -90,3 +90,4 @@ declare sub modbus_slave_receive(byref recv_data as string, interface_number as 
 declare sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol)
 declare sub modbus_queue_clear()
 declare sub modbus_proc_timer()
+declare sub modbus_proc_ser_data_sent()
