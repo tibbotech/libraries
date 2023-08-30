@@ -205,8 +205,8 @@ current_interface = PL_SOCK_INTERFACE_NULL
     'modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", MODBUS_MASTER_INTERFACE, modbus_RTU)
     MODBUS_MASTER_INTERFACE=sock_get("MBM")
 
-    MODBUS_SLAVE_INTERFACE=sock_get("MBS")
-    sock.num=MODBUS_SLAVE_INTERFACE
+    modbus_slave_interface=sock_get("MBS")
+    sock.num=modbus_slave_interface
     sock.protocol=PL_SOCK_PROTOCOL_TCP
     sock.localportlist="502"
     sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT

@@ -195,7 +195,6 @@ declare response_data as word
 declare device_id as word
 
 declare register_address as word
-declare MODBUS_SLAVE_INTERFACE  as byte
 
 declare mqtt_username as string
 declare mqtt_password as string
