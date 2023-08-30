@@ -72,6 +72,8 @@ declare modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
 declare modbus_recv_buffer as string
 declare modbus_slave_recv_buffer as string
 declare modbus_slave_id as byte
+declare modbus_slave_protocol as modbusProtocol
+declare modbus_slave_interface as byte
 
 declare function modbus_initialize() as boolean
 declare function modbus_callback_ReadCoilStatus(address as word) as boolean
