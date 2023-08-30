@@ -1,11 +1,10 @@
 include "global.tbh"
 
-declare sub modbus_tcp_send(socket as byte, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub modbus_queue_add(request_item as modbus_request_item)
 declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub modbus_master_send_next()
 declare sub modbus_debug_print(byref message as string)
-declare sub modbus_print_packet(byref s as string, is_send as boolean)
+declare function modbus_print_packet(byref s as string) as string
 declare function modbus_get_input_register(register as word) as word
 declare function modbus_get_holding_register(register as word) as word
 declare function modbus_queue_pop() as modbus_request_item
@@ -23,6 +22,10 @@ dim modbus_master_recv_buffer as string
 dim modbus_trans_id as word
 dim modbus_queue_count as byte
 dim modbus_slave_id  as byte = 1
+dim modbus_slave_send_buffer as string=""
+dim modbus_slave_protocol as modbusProtocol=modbus_TCP
+dim modbus_slave_interface as byte=255
+dim modbus_slave_last_recv_ts as dword=0
 
 dim _crc_table_hi as byte(256) = {
 	&H00,&HC1,&H81,&H40,&H01,&HC0,&H80,&H41,&H01,&HC0,&H80,&H41,&H00,&HC1,&H81,&H40,
@@ -92,6 +95,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	dim crc_size as byte = 0
 	dim data as string = modbus_slave_recv_buffer + recv_data
 	modbus_slave_recv_buffer = data
+	modbus_slave_last_recv_ts=sys.timercountms
 	if len(modbus_slave_recv_buffer)=255 then
 		modbus_slave_recv_buffer=""
 		exit sub
@@ -124,6 +128,11 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	if len(data) < prefix_len + length then
 			exit sub
 	end if
+
+	#if MODBUS_DEBUG_PRINT
+		dim packet as string=modbus_print_packet(data)
+		modbus_debug_print("recv " + packet)
+	#endif
 	
 	str_modbus=mid(data, prefix_len + 3,length)
 	
@@ -132,6 +141,9 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 		dim tmpstr as string=mid(data,1,length-2)
 		tmpcrc=modbus_crc16(tmpstr, len(tmpstr))
 		if crc<>tmpcrc then
+			#if MODBUS_DEBUG_PRINT
+				modbus_debug_print("wrong crc")
+			#endif
 			exit sub
 		end if
 		dim remaining as byte = len(data) - (len(tmpstr)+2)
@@ -298,28 +310,23 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 
 end sub
 
-sub modbus_tcp_send(socket as byte, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
-	
-	dim packet as string(8)
-	
-	packet = chr(transactionId shr 8) + chr(transactionId and &hFF)
-	packet = packet + chr(protocolId shr 8) + chr(protocolId and &hFF)
-	packet = packet + chr(0) + chr(len(data) + 2)
-	packet = packet + chr(modbusUnitId)
-	packet = packet + chr(modbusFunction)
-	
-	sock.num = socket
-	sock.setdata(packet)
-	sock.setdata(data)
-	sock.send()
-	
-end sub
-
 sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
+	dim senddata as string=""
 	if protocol=modbus_TCP then
-		modbus_tcp_send(interface_number, transactionId, protocolId, modbusUnitId, modbusFunction, data)
+		dim packet as string(8)
+		packet = chr(transactionId shr 8) + chr(transactionId and &hFF)
+		packet = packet + chr(protocolId shr 8) + chr(protocolId and &hFF)
+		packet = packet + chr(0) + chr(len(data) + 2)
+		packet = packet + chr(modbusUnitId)
+		packet = packet + chr(modbusFunction)
+		
+		senddata=packet+data
+
+		sock.num = interface_number
+		sock.setdata(senddata)
+		sock.send()
+
 	else if protocol=modbus_RTU then
-		dim senddata as string=""
 		senddata = chr(modbusUnitId)
 		senddata = senddata + chr(modbusFunction)
 		if len(data) = 0 then
@@ -333,20 +340,33 @@ sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactio
 		senddata = senddata + chr(crc and &HFF)
 
 		ser.num=interface_number
-		ser.notifysent(1)
-		ser.setdata(senddata)
-		ser.send()
+		ser.notifysent(ser.txbuffsize-len(senddata))
+		modbus_slave_send_buffer=senddata
 	end if
+
+	#if MODBUS_DEBUG_PRINT
+		dim packet as string=modbus_print_packet(senddata)
+		modbus_debug_print("send " + packet)
+	#endif
 end sub
 
 sub modbus_proc_ser_data_sent()
-	if modbus_queue_start = -1 then
-		exit sub
+	if modbus_queue_count>0 then
+		if ser.num=modbus_request_queue(modbus_queue_start).interface_number
+	 		AND modbus_request_queue(modbus_queue_start).timestamp<>0
+	 		AND modbus_request_queue(modbus_queue_start).protocol=modbus_RTU then
+			modbus_request_queue(modbus_queue_start).timestamp=sys.timercountms
+			dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
+			ser.txclear()
+			ser.setdata(data)
+			ser.send()
+		end if
 	end if
-	if ser.num=modbus_request_queue(modbus_queue_start).interface_number then
-		dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
-		ser.setdata(data)
+	if ser.num=modbus_slave_interface AND modbus_slave_protocol=modbus_RTU AND modbus_slave_send_buffer<>"" then
+		ser.txclear()
+		ser.setdata(modbus_slave_send_buffer)
 		ser.send()
+		modbus_slave_send_buffer=""
 	end if
 end sub
 
@@ -356,11 +376,12 @@ sub modbus_master_send_next()
 	end if
 	dim prev_num as byte=0
 	dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
-	modbus_request_queue(modbus_queue_start).data = data
 
 	#if MODBUS_DEBUG_PRINT
-		modbus_print_packet(data, true)
+		dim tmp as string=modbus_print_packet(data)
+		modbus_debug_print("send " + tmp)
 	#endif
+
 	if modbus_request_queue(modbus_queue_start).protocol=modbus_TCP then
 		prev_num=sock.num
 		sock.num=modbus_request_queue(modbus_queue_start).interface_number
@@ -389,11 +410,22 @@ sub modbus_proc_timer()
 			modbus_master_send_next()
 		else
 			if modbus_time_elapsed(modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT) then
-				modbus_debug_print("modbus timeout for device " + str(modbus_request_queue(modbus_queue_start).device_id))
+				dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
+				#if MODBUS_DEBUG_PRINT
+					'modbus_debug_print("modbus timeout for device " + str(modbus_request_queue(modbus_queue_start).device_id))
+				#endif
+				dim tmp as string=modbus_print_packet(data)
+				modbus_debug_print("timeout for " + tmp)
+				
 				request_item = modbus_queue_pop()
 				callback_modbus_slave_reply_timeout(request_item)
 				modbus_master_send_next()
 			end if
+		end if
+	end if
+	if modbus_slave_recv_buffer<>"" then
+		if sys.timercountms-modbus_slave_last_recv_ts>MODBUS_TIMEOUT then
+			modbus_slave_recv_buffer=""
 		end if
 	end if
 end sub
@@ -528,7 +560,8 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	end if
 
 	#if MODBUS_DEBUG_PRINT
-		modbus_print_packet(data, false)
+		dim tmp as string=modbus_print_packet(data)
+		modbus_debug_print("recv " + tmp)
 	#endif
 
 '	modbus_debug_print("reply for " + str(request_item.device_id))
@@ -605,25 +638,19 @@ function modbus_read_word(byref bytes as byte(255), start as byte) as word
 	modbus_read_word = (bytes(start) shl 8) or bytes(start + 1)
 end function
 
-sub modbus_print_packet(byref s as string, is_send as boolean)
-	#if MODBUS_DEBUG_PRINT
-		dim size as byte=len(s)
-		dim i as byte
-		dim packet as string=""
-		for i=0 to size-1
-			dim part as string(2)=mid(hex(asc(mid(s,i+1,1))),3,2)
-			if len(part)=1 then
-				part="0" + part
-			end if
-			packet = packet + part + " "
-		next i
-		if is_send then
-			modbus_debug_print("send: " + packet)
-		else
-			modbus_debug_print("recv: " + packet)
+function modbus_print_packet(byref s as string) as string
+	dim size as byte=len(s)
+	dim i as byte
+	dim packet as string=""
+	for i=0 to size-1
+		dim part as string(2)=mid(hex(asc(mid(s,i+1,1))),3,2)
+		if len(part)=1 then
+			part="0" + part
 		end if
-	#endif
-end sub
+		packet = packet + part + " "
+	next i
+	modbus_print_packet=packet
+end function
 
 sub modbus_debug_print(byref message as string)
 #if MODBUS_DEBUG_PRINT
