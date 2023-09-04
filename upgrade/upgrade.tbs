@@ -3,7 +3,6 @@ include "global.tbh"
 dim upload_started as boolean = false
 dim current_fw_upg_state as pl_upg_state_t
 dim isBtConnected as boolean = false
-dim fw_buffer as string(128)=""
 dim pattern_timer as dword = sys.timercount32
 dim led_detect_timer as byte
 dim upgrade_socket_number as socket_assignment
@@ -278,9 +277,10 @@ sub device_firmware_read_chekcsum()
 	
 end sub
 
+#if FD_SECTOR_SIZE=256
+dim fw_buffer as string(128)=""
 sub device_firmware_write_tios_app(fw as string) 
 	fd.buffernum=0
-	
 	if (current_fw_upg_state.fw_page mod 2 ) = 0 then
 		if current_fw_upg_state.fw_remaining=0 then
 			fw=fw+strgen(FW_UPG_BLK_LEN-len(fw),"\x00")
@@ -295,15 +295,76 @@ set_sector:
 		if current_fw_upg_state.fw_remaining=0 then
 			fw=fw+strgen(FW_UPG_BLK_LEN-len(fw),"\x00")
 		end if
-		fd.flush()
 		fd.setbuffer(fw_buffer , 0)
 		fd.setbuffer(fw, 128) 	
-		 
 		fd.setsector(current_fw_upg_state.fw_sector)			 				
 		current_fw_upg_state.fw_sector = current_fw_upg_state.fw_sector + 1
 	end if
 
 end sub
+
+#elif FD_SECTOR_SIZE=512
+
+dim fw_buffer(4) as string(128)
+
+dim fw_buffer2(4) as string(128)
+
+sub device_firmware_write_tios_app(fw as string) 
+	fd.buffernum=0
+	
+	dim i as byte = current_fw_upg_state.fw_page mod 4
+	dim lastWrite as boolean = (current_fw_upg_state.fw_remaining=0)
+	
+	if lastWrite then
+		fw=fw+strgen(FW_UPG_BLK_LEN-len(fw),"\x00")
+	end if
+	
+	fw_buffer(i)=fw
+	
+	if i = 3 or lastWrite then
+		fd.flush
+		fd.setbuffer(fw_buffer(0) , 0)
+		fd.setbuffer(fw_buffer(1), 128) 	
+		fd.setbuffer(fw_buffer(2), 256) 	
+		fd.setbuffer(fw_buffer(3), 384) 
+		if fd.setsector(current_fw_upg_state.fw_sector) <> PL_FD_STATUS_OK then
+			
+			sys.halt
+			
+		end if
+		
+		
+		if fd.getsector(current_fw_upg_state.fw_sector) <> PL_FD_STATUS_OK then
+			sys.halt
+		end if
+		fw_buffer2(0) = fd.getbuffer(0,128)
+		fw_buffer2(1) = fd.getbuffer(128,128)
+		fw_buffer2(2) = fd.getbuffer(256,128)
+		fw_buffer2(3) = fd.getbuffer(384,128)
+		
+		for i=0 to 3
+			if fw_buffer(i)<>"" AND fw_buffer(i)<>fw_buffer2(i) then
+				sys.debugprint("error")
+				sys.halt
+			end if
+		next i
+
+	current_fw_upg_state.fw_sector = current_fw_upg_state.fw_sector + 1
+		
+		
+		fw_buffer(0)= ""
+		fw_buffer(1)= ""
+		fw_buffer(2)= ""
+		fw_buffer(3)= ""
+	end if	
+
+end sub
+
+#else 
+
+#error "You must define the fd sector size"
+
+#endif
 
 sub device_firmware_write_wa2000_mon_app(fw as string) 			
 	#IF WLN_AVAILABLE
