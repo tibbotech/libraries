@@ -528,27 +528,36 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	
 	select case modbusFunction
 		case ReadCoilStatus,ReadInputStatus:
-			length = asc(mid(data, prefix_len + 3, 1))
-			str_modbus = mid(data, prefix_len + 3, 3)
+			length = asc(mid(data, prefix_len + 3, 1)) + 3
+			str_modbus = mid(data,prefix_len + 3 + 1, asc(mid(data, prefix_len + 3, 1)))
+		case ReadHoldingRegisters,ReadInputRegisters:
+			length = asc(mid(data, prefix_len + 3, 1)) + 3
+			str_modbus = mid(data,prefix_len + 3 + 1, asc(mid(data, prefix_len + 3, 1)))
 		case WriteSingleCoil, PresetSingleRegister:
-			length = 3
-			str_modbus = mid(data, prefix_len + 4, 5)
+			length = 6
+			str_modbus = mid(data, prefix_len + 3 + 1, 2)
+		case WriteMultipleCoils,PresetMultipleRegisters:
+			length = 6
+			str_modbus = mid(data,prefix_len + 3 + 1, 2)
 		case else:
-			length = asc(mid(data, prefix_len + 3, 1))
-			str_modbus=mid(data,prefix_len + 3,length+1)
+			
 	end select
 	
 	if protocol=modbus_RTU then
-		if len(data) < 5 + length then
+		if len(data) < 2 + length then
 			exit sub
 		end if
-		crc=asc(mid(data, 3 + len(str_modbus), 1)) * 256 + asc(mid(data, 4 + len(str_modbus), 1))
-		dim tmpstr as string=mid(data,1,2+len(str_modbus))
+		crc=asc(mid(data,length+1,1)) * 256 + asc(mid(data,length+2,1))
+		dim tmpstr as string=mid(data,1,length)
 		tmpcrc=modbus_crc16(tmpstr, len(tmpstr))
 		dim remaining as byte = len(data) - (len(tmpstr)+2)
 		modbus_master_recv_buffer = mid(data,len(tmpstr) + 3,remaining)
 		if crc<>tmpcrc then 
-			modbus_debug_print("wrong crc")
+			#if MODBUS_DEBUG_PRINT
+				modbus_debug_print("wrong crc")
+				dim packet as string=modbus_print_packet(data)
+				modbus_debug_print("data is " + packet)
+			#endif
 			exit sub
 		end if
 	end if
@@ -564,12 +573,6 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 		modbus_debug_print("recv " + tmp)
 	#endif
 
-'	modbus_debug_print("reply for " + str(request_item.device_id))
-	if modbusFunction = ReadCoilStatus or modbusFunction = ReadInputStatus then
-		str_modbus = mid(data,4 + prefix_len,length)
-	else 
-		str_modbus = right(str_modbus,len(str_modbus) - 1)
-	end if
 	callback_modbus_slave_reply(request_item, str_modbus)
 	modbus_master_send_next()
 end sub
@@ -588,6 +591,38 @@ sub modbus_queue_add(request_item as modbus_request_item)
 	end if
 	if modbus_queue_end = MODBUS_MAX_REQUESTS then
 		modbus_queue_end=0
+	end if
+	' cut in line if request is write
+	' loop through current queue and find first read request of same device
+	' replace with write request
+	if (request_item.request_function = WriteSingleCoil OR request_item.request_function = PresetSingleRegister
+	OR request_item.request_function = WriteMultipleCoils OR request_item.request_function = PresetMultipleRegisters)
+	AND modbus_queue_count>0 then
+		dim i as byte
+		dim modbus_queue_start_tmp as byte = modbus_queue_start
+		for i=0 to modbus_queue_count-1
+			' if modbus_request_queue(modbus_queue_start_tmp).device_id = request_item.device_id 
+			' AND modbus_request_queue(modbus_queue_start_tmp).start_register = request_item.start_register
+			' AND modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
+			' 	modbus_request_queue(modbus_queue_start_tmp) = request_item
+			' 	'cutting in line
+			' 	exit sub
+			' end if
+			if modbus_request_queue(modbus_queue_start_tmp).request_function=ReadCoilStatus
+			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadInputStatus
+			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadHoldingRegisters
+			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadInputRegisters then
+				if modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
+					'cutting in line
+					modbus_request_queue(modbus_queue_start_tmp) = request_item
+					exit sub
+				end if
+			end if
+			modbus_queue_start_tmp = modbus_queue_start_tmp + 1
+			if modbus_queue_start_tmp = MODBUS_MAX_REQUESTS then
+				modbus_queue_start_tmp = 0
+			end if
+		next i
 	end if
 	modbus_request_queue(modbus_queue_end) = request_item
 	modbus_queue_end=modbus_queue_end+1
