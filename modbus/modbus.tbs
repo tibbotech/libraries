@@ -584,14 +584,6 @@ sub modbus_queue_clear()
 end sub
 
 sub modbus_queue_add(request_item as modbus_request_item)
-	if modbus_queue_start=-1 then
-		modbus_queue_start = 0
-		modbus_queue_end = 0
-		modbus_queue_count = 0
-	end if
-	if modbus_queue_end = MODBUS_MAX_REQUESTS then
-		modbus_queue_end=0
-	end if
 	' cut in line if request is write
 	' loop through current queue and find first read request of same device
 	' replace with write request
@@ -624,6 +616,14 @@ sub modbus_queue_add(request_item as modbus_request_item)
 			end if
 		next i
 	end if
+	if modbus_queue_start=-1 then
+		modbus_queue_start = 0
+		modbus_queue_end = 0
+		modbus_queue_count = 0
+	end if
+	if modbus_queue_end = MODBUS_MAX_REQUESTS then
+		modbus_queue_end=0
+	end if	
 	modbus_request_queue(modbus_queue_end) = request_item
 	modbus_queue_end=modbus_queue_end+1
 	modbus_queue_count = modbus_queue_count + 1
