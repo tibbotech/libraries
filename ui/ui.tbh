@@ -56,9 +56,17 @@ enum en_device_rdwr
 	DEVICE_SET
 end enum
 
-	
+enum en_ui_mode
+	UI_MODE_NONE,
+	UI_MODE_MENU,
+	UI_MODE_INPUT_BOX,
+	UI_MODE_LIST,
+	UI_MODE_MSG
+end enum
 
-
+declare ui_mode as en_ui_mode
+declare ui_setting_name as string(20)
+declare ui_active as boolean
 
 
 declare sub device_menu_pre(
@@ -157,6 +165,7 @@ declare sub device_ib_timer_event(byref current_state as input_box_key_actions,b
 declare	sub lcd_clear(x as word, y as word, width as word, height as word)
 declare sub lcd_print_msg(byref msg as string,x as word, y as word, w as word, h as word,al as pl_lcd_text_alignment, bolder as no_yes)
 declare sub reset_keypad()
+declare sub ui_handle_kp(kp_event as pl_kp_event_codes, kp_code as byte)
 
 declare sub device_menu_key_proc(key_event as pl_kp_event_codes, key_code as byte, byref current_state as menu_key_actions)
 declare sub device_number_key_action(led_key as word,upper_asc as byte,lower_asc as byte, number_asc as byte, byref current_state as input_box_key_actions, byref key_asc as byte, byref insert_mode as no_yes)
@@ -165,3 +174,6 @@ declare sub device_lb_key_proc(key_event as pl_kp_event_codes, key_code as byte,
 declare sub device_mb_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 declare sub set_stg_modified()
 declare sub entering_menu()
+declare sub ui_exit_level()
+declare sub ui_menu_out()
+declare sub ui_menu_exit()

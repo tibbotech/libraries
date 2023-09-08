@@ -32,8 +32,7 @@ declare sub ui_listbox_up(listbox_display_string as string)
 declare sub ui_listbox_down(listbox_display_string as string)
 declare sub ui_listbox_print_val
 declare sub ui_listbox_scroll(refresh as no_yes, disable as no_yes)
-declare sub ui_list_box_timer_proc
-declare sub ui_list_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
+declare sub ui_list_box_timer_proc()
 declare sub ui_list_process_esc_seq(byref s as string)
 
 dim ui_listbox_string as string
@@ -50,7 +49,7 @@ dim lb_interrupt_flag as no_yes
 #endif
 
 '=============================================================
-public function ui_list_box(
+sub ui_list_box(
 	x_coord as word,		'x coordination
 	y_coord as word,		'y coordination
 	list_width as word,		'list box width
@@ -59,7 +58,7 @@ public function ui_list_box(
 	byref listbox_value as string(10),	'the value of selected list box item 
 	byref disable_print as no_yes,
 	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the list box and return to the previous screen. If timeout=0, no time out applies
-	) as ui_list_box_results
+	)
 
 	dim i,b, pos1, pos2 as byte
 	dim option as string(10)
@@ -138,69 +137,70 @@ LCD_LOCK
 	lcd.rectangle(listbox_pos_x-SCROLL_BORDER/2,listbox_pos_y ,listbox_pos_x+listbox_width,listbox_pos_y+listbox_height)	
 	device_list_box_pre(x_coord,y_coord,list_width,list_height,listbox_data,listbox_value,timeout)
 LCD_UNLOCK	
+	ui_mode=UI_MODE_LIST
 
-	if kp.enabled=NO or kp.genkpevent<>NO then
-		kp.enabled=NO
-		kp.genkpevent=NO
-		kp.enabled=YES
-	else
-		kp.clearbuffer
-	end if
+'	if kp.enabled=NO or kp.genkpevent<>NO then
+'		kp.enabled=NO
+'		kp.genkpevent=NO
+'		kp.enabled=YES
+'	else
+'		kp.clearbuffer
+'	end if
 
 err:	
-	list_box_result=LIST_BOX_RESULT_TIMEOUT
-wait:
-	device_lb_interrupt()	'allow user to executes other procedures while inside the list box
-	if kp.enabled=NO then kp.enabled=YES
-	if kp.getkey(kp_event,kp_code)=OK then
-		if kp_event=PL_KP_EVENT_LOCKEDUP then
-			reset_keypad()
-			goto wait
-		end if	
+'	list_box_result=LIST_BOX_RESULT_TIMEOUT
+'wait:
+'	device_lb_interrupt()	'allow user to executes other procedures while inside the list box
+'	if kp.enabled=NO then kp.enabled=YES
+'	if kp.getkey(kp_event,kp_code)=OK then
+'		if kp_event=PL_KP_EVENT_LOCKEDUP then
+'			reset_keypad()
+'			goto wait
+'		end if	
 	
-		ui_list_box_key_proc(kp_event,kp_code)
-	end if
+'		ui_list_box_key_proc(kp_event,kp_code)
+'	end if
 
-	if list_box_result<>LIST_BOX_RESULT_TIMEOUT then
-		ui_list_box=list_box_result
-		goto key_pressed
-	end if
+'	if list_box_result<>LIST_BOX_RESULT_TIMEOUT then
+'		ui_list_box=list_box_result
+'		goto key_pressed
+'	end if
 
-	if t<>sys.timercount then
-		t=sys.timercount
-		ui_list_box_timer_proc()
-	end if
+'	if t<>sys.timercount then
+'		t=sys.timercount
+'		ui_list_box_timer_proc()
+'	end if
 	
-	if timeout=0 then
-		goto wait
-	else
-		if lb_timeout_ctr=0 then	'list box timeout
-			ui_list_box=LIST_BOX_RESULT_TIMEOUT
-key_pressed:		
-			if list_box_result=LIST_BOX_RESULT_OK then
-				ui_list_process_esc_seq(listbox_item_val)
-				ui_listbox_print_val()
-				listbox_value=listbox_item_val
-			else
-				listbox_value=""
-			end if
+'	if timeout=0 then
+'		goto wait
+'	else
+'		if lb_timeout_ctr=0 then	'list box timeout
+'			ui_list_box=LIST_BOX_RESULT_TIMEOUT
+'key_pressed:		
+'			if list_box_result=LIST_BOX_RESULT_OK then
+'				ui_list_process_esc_seq(listbox_item_val)
+'				ui_listbox_print_val()
+'				listbox_value=listbox_item_val
+'			else
+'				listbox_value=""
+'			end if
 			
-			device_list_box_post(x_coord,y_coord,list_width,list_height,listbox_data,listbox_value,disable_print,timeout)
+'			device_list_box_post(x_coord,y_coord,list_width,list_height,listbox_data,listbox_value,disable_print,timeout)
 			
-			if disable_print=NO then
-				lcd_clear(x_coord-SCROLL_BORDER,y_coord-SCROLL_BORDER,list_width+SCROLL_BORDER*2,list_height+SCROLL_BORDER*2)
-			else
-				ui_listbox_display(listbox_display_string,YES)
-				ui_listbox_scroll(YES,YES)
-				ui_listbox_cursor_display(YES)
-				lcd.rectangle(listbox_pos_x-SCROLL_BORDER/2,listbox_pos_y ,listbox_pos_x+listbox_width,listbox_pos_y+listbox_height)	
-			end if
+'			if disable_print=NO then
+'				lcd_clear(x_coord-SCROLL_BORDER,y_coord-SCROLL_BORDER,list_width+SCROLL_BORDER*2,list_height+SCROLL_BORDER*2)
+'			else
+'				ui_listbox_display(listbox_display_string,YES)
+'				ui_listbox_scroll(YES,YES)
+'				ui_listbox_cursor_display(YES)
+'				lcd.rectangle(listbox_pos_x-SCROLL_BORDER/2,listbox_pos_y ,listbox_pos_x+listbox_width,listbox_pos_y+listbox_height)	
+'			end if
 	
-			exit function
-		end if
-		goto wait
-	end if	
-end function
+'			exit function
+'		end if
+'		goto wait
+'	end if	
+end sub
 
 '=============================================================
 public function ui_list_box_ext(
@@ -367,6 +367,11 @@ sub ui_list_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 	dim key_action as list_box_key_action
 	device_lb_key_proc(key_event,key_code,key_action)
 	lb_timeout_ctr=lb_timeout	
+	
+	
+'	ui_listbox_string_parse(listbox_start_index,ui_listbox_string)
+'	ui_list_process_esc_seq(listbox_display_string)
+	
 	select case key_action
 	case LIST_BOX_CURSOR_UP:
 		ui_listbox_up(ui_listbox_string)
@@ -376,9 +381,45 @@ sub ui_list_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 		ui_listbox_cursor_display(NO)							
 	case LIST_BOX_CONFIRM:
 		list_box_result=LIST_BOX_RESULT_OK	
+		ui_list_process_esc_seq(listbox_item_val)
+		ui_listbox_print_val()
+		ui_list_process_esc_seq(listbox_item_val)
+		if device_settings_sg(ui_setting_name,0,listbox_item_val,"",DEVICE_SET)=EN_STG_STATUS_OK then 
+			set_stg_modified()
+		end if
+		ui_mode=UI_MODE_MENU
+		ui_menu_out()
 	case LIST_BOX_CANCEL:
 		list_box_result=LIST_BOX_RESULT_CANCEL
+		ui_mode=UI_MODE_MENU
+		ui_menu_out()
 	end select
+	
+	if list_box_result=LIST_BOX_RESULT_OK then
+		
+
+		
+'		if lb_result=LIST_BOX_RESULT_OK then 	
+'			if device_settings_sg(setting_name,b,listbox_state,"",DEVICE_SET)=EN_STG_STATUS_OK then set_stg_modified()
+'		end if
+'		ui_menu_call_lb=lb_result
+'		listbox_value=listbox_item_val
+	else
+'		listbox_value=""
+	end if
+	
+'	device_list_box_post(x_coord,y_coord,list_width,list_height,listbox_data,listbox_value,disable_print,timeout)
+	
+'	if disable_print=NO then
+'		lcd_clear(x_coord-SCROLL_BORDER,y_coord-SCROLL_BORDER,list_width+SCROLL_BORDER*2,list_height+SCROLL_BORDER*2)
+'	else
+'		ui_listbox_display(listbox_display_string,YES)
+'		ui_listbox_scroll(YES,YES)
+'		ui_listbox_cursor_display(YES)
+'		lcd.rectangle(listbox_pos_x-SCROLL_BORDER/2,listbox_pos_y ,listbox_pos_x+listbox_width,listbox_pos_y+listbox_height)	
+'	end if
+
+'	exit function
 end sub
 
 '============================================================= 

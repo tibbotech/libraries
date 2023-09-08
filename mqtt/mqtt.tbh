@@ -17,6 +17,10 @@
 	#define MQTT_TX_BUFF 16
 #endif
 
+#ifndef MQTT_TLS_BUFF_PAGES
+	#define MQTT_TLS_BUFF_PAGES 40
+#endif
+
 #ifndef MQTT_PING_TIMER
 	#define MQTT_PING_TIMER 60
 #endif

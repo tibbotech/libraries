@@ -33,6 +33,7 @@ dim ib_secret_mode, ib_insert_mode as no_yes
 dim input_type as input_box_char_ranges
 dim input_box_result as ui_input_box_results
 dim ib_timeout_ctr, ib_timeout as byte
+dim ib_edit_str as string(IB_MAX_LEN)
 
 '================================================================================
 public function ui_input_box(
@@ -50,14 +51,6 @@ public function ui_input_box(
 	dim kp_event as pl_kp_event_codes
 	dim kp_code as byte
 	dim t,w1,w2 as word
-	
-	if kp.enabled=NO or kp.genkpevent<>NO then
-		kp.enabled=NO
-		kp.genkpevent=NO
-		kp.enabled=YES
-	else
-		kp.clearbuffer
-	end if
 	
 	romfile.open(LCD_FIX_FONT)
 	lcd.setfont(romfile.offset)	
@@ -112,46 +105,46 @@ public function ui_input_box(
 	device_input_box_pre(mask_str,edit_str,char_range ,secret_mode,insert_mode,initial_pos,timeout,input_length)	'prepre the input box
 	ib_print()
 	ib_str_pos_selector()
-wait:
-	device_ib_interrupt()		'allow user to executes other procedures while inside the input box
-	if kp.enabled=NO then kp.enabled=YES
-	if kp.getkey(kp_event,kp_code)=OK then	
-		if kp_event=PL_KP_EVENT_LOCKEDUP then
-			reset_keypad()
-			goto wait
-		end if	
+' wait:
+' 	device_ib_interrupt()		'allow user to executes other procedures while inside the input box
+' 	if kp.enabled=NO then kp.enabled=YES
+' 	if kp.getkey(kp_event,kp_code)=OK then	
+' 		if kp_event=PL_KP_EVENT_LOCKEDUP then
+' 			reset_keypad()
+' 			goto wait
+' 		end if	
 	
-		ui_input_box_key_proc(kp_event,kp_code)
-	end if
-	if input_box_result<>INPUT_BOX_RESULT_TIMEOUT then
-		ui_input_box=input_box_result
-		initial_pos=sourcestr_index
-		goto key_pressed
-	end if
+' 		ui_input_box_key_proc(kp_event,kp_code)
+' 	end if
+' 	if input_box_result<>INPUT_BOX_RESULT_TIMEOUT then
+' 		ui_input_box=input_box_result
+' 		initial_pos=sourcestr_index
+' 		goto key_pressed
+' 	end if
 	
-	'making sure that ui_msg_box_timer_proc() is not excuted more than once per timer interval(500ms)
-	if t<> sys.timercount then
-		t=sys.timercount
-		ui_input_box_timer_proc()
-	end if
+' 	'making sure that ui_msg_box_timer_proc() is not excuted more than once per timer interval(500ms)
+' 	if t<> sys.timercount then
+' 		t=sys.timercount
+' 		ui_input_box_timer_proc()
+' 	end if
 
-	if timeout=0 then
-		goto wait
-	else
-		if ib_timeout_ctr=0 then
-			ui_input_box=INPUT_BOX_RESULT_TIMEOUT
-			initial_pos=sourcestr_index
-key_pressed:		
-			if input_box_result=INPUT_BOX_RESULT_OK then
-				edit_str=sourcestr
-				mask_str=mask
-			end if
-			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str),lcd.fontheight+2)
-			device_input_box_post(mask_str,edit_str,char_range ,secret_mode,insert_mode,initial_pos,timeout,input_length)
-			exit function
-		end if
-		goto wait
-	end if	
+' 	if timeout=0 then
+' 		goto wait
+' 	else
+' 		if ib_timeout_ctr=0 then
+' 			ui_input_box=INPUT_BOX_RESULT_TIMEOUT
+' 			initial_pos=sourcestr_index
+' key_pressed:		
+' 			if input_box_result=INPUT_BOX_RESULT_OK then
+' 				edit_str=sourcestr
+' 				mask_str=mask
+' 			end if
+' 			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str),lcd.fontheight+2)
+' 			device_input_box_post(mask_str,edit_str,char_range ,secret_mode,insert_mode,initial_pos,timeout,input_length)
+' 			exit function
+' 		end if
+' 		goto wait
+' 	end if	
 end function
 
 '--------------------------------------------------------------------------------
@@ -438,8 +431,8 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 		case &h20:
 			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h30	'space->0
 			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h41	'space->A
-			
-		case &h39:chr_asc=&h20	'9->space
+		case &h39:chr_asc=&h2e  '9->.
+		case &h2e:chr_asc=&h20	'.->space
 		case &h5A:chr_asc=&h61	'Z->a
 		
 		case &h7A:
@@ -451,9 +444,13 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 		end select	
 	end select
 verified:	
+	dim prev as string=mid(sourcestr,sourcestr_index,1)
+	dim w as byte=lcd.getprintwidth(mid(sourcestr,sourcestr_index,1))
 	s1=left(sourcestr,sourcestr_index-1)
 	s2=right(sourcestr,len(sourcestr)-sourcestr_index)
 	sourcestr=s1+chr(chr_asc)+s2
+	
+	lcd_clear(cursor_x+1,INPUT_BOX_Y,w,lcd.fontheight)
 	lcd.print(chr(chr_asc),cursor_x+2,INPUT_BOX_Y+3)
 #if INPUT_BOX_CURSOR_STYLE > 0 	
 	ib_str_pos_selector
@@ -547,9 +544,12 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 	case INPUT_BOX_CONFIRM:
 		sourcestr=ib_insert_format(sourcestr, mask)
 		sourcestr=remove_trailing_chr(sourcestr, chr(&h20)) 
-		input_box_result=INPUT_BOX_RESULT_OK 	
+		input_box_result=INPUT_BOX_RESULT_OK
+		ib_edit_str=sourcestr
+		ui_exit_level()
 	case INPUT_BOX_CANCEL:
 		input_box_result=INPUT_BOX_RESULT_CANCEL
+		ui_exit_level()
 	case else
 	end select
 end sub

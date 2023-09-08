@@ -50,7 +50,6 @@ dim response_data as word
 dim device_id as word
 
 dim register_address as word
-dim MODBUS_SLAVE_INTERFACE  as byte
 
 dim mqtt_username as string = ""
 dim mqtt_password as string = ""
@@ -190,9 +189,9 @@ sub on_sock_data_arrival()
     http_proc_data()
 	sntp_proc_data()
 
-    if sock.num=MODBUS_SLAVE_INTERFACE then
+    if sock.num=modbus_slave_interface then
         'modbus slave data
-        modbus_slave_receive(sock.getdata(255),MODBUS_SLAVE_INTERFACE,modbus_TCP)
+        modbus_slave_receive(sock.getdata(255),modbus_slave_interface,modbus_TCP)
     end if
 	mqtt_proc_data()
 

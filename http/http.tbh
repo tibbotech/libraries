@@ -14,6 +14,9 @@
 	#define HTTP_TIMEOUT 30
 #endif
 
+#ifndef HTTP_TLS_BUFF_PAGES
+	#define HTTP_TLS_BUFF_PAGES 40
+#endif
 
 #ifndef HTTP_MAX_DATA_LENGTH
 	#if HTTP_DEBUG_PRINT

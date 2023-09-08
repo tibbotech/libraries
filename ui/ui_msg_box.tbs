@@ -11,15 +11,15 @@
 include "global.tbh"
 
 '--------------------------------------------------------------------------------
-declare sub ui_msg_box_key_proc(key_event as pl_kp_event_codes, key_code as byte) 
 declare sub ui_msg_box_timer_proc
 
 '--------------------------------------------------------------------------------
 dim mb_timeout_ctr as byte
 dim mb_keycode as byte
+dim mb_current_msg as string
 
 '================================================================================
-public function ui_msg_box(
+sub ui_msg_box(
 	byref msg as string(MB_MSG_LEN), 			'message to be displayed in the Message Box
 	x as word, 							'x coordination
 	y as word, 							'y coordination
@@ -29,7 +29,7 @@ public function ui_msg_box(
 	byref keycode_str as string(20),	'this string contains the characters which ASCII is correspond to the keycode of keys on the keypad that msgbox responds to, chr(255) is the default key code, and cannot be used.
 	bolder as no_yes, 					'if the msgbox is wrap with a visible bolder line
 	timeout as byte						'if no respond from the keypad within the time defined by "timeout", exit the msgbox and return to the previous screen. If timeout=0, no time out applies
-	) as byte
+	)
 	
 	dim kp_event as pl_kp_event_codes
 	dim kp_code as byte
@@ -52,57 +52,53 @@ LCD_LOCK
 LCD_UNLOCK
 	end if
 	
-	if kp.enabled=NO or kp.genkpevent<>NO then
-		kp.enabled=NO
-		kp.genkpevent=NO
-		kp.enabled=YES
-	else
-		kp.clearbuffer
-	end if
-
-wait:
-	mb_keycode=255			'mb_kycode is 255 by default, if a key is pressed, it will be changed to the key code of the pressed key
-	device_mb_interrupt()	'allow user to executes other procedures while inside the message box
-	if kp.enabled=NO then kp.enabled=YES
-	if kp.getkey(kp_event,kp_code)=OK then
-		if kp_event=PL_KP_EVENT_LOCKEDUP then
-			reset_keypad()
-			goto wait
-		end if	
+	mb_current_msg=msg
 	
-		mb_timeout_ctr=timeout
-		ui_msg_box_key_proc(kp_event,kp_code)
-	end if
+	ui_mode=UI_MODE_MSG
 	
-	'key is pressed, the mb_keycode has changed, return pressed key code.
-	if mb_keycode<>255 then
-		goto key_pressed
-	end if
+'wait:
+'	mb_keycode=255			'mb_kycode is 255 by default, if a key is pressed, it will be changed to the key code of the pressed key
+'	device_mb_interrupt()	'allow user to executes other procedures while inside the message box
+'	if kp.enabled=NO then kp.enabled=YES
+'	if kp.getkey(kp_event,kp_code)=OK then
+'		if kp_event=PL_KP_EVENT_LOCKEDUP then
+'			reset_keypad()
+'			goto wait
+'		end if	
 	
-	'making sure that ui_msg_box_timer_proc() is not excuted more than once per timer interval(500ms)
-	if t<>sys.timercount then
-		t=sys.timercount
-		ui_msg_box_timer_proc()
-	end if
+'		mb_timeout_ctr=timeout
+'		ui_msg_box_key_proc(kp_event,kp_code)
+'	end if
 	
-	if timeout=0 then
-		goto wait 
-	else
-		if mb_timeout_ctr=0 then	'countdown timer reaches 0, exit message box.
-			ui_msg_box=255
-			goto exit_msgbox
-key_pressed:		
-			if mb_keycode<>255 then
-				if keycode_str<>"" AND instr(1,keycode_str,chr(mb_keycode),1)=0 then goto wait
-				ui_msg_box=mb_keycode
-exit_msgbox:				
-				device_msg_box_post(msg,x,y,w,h,align,keycode_str,bolder,timeout)
-				exit function
-			end if
-		end if
-		goto wait
-	end if	
-end function
+'	'key is pressed, the mb_keycode has changed, return pressed key code.
+'	if mb_keycode<>255 then
+'		goto key_pressed
+'	end if
+	
+'	'making sure that ui_msg_box_timer_proc() is not excuted more than once per timer interval(500ms)
+'	if t<>sys.timercount then
+'		t=sys.timercount
+'		ui_msg_box_timer_proc()
+'	end if
+	
+'	if timeout=0 then
+'		goto wait 
+'	else
+'		if mb_timeout_ctr=0 then	'countdown timer reaches 0, exit message box.
+''			ui_msg_box=255
+'			goto exit_msgbox
+'key_pressed:		
+'			if mb_keycode<>255 then
+'				if keycode_str<>"" AND instr(1,keycode_str,chr(mb_keycode),1)=0 then goto wait
+''				ui_msg_box=mb_keycode
+'exit_msgbox:				
+'				device_msg_box_post(msg,x,y,w,h,align,keycode_str,bolder,timeout)
+'				exit sub
+'			end if
+'		end if
+'		goto wait
+'	end if	
+end sub
 
 '--------------------------------------------------------------------------------
 sub ui_msg_box_key_proc(key_event as pl_kp_event_codes, key_code as byte) 
@@ -113,6 +109,27 @@ sub ui_msg_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
 	case PL_KP_EVENT_PRESSED:
 		mb_keycode=key_code
 	end select
+	if key_event=PL_KP_EVENT_PRESSED then
+		select case mb_current_msg
+		case COMMAND_SETTING_FAILURE,EMPTY_FOLDER,SYS_SETTING_VALUE_INVALID,INVALID_INPUT:
+			ui_menu_out()
+		case EXIT_MENU:
+			dim confirm_key as string=device_mb_get_key(MBK_YES)
+			if instr(1,confirm_key,chr(mb_keycode),1)> 0 then
+				ui_active=false
+				lcd.forecolor=LCD_FORECOLOR
+				lcd.backcolor=LCD_BACKCOLOR
+				lcd_clear(0,0,lcd.width,lcd.height)
+				pat.play("-",PL_PAT_CANINT)
+				ui_menu_exit()
+			else
+				entering_menu()
+			end if
+		case else:
+			ui_menu_out()
+		end select
+	end if
+	
 end sub
 
 '--------------------------------------------------------------------------------

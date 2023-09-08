@@ -50,7 +50,7 @@ dim dhcp_sock as byte
 dim dhcp_phase(NUM_INTERFACES) as en_dhcp_phases
 dim dhcp_renew(NUM_INTERFACES) as no_yes
 dim dhcp_i as byte
-dim device_name as string(16)
+dim dhcp_device_name as string(16)
 dim dhcp_server_ip(NUM_INTERFACES) as string(16)
 dim dhcp_obtained_ip(NUM_INTERFACES) as string(16)
 dim dhcp_obtained_gateway(NUM_INTERFACES) as string(16)
@@ -360,7 +360,7 @@ label1:	if dhcp_sock_open(interface,DHCP_PHASE_DISCOVER)<>OK then
 			dhcp_debugprint(interface,"TX discovery message")
 		#endif
 		sock.rxclear()
-		send_dhcp(dhcp_obtained_ip(dhcp_i),device_name,interface)
+		send_dhcp(dhcp_obtained_ip(dhcp_i),dhcp_device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_DISCOVER_REPLY
 		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
 		exit sub
@@ -380,7 +380,7 @@ label2:	if dhcp_sock_open(interface,DHCP_PHASE_REQUEST)<>OK then
 		#if DHCP_DEBUG_PRINT
 			dhcp_debugprint(interface,"TX request message")
 		#endif
-		send_dhcp(dhcp_obtained_ip(dhcp_i),device_name,interface)
+		send_dhcp(dhcp_obtained_ip(dhcp_i),dhcp_device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_REQUEST_REPLY
 		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
 		exit sub
@@ -872,8 +872,8 @@ sub send_dhcp(byref obtained_ip as string(16),byref device_name as string(32), i
 	end select
 
 	'add host name option if our owner name or device name is set
-	if device_name<>"" then
-		s=s+chr(12)+chr(len(device_name))+device_name
+	if dhcp_device_name<>"" then
+		s=s+chr(12)+chr(len(dhcp_device_name))+dhcp_device_name
 	end if
 	
 	'end of all options and send!

@@ -228,7 +228,7 @@ sub mqtt_connect_socket()
 			sock.tlsdeinit()
 			sock.num=mqtt_sock_num
 			#if PLATFORM_ID <> WM2000
-				sock.tlsbuffrq(39)	
+				sock.tlsbuffrq(MQTT_TLS_BUFF_PAGES)	
 				sys.buffalloc()
 			#endif
 			#ifdef MQTT_CER_FILE

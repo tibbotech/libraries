@@ -70,4 +70,5 @@
 #endif
 
 '--------------------------------------------------------------------------------
-declare function ui_msg_box(byref msg as string(60),x as word, y as word, w as word, h as word,align as pl_lcd_text_alignment, byref keycode_str as string(20), bolder as no_yes, timeout as byte) as byte
+declare sub ui_msg_box(byref msg as string(60),x as word, y as word, w as word, h as word,align as pl_lcd_text_alignment, byref keycode_str as string(20), bolder as no_yes, timeout as byte)
+declare sub ui_msg_box_key_proc(key_event as pl_kp_event_codes, key_code as byte) 
