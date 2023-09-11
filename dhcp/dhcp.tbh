@@ -9,14 +9,14 @@
 	#define DHCP_DEBUG_PRINT 0
 #endif
 
-'The number of retries in a sibgle batch of retries
+'The number of retries in a single batch of retries
 #ifndef DHCP_MAX_RETRIES
 	#define DHCP_MAX_RETRIES 3
 #endif
 
 'Maximum waiting time (in seconds) for the DHCP server to reply
 #ifndef DHCP_WAIT_TIME
-	#define DHCP_WAIT_TIME 2
+	#define DHCP_WAIT_TIME 10
 #endif
 
 'Max delay (in seconds) between retries in a batch of retries (it is randomized between 1 and this constant for each retry)
@@ -26,7 +26,7 @@
 
 'Delay (in seconds) between the batches of retries
 #ifndef DHCP_POST_FAIL_DELAY
-	#define DHCP_POST_FAIL_DELAY 180
+	#define DHCP_POST_FAIL_DELAY 60
 #endif
 
 'Max device (host) name length
