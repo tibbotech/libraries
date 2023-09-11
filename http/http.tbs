@@ -202,7 +202,6 @@ sub http_get_headers()
 			end if			
 		end if
 		next_byte=http_get_data(1)
-		http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 		if next_byte="\x0a" then
 			if http_request_item.state=REQUEST_SENT then
 				http_reply=left(http_reply,len(http_reply)-1)
@@ -266,7 +265,6 @@ sub http_get_content()
 			http_debugprint("Chunk complete")
 		end if		
 	end if
-	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	if http_request_item.remaining_response_content_length=0 then
 		http_request_complete()
 		exit sub
@@ -301,7 +299,8 @@ sub http_proc_data()
 	if http_start_called=false or http_check_socket_list()=NG then		
 		exit sub
 	end if		
-
+	
+	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	select case http_request_item.state
 	
 	case REQUEST_SENT:
@@ -476,7 +475,7 @@ sub http_proc_timer()
 	if http_request_item.state>DNS_REQUEST_SENT AND http_timer_count<>0 then
 		if sys.timercountms > http_timer_count then
 			http_timer_count=0
-			http_failed("Timeout")
+			http_failed("Timeout, state " + str(http_request_item.state))
 		end if
 	end if	
 	
@@ -639,19 +638,14 @@ sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
 	if http_check_socket_list()=NG then
 		exit sub
 	end if	
+	if sock.statesimple=PL_SSTS_CLOSED and http_request_item.state >= DNS_COMPLETE then
+		http_failed("Connection closed")
+		exit sub
+	end if
 	if newstatesimple<>PL_SSTS_EST then
 		exit sub
 	end if
-	if sock.statesimple=PL_SSTS_CLOSED then
-		if http_request_item.state <=REQUEST_SENT then
-			http_failed("Connection closed")
-			exit sub
-		end if
-	end if
-	if http_request_item.state>=REQUEST_SENT then
-		exit sub
-	end if
-	
+
 	if http_request_item.tls=true then		
 #if TLS_AVAILABLE
 		if sock.state=PL_SST_EST_AOPENED then
