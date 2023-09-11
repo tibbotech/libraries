@@ -369,7 +369,7 @@ function ui_menu_call_lb(byref item_data as string(60)) as ui_list_box_results
 	dim timeout as byte
 	dim pos1, pos2 as byte
 	dim listbox_data as string
-	dim setting_name as string(5)
+	dim setting_name as string(50)
 	dim i as word
 	dim lb_result as ui_list_box_results
 	dim b as byte
@@ -401,7 +401,7 @@ end function
 '----------------------------------------------------------------------------
 function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_input_box_results
 'This function prepares all necessary variables for the input box, and invoke ui_list_box() function.
-	dim setting_name as string(5)
+	dim setting_name as string(50)
 	dim edit_str, mask_str, temp as string(IB_MAX_LEN)
 	dim char_range as input_box_char_ranges
 	dim pos1, pos2, initial_pos, timeout, input_length as byte

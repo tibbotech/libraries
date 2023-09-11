@@ -152,7 +152,7 @@ declare sub device_msg_box_post(
 	)
 
 
-declare function device_settings_sg(setting_name as string(5),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
+declare function device_settings_sg(setting_name as string(50),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
 declare function device_mb_get_key(mk as en_mb_keys) as string
 declare sub device_mb_interrupt()
 declare sub device_ib_interrupt()

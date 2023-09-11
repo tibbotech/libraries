@@ -10,7 +10,7 @@ dim prev_icon as byte
 dim ui_mode as en_ui_mode
 dim ui_active as boolean=false
 
-public function device_settings_sg(setting_name as string(5),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
+public function device_settings_sg(setting_name as string(50),index as byte, byref setting_val as string, byref stg_num as byte, rw as en_device_rdwr) as en_stg_status_codes
 	dim w1, w2, w3 as word
 	dim b1, b2, b3, b4 as byte
 	dim s1, s2 as string(64)
@@ -120,7 +120,7 @@ sub device_move_cursor(menu_item as menu_display_item,desc_file as string(30))
 	dim setting_val as string
 	dim color1, color2 as word
 	dim i,j as word
-	dim sname as string(8)
+	dim sname as string(50)
 	dim item_data as string
 	dim setting_type as string(1)
 	dim b as byte
