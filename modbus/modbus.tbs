@@ -354,7 +354,11 @@ sub modbus_proc_ser_data_sent()
 	 		AND modbus_request_queue(modbus_queue_start).protocol=modbus_RTU then
 			modbus_request_queue(modbus_queue_start).timestamp=sys.timercountms
 			dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
+			ser.rxclear()
 			ser.txclear()
+			dim targ as dword=sys.timercountms+1
+			while sys.timercountms<targ
+			wend
 			ser.setdata(data)
 			ser.send()
 		end if
