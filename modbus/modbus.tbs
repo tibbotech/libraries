@@ -356,7 +356,8 @@ sub modbus_proc_ser_data_sent()
 			dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
 			ser.rxclear()
 			ser.txclear()
-			dim targ as dword=sys.timercountms+1
+			'modbus requires 1.75ms delay between frames
+			dim targ as dword=sys.timercountms+2
 			while sys.timercountms<targ
 			wend
 			ser.setdata(data)
@@ -413,11 +414,10 @@ sub modbus_proc_timer()
 			if modbus_time_elapsed(modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT) then
 				dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
 				#if MODBUS_DEBUG_PRINT
-					'modbus_debug_print("modbus timeout for device " + str(modbus_request_queue(modbus_queue_start).device_id))
+					dim tmp as string=modbus_print_packet(data)
+					modbus_debug_print("timeout for " + tmp)
 				#endif
-				dim tmp as string=modbus_print_packet(data)
-				modbus_debug_print("timeout for " + tmp)
-				
+								
 				request_item = modbus_queue_pop()
 				callback_modbus_slave_reply_timeout(request_item)
 				modbus_master_send_next()
@@ -610,6 +610,21 @@ sub modbus_queue_add(request_item as modbus_request_item)
 					modbus_request_queue(modbus_queue_start_tmp) = request_item
 					exit sub
 				end if
+			end if
+			modbus_queue_start_tmp = modbus_queue_start_tmp + 1
+			if modbus_queue_start_tmp = MODBUS_MAX_REQUESTS then
+				modbus_queue_start_tmp = 0
+			end if
+		next i
+	end if
+	if modbus_queue_count = MODBUS_MAX_REQUESTS then
+		dim i as byte
+		dim modbus_queue_start_tmp as byte = modbus_queue_start
+		for i=0 to modbus_queue_count-1
+			if modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
+				'cutting in line
+				modbus_request_queue(modbus_queue_start_tmp) = request_item
+				exit sub
 			end if
 			modbus_queue_start_tmp = modbus_queue_start_tmp + 1
 			if modbus_queue_start_tmp = MODBUS_MAX_REQUESTS then
