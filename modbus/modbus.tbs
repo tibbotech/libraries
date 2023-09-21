@@ -384,6 +384,7 @@ sub modbus_master_send_next()
 		modbus_debug_print("send " + tmp)
 	#endif
 
+	modbus_request_queue(modbus_queue_start).timestamp=sys.timercountms
 	if modbus_request_queue(modbus_queue_start).protocol=modbus_TCP then
 		prev_num=sock.num
 		sock.num=modbus_request_queue(modbus_queue_start).interface_number
@@ -399,7 +400,7 @@ sub modbus_master_send_next()
 		ser.notifysent(ser.txbuffsize-len(data))
 		ser.num=prev_num
 	end if
-	modbus_request_queue(modbus_queue_start).timestamp=sys.timercountms
+	
 '	modbus_debug_print("sent for " + str(modbus_request_queue(modbus_queue_start).device_id))
 	
 	modbus_master_recv_buffer=""
@@ -585,6 +586,12 @@ sub modbus_queue_clear()
 end sub
 
 sub modbus_queue_add(request_item as modbus_request_item)
+	if request_item.protocol=modbus_RTU then
+		sock.num=request_item.interface_number
+		if sock.statesimple <> PL_SSTS_EST then
+			exit sub
+		end if
+	end if
 	' cut in line if request is write
 	' loop through current queue and find first read request of same device
 	' replace with write request
