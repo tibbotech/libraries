@@ -586,7 +586,7 @@ sub modbus_queue_clear()
 end sub
 
 sub modbus_queue_add(request_item as modbus_request_item)
-	if request_item.protocol=modbus_RTU then
+	if request_item.protocol=modbus_TCP then
 		sock.num=request_item.interface_number
 		if sock.statesimple <> PL_SSTS_EST then
 			exit sub
