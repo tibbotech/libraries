@@ -44,6 +44,7 @@ declare sub dhcp_init()
 declare sub dhcp_debug_print_status(interface as pl_sock_interfaces,status as en_dhcp_status_codes)
 declare sub dhcp_debugprint(interface as pl_sock_interfaces,byref print_data as string)
 declare function dhcp_time_elapsed(end_time as dword) as boolean
+declare function dhcp_get_delay(interface as pl_sock_interfaces) as byte
 
 '------------------------------------------------------------------------------
 dim dhcp_sock as byte
@@ -292,7 +293,7 @@ sub dhcp_proc_one_interface(interface as pl_sock_interfaces)
 					dhcp_wln_exchange_delay=DHCP_WLN_EXCHANGE_DELAY_CONST
 					dhcp_phase(dhcp_i)=DHCP_PHASE_IDLE
 					dhcp_renew(dhcp_i)=NO
-					dhcp_timer(dhcp_i)=sys.timercountms + 1 * 1000
+					dhcp_timer(dhcp_i)=1
 					dhcp_retry_ctr(dhcp_i)=DHCP_MAX_RETRIES
 					#if DHCP_DEBUG_PRINT
 						dhcp_media_linked(dhcp_i)=NO
@@ -362,12 +363,12 @@ label1:	if dhcp_sock_open(interface,DHCP_PHASE_DISCOVER)<>OK then
 		sock.rxclear()
 		send_dhcp(dhcp_obtained_ip(dhcp_i),dhcp_device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_DISCOVER_REPLY
-		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
+		dhcp_timer(dhcp_i)=sys.timercountms + dhcp_get_delay(dhcp_i) * 1000
 		exit sub
 	
 	case DHCP_PHASE_DISCOVER_REPLY:
 		#if DHCP_DEBUG_PRINT
-			dhcp_debugprint(interface,"ERROR: Timeout waiting for offer message")
+			dhcp_debugprint(interface,"ERROR: Offer timeout after " + str(dhcp_get_delay(dhcp_i)))
 		#endif
 		dhcp_error(interface)
 		exit sub
@@ -382,12 +383,12 @@ label2:	if dhcp_sock_open(interface,DHCP_PHASE_REQUEST)<>OK then
 		#endif
 		send_dhcp(dhcp_obtained_ip(dhcp_i),dhcp_device_name,interface)
 		dhcp_phase(dhcp_i)=DHCP_PHASE_REQUEST_REPLY
-		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_WAIT_TIME * 1000
+		dhcp_timer(dhcp_i)=sys.timercountms + dhcp_get_delay(dhcp_i) * 1000
 		exit sub
 		
 	case DHCP_PHASE_REQUEST_REPLY:
 		#if DHCP_DEBUG_PRINT
-			dhcp_debugprint(interface,"ERROR: Timeout waiting for confirmation message")
+			dhcp_debugprint(interface,"ERROR: Confirmation timeout after " + str(dhcp_get_delay(dhcp_i)))
 		#endif
 		dhcp_error(interface)
 		exit sub
@@ -584,6 +585,7 @@ next_option:
 
 exit_options:	
 	'packet decoded successfully
+	dhcp_retry_ctr(dhcp_i)=DHCP_MAX_RETRIES
 	select case dhcp_phase(dhcp_i)
 	case DHCP_PHASE_DISCOVER_REPLY:
 		#if DHCP_DEBUG_PRINT
@@ -623,14 +625,15 @@ sub dhcp_error(interface as pl_sock_interfaces)
 	dhcp_sock_close()
 
 	if dhcp_phase(dhcp_i)<>DHCP_PHASE_OFF then
-		dhcp_phase(dhcp_i)=DHCP_PHASE_IDLE
 		dhcp_check_if_all_finished()
 	end if
 
 	if dhcp_retry_ctr(dhcp_i)>0 then
-		dhcp_timer(dhcp_i)=sys.timercountms + (((asc(random(1))) mod DHCP_MAX_RETRY_DELAY)+1) * 1000
+		dhcp_phase(dhcp_i)=dhcp_phase(dhcp_i)-1
+		dhcp_timer(dhcp_i)=dhcp_get_delay(dhcp_i) * 1000
 		dhcp_retry_ctr(dhcp_i)=dhcp_retry_ctr(dhcp_i)-1
-	else	
+	else
+		dhcp_phase(dhcp_i)=DHCP_PHASE_IDLE
 		dhcp_retry_ctr(dhcp_i)=DHCP_MAX_RETRIES
 		dhcp_timer(dhcp_i)=sys.timercountms + DHCP_POST_FAIL_DELAY * 1000 'DHCP failed, try again in 3 mins
 		#if DHCP_DEBUG_PRINT
@@ -937,6 +940,15 @@ function dhcp_time_elapsed(end_time as dword) as boolean
 	end if
 end function
 
+function dhcp_get_delay(interface as pl_sock_interfaces) as byte
+	dhcp_get_delay = 1
+	dim i as byte=0
+	dim current_try as byte=DHCP_MAX_RETRIES-dhcp_retry_ctr(interface) + 1
+	for i=0 to current_try-1
+		dhcp_get_delay = dhcp_get_delay * 2
+	next i
+end function
+
 '----------------------------------------------------------------------------
 #if DHCP_DEBUG_PRINT
 sub dhcp_debug_print_status(interface as pl_sock_interfaces,status as en_dhcp_status_codes)
@@ -946,7 +958,7 @@ sub dhcp_debug_print_status(interface as pl_sock_interfaces,status as en_dhcp_st
 	case DHCP_STATUS_OUT_OF_SOCKETS: s="out of sockets"
 	case DHCP_STATUS_INVALID_INTERFACE: s="invalid interface"
 	case DHCP_STATUS_INSUFFICIENT_BUFFER_SPACE: s="insufficient buffer space"
-	case DHCP_STATUS_FAILURE: s="DHCP process failed"
+	case DHCP_STATUS_FAILURE: s="process failed, retrying after " + str(DHCP_POST_FAIL_DELAY) + "s"
 	end select
 	dhcp_debugprint(interface,"ERROR: "+s)
 end sub
