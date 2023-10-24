@@ -86,12 +86,12 @@ register_normal_slot:
 		i2c.sclmap=scl
 		i2c.enabled=YES
 #ELSE
-		ssi.channel=channel
+		ssi.channel=f
 		ssi.enabled=NO
 		ssi.baudrate=PL_SSI_BAUD_100kHz
-		ssi.clkmap=pin_clk
-		ssi.dimap=pin_data
-		ssi.domap=pin_data
+		ssi.clkmap=scl
+		ssi.dimap=sda
+		ssi.domap=sda
 		ssi.direction=PL_SSI_DIRECTION_LEFT
 		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
 		ssi.mode=PL_SSI_MODE_0
