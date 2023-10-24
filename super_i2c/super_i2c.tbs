@@ -178,7 +178,7 @@ end sub
 
 sub si2c_stop()
 #IF I2C_AVAILABLE
-	si2c_stop()
+	i2c.stop()
 #ELSE
 	io.num=si2c_sda(si2c_num)
 	io.enabled=YES
@@ -306,7 +306,7 @@ end sub
 
 function si2c_is_busy(num as byte)as no_yes
 #IF I2C_AVAILABLE
-	if i2c.state <> I2C_IDLE
+	if i2c.state <> I2C_IDLE then
 		si2c_is_busy=YES
 	else
 		si2c_is_busy=NO
