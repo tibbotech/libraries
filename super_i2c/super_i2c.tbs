@@ -151,6 +151,9 @@ public sub si2c_release(num as byte)
 end sub
 
 sub si2c_get(num as byte)
+#IF I2C_AVAILABLE
+	i2c.num=num
+#ENDIF
 	si2c_num=num
 	#if SI2C_DEBUG_PRINT
 		si2c_debugprint("#"+str(num)+" got slot")
@@ -189,7 +192,7 @@ sub si2c_write(data as byte)
 	dim compval as byte						'Value to compare - MASK
 	dim BitData as boolean					'Comparison result (1 or 0)
 
-	if i2c.num>3 then
+	if si2c_num>3 then
 #IF I2C_AVAILABLE	
 		i2c.write(data)
 #ELSE
@@ -228,7 +231,7 @@ sub si2c_write(data as byte)
 		io.invert(si2c_scl(si2c_num))		'Finish the ACK frame
 #ENDIF
 	else
-		ssi.channel=i2c.num
+		ssi.channel=si2c_num
 		ssi.str(chr(data),PL_SSI_ACK_RX)
 	end if
 end sub
@@ -237,7 +240,7 @@ function si2c_read(acknak_request as boolean) as byte
 	dim bitCnt as byte						'Bit counter
 	dim compval as byte						'Value to compare - MASK
 
-	if i2c.num>3 then
+	if si2c_num>3 then
 #IF I2C_AVAILABLE
 		si2c_read = i2c.read(acknak_request)
 #ELSE
@@ -281,7 +284,7 @@ function si2c_read(acknak_request as boolean) as byte
 		#endif
 	else
 		dim tmp as word=0
-		ssi.channel=i2c.num
+		ssi.channel=si2c_num
 		if acknak_request=true then
 			tmp=ssi.value(&hFFFE,9)/2
 		else
