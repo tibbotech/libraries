@@ -86,8 +86,8 @@ function tbt28_get(byref channel as byte) as word
 	si2c_get(channel)
 	si2c_start()
 	si2c_write(TBT28_READ_ADDR)
-	upper=si2c_read(ACK)
-	lower=si2c_read(NACK)
+	upper=si2c_read(true)
+	lower=si2c_read(false)
 	si2c_stop()
 
 	#if TBT28_DEBUG_PRINT=1

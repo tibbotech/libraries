@@ -151,8 +151,8 @@ function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
 	si2c_write(addr+&hC)	'READ Command
 	si2c_start()
 	si2c_write(TBT40_READ_ADDR)
-	tbt40_reg_read=si2c_read(ACK)*256
-	tbt40_reg_read=tbt40_reg_read+si2c_read(NACK)
+	tbt40_reg_read=si2c_read(true)*256
+	tbt40_reg_read=tbt40_reg_read+si2c_read(false)
 	si2c_stop()
 end function
 

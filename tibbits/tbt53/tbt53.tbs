@@ -43,9 +43,9 @@ function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 
 	si2c_start()
 	si2c_write(TBT53_READ_ADDR)
-	hi_byte = si2c_read(ACK)
-	lo_byte = si2c_read(ACK)
-	config = si2c_read(NACK)
+	hi_byte = si2c_read(true)
+	lo_byte = si2c_read(true)
+	config = si2c_read(false)
 	si2c_stop()
 
 	#if TBT53_DEBUG_PRINT = 1
@@ -71,8 +71,8 @@ function tbt53_get_current(byref ma as real, channel as byte) as ok_ng
 	si2c_get(channel)
 	si2c_start()
 	si2c_write(TBT53_READ_ADDR)
-	hi_byte = si2c_read(ACK)
-	lo_byte = si2c_read(ACK)
+	hi_byte = si2c_read(true)
+	lo_byte = si2c_read(true)
 	si2c_stop()
 
 	tmp = hi_byte * 256

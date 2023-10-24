@@ -98,10 +98,10 @@ function tbt30_get(byref humidity as word, byref temperature as word, channel as
 	'fetch humidity data
 	si2c_start()
 	si2c_write(TBT30_READ_ADDR)
-	data1=si2c_read(ACK)
-	data2=si2c_read(ACK)
-	data3=si2c_read(ACK)
-	data4=si2c_read(NACK)
+	data1=si2c_read(true)
+	data2=si2c_read(true)
+	data3=si2c_read(true)
+	data4=si2c_read(false)
 	si2c_stop()
 
 	status=data1 and &h80

@@ -176,9 +176,9 @@ function tbt62_read_data(byref data as string, data_len as byte, tbt_channel as 
 	i = 1
 	do
 		if i < data_len then
-			tmp = tmp + chr(si2c_read(ACK))
+			tmp = tmp + chr(si2c_read(true))
 		else
-			tmp = tmp + chr(si2c_read(NACK))
+			tmp = tmp + chr(si2c_read(false))
 		end if
 		i = i + 1
 	loop until i > data_len
@@ -370,9 +370,9 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 	' Read version
 	version = ""
 	for i = 1 to 5
-		version = version + chr(si2c_read(ACK))
+		version = version + chr(si2c_read(true))
 	next i
-	version = version + chr(si2c_read(NACK))
+	version = version + chr(si2c_read(false))
 
 	' Send STOP
 	si2c_stop()

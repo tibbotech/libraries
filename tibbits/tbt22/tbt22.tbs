@@ -115,14 +115,14 @@ sub tbt22_rtd_read_all(byref config as byte, byref rtd as word, byref hi_fault a
 	while (io.lineget(int_pin) = LOW)
 	wend
 
-	config = si2c_read(ACK)			'byte 0
-	tmp = si2c_read(ACK)				'byte 1
-	rtd = tmp * 256 + si2c_read(ACK)	'byte 2
-	tmp = si2c_read(ACK)				'byte 3
-	hi_fault = tmp * 256 + si2c_read(ACK)'byte 4
-	tmp = si2c_read(ACK)				'byte 5
-	lo_fault = tmp * 256 + si2c_read(ACK)'byte 6
-	fault = si2c_read(NACK)			'byte 7
+	config = si2c_read(true)			'byte 0
+	tmp = si2c_read(true)				'byte 1
+	rtd = tmp * 256 + si2c_read(true)	'byte 2
+	tmp = si2c_read(true)				'byte 3
+	hi_fault = tmp * 256 + si2c_read(true)'byte 4
+	tmp = si2c_read(true)				'byte 5
+	lo_fault = tmp * 256 + si2c_read(true)'byte 6
+	fault = si2c_read(false)			'byte 7
 	si2c_stop()
 	while (io.lineget(int_pin) = LOW)
 	wend
@@ -326,9 +326,9 @@ function tbt22_rtd_fw_version(tbt_channel as byte)as string
 	si2c_start()
 	si2c_write(TBT22_RTD_CODE_R)
 	for i = 0 to 14
-		s = s + chr(si2c_read(ACK))
+		s = s + chr(si2c_read(true))
 	next i
-	s = s + chr(si2c_read(NACK))
+	s = s + chr(si2c_read(false))
 	si2c_stop()
 
 	tbt22_rtd_fw_version = s

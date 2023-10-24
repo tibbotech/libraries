@@ -282,7 +282,7 @@ function tbt41_reg_read(addr as tbt41_regs)as byte
 	si2c_write(addr)
 	si2c_start()
 	si2c_write(TBT41_READ_CODE)
-	tbt41_reg_read=si2c_read(NACK)
+	tbt41_reg_read=si2c_read(false)
 	si2c_stop()
 end function
 

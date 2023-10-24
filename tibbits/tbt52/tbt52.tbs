@@ -72,9 +72,9 @@ function tbt52_init(use_ssi as no_yes,pin_clk as byte,pin_data as byte,pin_mclr 
 
 	s=""
 	for i=0 to 14
-		s=s+chr(si2c_read(ACK))
+		s=s+chr(si2c_read(true))
 	next i
-	s=s+chr(si2c_read(NACK))
+	s=s+chr(si2c_read(false))
 
 	si2c_stop()
 
@@ -135,9 +135,9 @@ busy_wait:
 	wend
 	si2c_start()
 	si2c_write(&h21)
-	hi_byte=si2c_read(ACK)
-	lo_byte=si2c_read(ACK)
-	config=si2c_read(NACK)
+	hi_byte=si2c_read(true)
+	lo_byte=si2c_read(true)
+	config=si2c_read(false)
 	si2c_stop()
 
 	if (config and &h80) then goto busy_wait
@@ -208,10 +208,10 @@ sub param_read(pin_int as byte,channel as byte)
 	si2c_start()
 	si2c_write(&h21)
 
-	value(0)=si2c_read(ACK)
-	value(1)=si2c_read(ACK)
-	value(2)=si2c_read(ACK)
-	value(3)=si2c_read(ACK)
+	value(0)=si2c_read(true)
+	value(1)=si2c_read(true)
+	value(2)=si2c_read(true)
+	value(3)=si2c_read(true)
 
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
@@ -257,10 +257,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(ACK)
-	value(1)=si2c_read(ACK)
-	value(2)=si2c_read(ACK)
-	value(3)=si2c_read(ACK)
+	value(0)=si2c_read(true)
+	value(1)=si2c_read(true)
+	value(2)=si2c_read(true)
+	value(3)=si2c_read(true)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -305,10 +305,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(ACK)
-	value(1)=si2c_read(ACK)
-	value(2)=si2c_read(ACK)
-	value(3)=si2c_read(ACK)
+	value(0)=si2c_read(true)
+	value(1)=si2c_read(true)
+	value(2)=si2c_read(true)
+	value(3)=si2c_read(true)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -353,10 +353,10 @@ sub param_read(pin_int as byte,channel as byte)
 		#endif
 	end if
 
-	value(0)=si2c_read(ACK)
-	value(1)=si2c_read(ACK)
-	value(2)=si2c_read(ACK)
-	value(3)=si2c_read(NACK)
+	value(0)=si2c_read(true)
+	value(1)=si2c_read(true)
+	value(2)=si2c_read(true)
+	value(3)=si2c_read(false)
 	#if PLATFORM_TYPE_32
 		tmp=value(1)*&h10000
 		r=tmp
@@ -489,9 +489,9 @@ busy_wait:
 	wend
 	si2c_start()
 	si2c_write(&h21)
-	hi_byte=si2c_read(ACK)
-	lo_byte=si2c_read(ACK)
-	config=si2c_read(NACK)
+	hi_byte=si2c_read(true)
+	lo_byte=si2c_read(true)
+	config=si2c_read(false)
 	si2c_stop()
 	if (config and &h80) then goto busy_wait
 

@@ -113,8 +113,8 @@ function tbt13_get_prev(tbt_channel as byte) as word
 	si2c_get(tbt_channel)
 	si2c_start()
 	si2c_write(TBT13_READ_ADDR)
-	byte_hi=si2c_read(ACK)
-	byte_lo=si2c_read(ACK)
+	byte_hi=si2c_read(true)
+	byte_lo=si2c_read(true)
 	si2c_stop()
 	
 	#if ADC_RESOLUTION=ADC_RES_LOW

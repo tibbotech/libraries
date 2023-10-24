@@ -55,27 +55,27 @@ function tbt35_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	si2c_write(TBT35_READ_ADDR)
 
 	'a0
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	a0_tmp=tmp*256
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	a0_tmp=a0_tmp+tmp
 
 	'b1
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	b1_tmp=tmp*256
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	b1_tmp=b1_tmp+tmp
 
 	'b2
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	b2_tmp=tmp*256
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	b2_tmp=b2_tmp+tmp
 
 	'c12
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	c12_tmp=tmp*256
-	tmp=si2c_read(NACK)
+	tmp=si2c_read(false)
 	c12_tmp=c12_tmp+tmp
 	si2c_stop()
 
@@ -369,15 +369,15 @@ function tbt35_get_kpa(channel as byte)as float
 	si2c_write(TBT35_READ_ADDR)
 
 	'pressure
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	padc=tmp*256
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	padc=padc+tmp
 
 	'temprature
-	tmp=si2c_read(ACK)
+	tmp=si2c_read(true)
 	tadc=tmp*256
-	tmp=si2c_read(NACK)
+	tmp=si2c_read(false)
 	tadc=tadc+tmp
 
 	si2c_stop()

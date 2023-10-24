@@ -31,9 +31,9 @@ function pic_reg_read(addr as word,length as byte)as string
 	si2c_start()
 	si2c_write(PIC_CHIP_ADDR_R)
 	for tmp=1 to length-1
-		data=data+chr(si2c_read(ACK))
+		data=data+chr(si2c_read(true))
 	next tmp
-	data=data+chr(si2c_read(NACK))
+	data=data+chr(si2c_read(false))
 	pic_reg_read=data
 	si2c_stop()
 end function

@@ -159,10 +159,10 @@ function tbt29_read_data(op as tbt29_regs, byref channel as byte) as word
 	si2c_write(TBT29_READ_ADDR)
 
 	if op=TBT29_REG_RESOL then
-		lower=si2c_read(ACK)
+		lower=si2c_read(true)
 	else
-		upper=si2c_read(ACK)
-		lower=si2c_read(NACK)
+		upper=si2c_read(true)
+		lower=si2c_read(false)
 	end if
 
 	si2c_stop()

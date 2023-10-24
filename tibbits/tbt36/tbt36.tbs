@@ -297,7 +297,7 @@ function tbt36_get_reg(cmd as byte) as byte
 
 
 	si2c_write(TBT36_READ_CODE)
-	tmp=si2c_read(NACK)  
+	tmp=si2c_read(false)  
 
 	if si2c_is_busy()=NO then
 		tbt36_error()
