@@ -65,10 +65,7 @@ function tbt29_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 
 
 	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
-	i2c.num=channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
+	si2c_get(channel)
 
 	'check the TBT29_MFG_ID
 	if tbt29_read_data(TBT29_REG_MFGID,channel)<>TBT29_MFG_ID then
@@ -122,7 +119,7 @@ function tbt29_get(channel as byte) as integer
 		exit function
 	end if
 
-	i2c.num=channel
+	si2c_get(channel)
 
 	tbt29_delay_msecond(DELAY_IN_65_MS)
 
@@ -150,46 +147,46 @@ function tbt29_read_data(op as tbt29_regs, byref channel as byte) as word
 
 	upper=0
 	lower=0
-	i2c.num=channel
-	i2c.start()
+	si2c_get(channel)
+	si2c_start()
 
 	'send address + op
-	i2c.write(TBT29_WRITE_ADDR)
-	i2c.write(op)
+	si2c_write(TBT29_WRITE_ADDR)
+	si2c_write(op)
 	
-	i2c.start()
+	si2c_start()
 
-	i2c.write(TBT29_READ_ADDR)
+	si2c_write(TBT29_READ_ADDR)
 
 	if op=TBT29_REG_RESOL then
-		lower=i2c.read(ACK)
+		lower=si2c_read(ACK)
 	else
-		upper=i2c.read(ACK)
-		lower=i2c.read(NACK)
+		upper=si2c_read(ACK)
+		lower=si2c_read(NACK)
 	end if
 
-	i2c.stop()
+	si2c_stop()
 	tbt29_read_data=upper*256+lower
 end function
 
 sub tbt29_write_data(op as tbt29_regs,data as word, channel as byte)
 	dim value as byte
-	i2c.num=channel
-	i2c.start()
+	si2c_get(channel)
+	si2c_start()
 
-	i2c.write(TBT29_WRITE_ADDR)
-	i2c.write(op)
+	si2c_write(TBT29_WRITE_ADDR)
+	si2c_write(op)
 
 	if op=TBT29_REG_RESOL then
 		value=data and &h00FF
-		i2c.write(value)
+		si2c_write(value)
 	else
 		value=(data and &hFF00)/256
-		i2c.write(value)
+		si2c_write(value)
 		value=data and &h00FF
-		i2c.write(value)		
+		si2c_write(value)		
 	end if	
-	i2c.stop()
+	si2c_stop()
 end sub
 
 sub tbt29_delay_msecond(value as word)

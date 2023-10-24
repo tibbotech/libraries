@@ -43,12 +43,8 @@ function tbt_pic_gra_init(byref signature as string, byref tbt as tbt_pic_gra, u
 	tbt_pic_gra_init=OK
 	tbt.pic_init_flag=PIC_INIT_SIGNATURE
 	tbt.i2c_num_pic=si2c_register(signature,tbt.PIC_DATA_PIN,tbt.PIC_CLK_PIN,use_ssi)
-	i2c.num = tbt.i2c_num_pic
-	i2c.sdamap=tbt.PIC_DATA_PIN
-	i2c.sclmap=tbt.PIC_CLK_PIN
-	i2c.enabled=YES
 
-	i2c.num=tbt.i2c_num_pic
+	si2c_get(tbt.i2c_num_pic)
 	
 	'7.RXDTSEL 0 = RX/DT function is on RC5
 	'6.SDOSEL  0 = SDO function is on RC2
@@ -219,25 +215,25 @@ function tbt_pic_gra_reg_read(addr as word,length as byte)as string
 		exit function
 	end if
 
-	i2c.start()
+	si2c_start()
 
-	i2c.write(PIC_CHIP_ADDR_W)
-	i2c.write(PIC_CMD_R)
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_R)
 	
 	tmp=addr / 256
-	i2c.write(tmp)
+	si2c_write(tmp)
 	tmp=addr or 256
-	i2c.write(tmp)
+	si2c_write(tmp)
 
-	i2c.stop()
-	i2c.start()
-	i2c.write(PIC_CHIP_ADDR_R)
+	si2c_stop()
+	si2c_start()
+	si2c_write(PIC_CHIP_ADDR_R)
 	for tmp=1 to length-1
-		data=data+chr(i2c.read(ACK))
+		data=data+chr(si2c_read(ACK))
 	next tmp
-	data=data+chr(i2c.read(NACK))
+	data=data+chr(si2c_read(NACK))
 	tbt_pic_gra_reg_read=data
-	i2c.stop()
+	si2c_stop()
 end function
 
 
@@ -252,23 +248,23 @@ function tbt_pic_gra_reg_write(addr as word, data as string)as ok_ng
 	tbt_pic_gra_reg_write=NG
 	if data="" then exit function
 
-	i2c.start()
+	si2c_start()
 
-	i2c.write(PIC_CHIP_ADDR_W)
-	i2c.write(PIC_CMD_W)
+	si2c_write(PIC_CHIP_ADDR_W)
+	si2c_write(PIC_CMD_W)
 
 	tmp=addr/256
-	i2c.write(tmp)
+	si2c_write(tmp)
 	tmp=addr or 256
-	i2c.write(tmp)
+	si2c_write(tmp)
 
 	buf=""
 	for pos=1 to len(data)
 		buf=mid(data,pos,1)
-		i2c.write(asc(buf))
+		si2c_write(asc(buf))
 	next pos
 
-	i2c.stop()
+	si2c_stop()
 
 	tbt_pic_gra_reg_write=OK
 end function
@@ -641,7 +637,7 @@ sub tbt_pic_gra_config(byref tbt as tbt_pic_gra, num as tbt_pic_gra_pin_enum, f 
 		exit sub
 	end if
 
-	i2c.num=tbt.i2c_num_pic
+	si2c_get(tbt.i2c_num_pic)
 
 	if tbt.pic_func(num)<>f then
 		if tbt.pic_func(num)=PIC_FUNC_PWM then
@@ -733,7 +729,7 @@ sub tbt_pic_gra_pwm_config_simple(byref tbt as tbt_pic_gra, ch as tbt_pic_gra_pw
 	rCCPRxL = (ccprxl shr 2)
 	rCCPxN =   &h0C  or  ((ccprxl and &h03) shl 4)
 	
-	i2c.num=tbt.i2c_num_pic
+	si2c_get(tbt.i2c_num_pic)
 	 
 	select case ch
 	

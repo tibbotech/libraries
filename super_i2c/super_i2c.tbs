@@ -76,6 +76,8 @@ register_normal_slot:
 		end if
 
 		si2c_in_use(f)=YES
+		si2c_sda(f)=sda
+		si2c_scl(f)=scl
 		si2c_user_signature(f)=signature
 		si2c_register=f
 #IF I2C_AVAILABLE
@@ -84,16 +86,16 @@ register_normal_slot:
 		i2c.sclmap=scl
 		i2c.enabled=YES
 #ELSE
-		si2c_sda(f)=sda
-		si2c_scl(f)=scl
-		si2c_register=f
-
-		io.num=scl
-		io.state=HIGH
-		io.enabled=YES
-		io.num=sda
-		io.state=HIGH
-		io.enabled=NO
+		ssi.channel=channel
+		ssi.enabled=NO
+		ssi.baudrate=PL_SSI_BAUD_100kHz
+		ssi.clkmap=pin_clk
+		ssi.dimap=pin_data
+		ssi.domap=pin_data
+		ssi.direction=PL_SSI_DIRECTION_LEFT
+		ssi.zmode=PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.mode=PL_SSI_MODE_0
+		ssi.enabled=YES
 #ENDIF
 
 		#if SI2C_DEBUG_PRINT
@@ -176,7 +178,7 @@ end sub
 
 sub si2c_stop()
 #IF I2C_AVAILABLE
-	i2c.stop()
+	si2c_stop()
 #ELSE
 	io.num=si2c_sda(si2c_num)
 	io.enabled=YES
@@ -303,11 +305,19 @@ sub si2c_init()
 end sub
 
 function si2c_is_busy(num as byte)as no_yes
+#IF I2C_AVAILABLE
+	if i2c.state <> I2C_IDLE
+		si2c_is_busy=YES
+	else
+		si2c_is_busy=NO
+	end if
+#ELSE
 	if io.lineget(si2c_scl(num))=LOW then
 		si2c_is_busy=YES
 	else
 		si2c_is_busy=NO
 	end if
+#ENDIF
 end function
 
 #if SI2C_DEBUG_PRINT

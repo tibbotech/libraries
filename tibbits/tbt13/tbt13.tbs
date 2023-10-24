@@ -33,10 +33,7 @@ function tbt13_init(signature as string, data_pin as byte, clk_pin as byte, byre
 	#endif
 	
 	tbt_channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
-	i2c.num=tbt_channel
-	i2c.sdamap=data_pin
-	i2c.sclmap=clk_pin
-	i2c.enabled=YES
+	si2c_get(tbt_channel)
 	#if TBT13_DEBUG_PRINT=1
 		adc_debug_print("i2c num:"+str(tbt_channel))
 	#endif
@@ -73,11 +70,11 @@ sub tbt13_channel_select(channel as tbt13_nums, tbt_channel as byte)
 
 	end select
 
-	i2c.num=tbt_channel
-	i2c.start()
-	i2c.write(TBT13_WRITE_ADDR)
-	i2c.write(ch)
-	i2c.start()
+	si2c_get(tbt_channel)
+	si2c_start()
+	si2c_write(TBT13_WRITE_ADDR)
+	si2c_write(ch)
+	si2c_start()
 end sub
 
 function tbt13_get_prev_mv(tbt_channel as byte) as integer
@@ -113,12 +110,12 @@ function tbt13_get_prev(tbt_channel as byte) as word
 		exit function
 	end if
 
-	i2c.num=tbt_channel
-	i2c.start()
-	i2c.write(TBT13_READ_ADDR)
-	byte_hi=i2c.read(ACK)
-	byte_lo=i2c.read(ACK)
-	i2c.stop()
+	si2c_get(tbt_channel)
+	si2c_start()
+	si2c_write(TBT13_READ_ADDR)
+	byte_hi=si2c_read(ACK)
+	byte_lo=si2c_read(ACK)
+	si2c_stop()
 	
 	#if ADC_RESOLUTION=ADC_RES_LOW
 		tbt13_get_prev=byte_lo/64 +byte_hi*4 '10 bit

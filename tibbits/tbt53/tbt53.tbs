@@ -34,23 +34,19 @@ function tbt53_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 
 	tbt53_init_flag = TBT53_INIT_SIGNATURE
 	channel = si2c_register("TBT53", pin_data, pin_clk,use_ssi)
-	i2c.num = channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
 
-	i2c.num=channel
-	i2c.start()
-	i2c.write(TBT53_WRITE_ADDR)
-	i2c.write(&h0C)
-	i2c.stop()
+	si2c_get(channel)
+	si2c_start()
+	si2c_write(TBT53_WRITE_ADDR)
+	si2c_write(&h0C)
+	si2c_stop()
 
-	i2c.start()
-	i2c.write(TBT53_READ_ADDR)
-	hi_byte = i2c.read(ACK)
-	lo_byte = i2c.read(ACK)
-	config = i2c.read(NACK)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT53_READ_ADDR)
+	hi_byte = si2c_read(ACK)
+	lo_byte = si2c_read(ACK)
+	config = si2c_read(NACK)
+	si2c_stop()
 
 	#if TBT53_DEBUG_PRINT = 1
 		tbt53_debug_print("config : " + hex(config))
@@ -72,12 +68,12 @@ function tbt53_get_current(byref ma as real, channel as byte) as ok_ng
 	tbt53_get_current = NG
 	if tbt53_init_flag <> TBT53_INIT_SIGNATURE then exit function
 
-	i2c.num=channel
-	i2c.start()
-	i2c.write(TBT53_READ_ADDR)
-	hi_byte = i2c.read(ACK)
-	lo_byte = i2c.read(ACK)
-	i2c.stop()
+	si2c_get(channel)
+	si2c_start()
+	si2c_write(TBT53_READ_ADDR)
+	hi_byte = si2c_read(ACK)
+	lo_byte = si2c_read(ACK)
+	si2c_stop()
 
 	tmp = hi_byte * 256
 	tmp = tmp + lo_byte

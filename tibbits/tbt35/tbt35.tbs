@@ -41,46 +41,43 @@ function tbt35_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 
 	tbt35_init_flag=TBT35_INIT_SIGNATURE
 	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
-	i2c.num=channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
+	si2c_get(channel)
 
 	#if TBT35_DEBUG_PRINT=1
 		tbt35_debug_print("i2c num: "+str(channel))
 	#endif
 
 
-	i2c.start()
-	i2c.write(TBT35_WRITE_ADDR)
-	i2c.write(TBT35_CMD_READ_COEFFICIENT)
-	i2c.start()
-	i2c.write(TBT35_READ_ADDR)
+	si2c_start()
+	si2c_write(TBT35_WRITE_ADDR)
+	si2c_write(TBT35_CMD_READ_COEFFICIENT)
+	si2c_start()
+	si2c_write(TBT35_READ_ADDR)
 
 	'a0
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	a0_tmp=tmp*256
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	a0_tmp=a0_tmp+tmp
 
 	'b1
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	b1_tmp=tmp*256
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	b1_tmp=b1_tmp+tmp
 
 	'b2
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	b2_tmp=tmp*256
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	b2_tmp=b2_tmp+tmp
 
 	'c12
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	c12_tmp=tmp*256
-	tmp=i2c.read(NACK)
+	tmp=si2c_read(NACK)
 	c12_tmp=c12_tmp+tmp
-	i2c.stop()
+	si2c_stop()
 
 	'a0 :signed, integer bits=12,fractional bits=3
 	a0=a0_tmp and &h7FF8
@@ -347,14 +344,14 @@ function tbt35_get_kpa(channel as byte)as float
 		exit function
 	end if
 
-	i2c.num=channel
+	si2c_get(channel)
 
 
-	i2c.start()
-	i2c.write(TBT35_WRITE_ADDR)
-	i2c.write(TBT35_CMD_START_CONVERSION)
-	i2c.write(&h00)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT35_WRITE_ADDR)
+	si2c_write(TBT35_CMD_START_CONVERSION)
+	si2c_write(&h00)
+	si2c_stop()
 
 	'Time between start convert command and data available in the Pressure and Temperature registers
 	#if PLATFORM_TYPE_32
@@ -363,27 +360,27 @@ function tbt35_get_kpa(channel as byte)as float
 		tbt35_delay_msecond(3)
 	#endif
 
-	i2c.start()
+	si2c_start()
 
-	i2c.write(TBT35_WRITE_ADDR)
-	i2c.write(TBT35_CMD_READ_PRESSURE)
+	si2c_write(TBT35_WRITE_ADDR)
+	si2c_write(TBT35_CMD_READ_PRESSURE)
 
-	i2c.start()
-	i2c.write(TBT35_READ_ADDR)
+	si2c_start()
+	si2c_write(TBT35_READ_ADDR)
 
 	'pressure
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	padc=tmp*256
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	padc=padc+tmp
 
 	'temprature
-	tmp=i2c.read(ACK)
+	tmp=si2c_read(ACK)
 	tadc=tmp*256
-	tmp=i2c.read(NACK)
+	tmp=si2c_read(NACK)
 	tadc=tadc+tmp
 
-	i2c.stop()
+	si2c_stop()
 
 	padc=padc /64
 	tadc=tadc /64

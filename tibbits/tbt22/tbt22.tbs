@@ -68,10 +68,7 @@ function tbt_rtd_init(signature as string, data_pin as byte, clk_pin as byte, in
 	#endif
 	
 	tbt_channel=si2c_register(signature, data_pin, clk_pin, use_ssi)
-	i2c.num=tbt_channel
-	i2c.sdamap=data_pin
-	i2c.sclmap=clk_pin
-	i2c.enabled=YES
+	si2c_get(tbt_channel)
 
 	dim b as byte
 	dim tbt22_sockets_full as no_yes = YES
@@ -103,44 +100,44 @@ end function
 sub tbt22_rtd_read_all(byref config as byte, byref rtd as word, byref hi_fault as word, byref lo_fault as word, byref fault as byte, int_pin as byte, tbt_channel as byte)
 	dim tmp as byte=0
 
-	i2c.num=tbt_channel
+	si2c_get(tbt_channel)
 
-	i2c.start()
-	i2c.write(TBT22_RTD_CODE_W)
-	i2c.write(TBT22_RTD_CMD_READ)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT22_RTD_CODE_W)
+	si2c_write(TBT22_RTD_CMD_READ)
+	si2c_stop()
 
 
-	i2c.start()
-	i2c.write(TBT22_RTD_CODE_R)
+	si2c_start()
+	si2c_write(TBT22_RTD_CODE_R)
 
 	'wait pic co-processor to fetch the data ...
 	while (io.lineget(int_pin) = LOW)
 	wend
 
-	config = i2c.read(ACK)			'byte 0
-	tmp = i2c.read(ACK)				'byte 1
-	rtd = tmp * 256 + i2c.read(ACK)	'byte 2
-	tmp = i2c.read(ACK)				'byte 3
-	hi_fault = tmp * 256 + i2c.read(ACK)'byte 4
-	tmp = i2c.read(ACK)				'byte 5
-	lo_fault = tmp * 256 + i2c.read(ACK)'byte 6
-	fault = i2c.read(NACK)			'byte 7
-	i2c.stop()
+	config = si2c_read(ACK)			'byte 0
+	tmp = si2c_read(ACK)				'byte 1
+	rtd = tmp * 256 + si2c_read(ACK)	'byte 2
+	tmp = si2c_read(ACK)				'byte 3
+	hi_fault = tmp * 256 + si2c_read(ACK)'byte 4
+	tmp = si2c_read(ACK)				'byte 5
+	lo_fault = tmp * 256 + si2c_read(ACK)'byte 6
+	fault = si2c_read(NACK)			'byte 7
+	si2c_stop()
 	while (io.lineget(int_pin) = LOW)
 	wend
 end sub
 
 sub tbt22_rtd_reg_write(addr as tbt22_rtd_reg_write_addr, data as byte, int_pin as byte, tbt_channel as byte)
 	dim tmr as dword
-	i2c.num=tbt_channel
+	si2c_get(tbt_channel)
 
-	i2c.start()
-	i2c.write(TBT22_RTD_CODE_W)
-	i2c.write(TBT22_RTD_CMD_WRITE)
-	i2c.write(addr)
-	i2c.write(data)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT22_RTD_CODE_W)
+	si2c_write(TBT22_RTD_CMD_WRITE)
+	si2c_write(addr)
+	si2c_write(data)
+	si2c_stop()
 	while (io.lineget(int_pin) = LOW)
 	wend
 end sub
@@ -319,20 +316,20 @@ function tbt22_rtd_fw_version(tbt_channel as byte)as string
 		exit function
 	end if
 
-	i2c.num=tbt_channel
+	si2c_get(tbt_channel)
 
 	s=""
-	i2c.start()
-	i2c.write(TBT22_RTD_CODE_W)
-	i2c.write(TBT22_RTD_CMD_FW_VER)
-	i2c.stop()
-	i2c.start()
-	i2c.write(TBT22_RTD_CODE_R)
+	si2c_start()
+	si2c_write(TBT22_RTD_CODE_W)
+	si2c_write(TBT22_RTD_CMD_FW_VER)
+	si2c_stop()
+	si2c_start()
+	si2c_write(TBT22_RTD_CODE_R)
 	for i = 0 to 14
-		s = s + chr(i2c.read(ACK))
+		s = s + chr(si2c_read(ACK))
 	next i
-	s = s + chr(i2c.read(NACK))
-	i2c.stop()
+	s = s + chr(si2c_read(NACK))
+	si2c_stop()
 
 	tbt22_rtd_fw_version = s
 end function

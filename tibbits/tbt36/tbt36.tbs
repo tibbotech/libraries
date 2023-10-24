@@ -74,10 +74,7 @@ function tbt36_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	tbt36_init_flag=TBT36_INIT_SIGNATURE
 
 	channel=si2c_register(signature, pin_data, pin_clk, use_ssi)
-	i2c.num=channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
+	si2c_get(channel)
 	
 	dim id as byte=&h00
 	
@@ -150,7 +147,7 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 		exit sub
 	end if
 
-	i2c.num=channel
+	si2c_get(channel)
 
 	'Read X axis value
 	hi_byte=tbt36_get_reg(TBT36_REG_DATA_X1)
@@ -228,6 +225,7 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 end sub
 
 sub tbt36_error()
+#IF I2C_AVAILABLE
 	select case i2c.state
 	case I2C_IDLE:
 		sys.debugprint("I2C Error: I2C_IDLE this should not be seen.\r\n")
@@ -238,36 +236,39 @@ sub tbt36_error()
 	case I2C_ARBITRATION_ERROR:
 		sys.debugprint("I2C Error: I2C_ARBITRATION_ERROR\r\n")
 	end select
+#ELSE
+	sys.debugprint("I2C Error: I2C object is not available.\r\n")
+#ENDIF
 end sub
 
 
 sub tbt36_write_reg(cmd as byte, data as byte)
-	i2c.start()
+	si2c_start()
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
 
-	i2c.write(TBT36_WRITE_ADDR)
+	si2c_write(TBT36_WRITE_ADDR)
 
-	i2c.write(cmd)
+	si2c_write(cmd)
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
-	i2c.write(data)
+	si2c_write(data)
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
 
 
-	i2c.stop()
+	si2c_stop()
 
-	if i2c.state <> I2C_IDLE then
+	if si2c_is_busy()=YES then
 		tbt36_error()
 	end if
 
@@ -275,35 +276,35 @@ end sub
 
 function tbt36_get_reg(cmd as byte) as byte
 	dim tmp as byte
-	i2c.start()
+	si2c_start()
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
-	i2c.write(TBT36_WRITE_ADDR)
-	i2c.write(cmd)
+	si2c_write(TBT36_WRITE_ADDR)
+	si2c_write(cmd)
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
-	i2c.start()
+	si2c_start()
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
 
-	i2c.write(TBT36_READ_CODE)
-	tmp=i2c.read(NACK)  
+	si2c_write(TBT36_READ_CODE)
+	tmp=si2c_read(NACK)  
 
-	if i2c.state <> I2C_STARTED then
+	if si2c_is_busy()=NO then
 		tbt36_error()
 	end if
 
-	i2c.stop()
-	if i2c.state <> I2C_IDLE then
+	si2c_stop()
+	if si2c_is_busy()=YES then
 		tbt36_error()
 	end if
 

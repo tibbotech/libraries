@@ -45,17 +45,12 @@ function tbt40_init(use_ssi as no_yes, pin_clk as byte, pin_data as byte, byref 
 	#endif
 
 	channel=si2c_register("TBT40",pin_data,pin_clk,use_ssi)
-	i2c.num=channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
 
 	#if TBT40_DEBUG_PRINT=1
 		tbt40_debug_print("i2c num:"+str(channel))
 	#endif
 
-
-	i2c.num=channel
+	si2c_get(channel)
 
 	if tbt40_reg_read(TBT40_STATUS,channel)<>&h01F0 then
 	#if TBT40_DEBUG_PRINT=1
@@ -133,14 +128,13 @@ sub tbt40_reg_write(addr as tbt40_regs, data as word, channel as byte)
 	else
 		cmd=addr
 	end if
+	si2c_get(channel)
 
-    i2c.num=channel
-
-	i2c.start()
-	i2c.write(TBT40_WRITE_ADDR)
-	i2c.write(cmd)
-	i2c.write(data and &h00FF)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT40_WRITE_ADDR)
+	si2c_write(cmd)
+	si2c_write(data and &h00FF)
+	si2c_stop()
 end sub
 
 function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
@@ -151,16 +145,15 @@ function tbt40_reg_read(addr as tbt40_regs, channel as byte)as word
 	#endif
 		exit function
 	end if
-
-	i2c.num=channel
-	i2c.start()
-	i2c.write(TBT40_WRITE_ADDR)
-	i2c.write(addr+&hC)	'READ Command
-	i2c.start()
-	i2c.write(TBT40_READ_ADDR)
-	tbt40_reg_read=i2c.read(ACK)*256
-	tbt40_reg_read=tbt40_reg_read+i2c.read(NACK)
-	i2c.stop()
+	si2c_get(channel)
+	si2c_start()
+	si2c_write(TBT40_WRITE_ADDR)
+	si2c_write(addr+&hC)	'READ Command
+	si2c_start()
+	si2c_write(TBT40_READ_ADDR)
+	tbt40_reg_read=si2c_read(ACK)*256
+	tbt40_reg_read=tbt40_reg_read+si2c_read(NACK)
+	si2c_stop()
 end function
 
 #if TBT40_DEBUG_PRINT=1

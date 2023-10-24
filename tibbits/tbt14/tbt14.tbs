@@ -31,10 +31,7 @@ function tbt14_init(signature as string, data_pin as byte, clk_pin as byte, load
 	#endif
 
 	tbt_channel=si2c_register(signature,data_pin,clk_pin,use_ssi)
-	i2c.num=tbt_channel
-	i2c.sdamap=data_pin
-	i2c.sclmap=clk_pin
-	i2c.enabled=YES
+	si2c_get(tbt_channel)
 
 	#if TBT14_DEBUG_PRINT=1
 		tbt14_debug_print("i2c num:"+str(tbt_channel))
@@ -87,7 +84,7 @@ sub tbt14_set(n as dac_nums,v as word, load_pin as byte, busy_pin as byte, tbt_c
 		tbt14_debug_print(hex(n)+"/"+hex(v))
 	#endif
 
-	i2c.num=tbt_channel
+	si2c_get(tbt_channel)
 
 	io.num=busy_pin
 	while io.state=LOW
@@ -102,12 +99,12 @@ sub tbt14_set(n as dac_nums,v as word, load_pin as byte, busy_pin as byte, tbt_c
 	tmp1=v and &h00FF
 
 	io.lineset(load_pin,LOW)
-	i2c.start()
-	i2c.write(TBT14_WRITE_ADDR)
-	i2c.write(tmp)
-	i2c.write(tmp0)
-	i2c.write(tmp1)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT14_WRITE_ADDR)
+	si2c_write(tmp)
+	si2c_write(tmp0)
+	si2c_write(tmp1)
+	si2c_stop()
 	io.lineset(load_pin,HIGH)
 
 	io.num=busy_pin

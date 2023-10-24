@@ -57,10 +57,6 @@ function tbt41_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 	#endif
 
 	channel=si2c_register(signature,pin_data,pin_clk,use_ssi)
-	i2c.num=channel
-	i2c.sdamap=pin_data
-	i2c.sclmap=pin_clk
-	i2c.enabled=YES
 
 	#if TBT41_DEBUG_PRINT=1
 		tbt41_debug_print("i2c num:"+str(channel))
@@ -71,7 +67,7 @@ function tbt41_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 #endif
 
 	dim value as byte
-	i2c.num=channel
+	si2c_get(channel)
 	'Pins are configured as an input.
 	tbt41_reg_write(TBT41_ADDR_IODIR,&hFF)
 	if tbt41_reg_read(TBT41_ADDR_IODIR)<>&hFF then
@@ -102,7 +98,7 @@ function tbt41_line_out_enable(num as ext_line_name,en as no_yes, channel as byt
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	value=tbt41_reg_read(TBT41_ADDR_IODIR)
 	tbt41_bit_access(value,num,en)
 	tbt41_reg_write(TBT41_ADDR_IODIR,value)
@@ -121,7 +117,7 @@ function tbt41_line_pup_enable(num as ext_line_name, en as no_yes, channel as by
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	value=tbt41_reg_read(TBT41_ADDR_GPPU)
 	tbt41_bit_access(value,num,en)
 	tbt41_reg_write(TBT41_ADDR_GPPU,value)
@@ -140,7 +136,7 @@ function tbt41_line_set(num as ext_line_name,state as low_high, channel as byte)
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	value=tbt41_reg_read(TBT41_ADDR_GPIO)
 	if state=LOW then
 		tbt41_bit_access(value,num,YES)
@@ -163,7 +159,7 @@ function tbt41_line_get(num as ext_line_name, byref state as low_high, channel a
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	value=tbt41_reg_read(TBT41_ADDR_GPIO)
 	dim tmp as byte
 	select case num
@@ -214,7 +210,7 @@ function tbt41_port_config_set(dir as byte,pullup as byte, channel as byte)as ok
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	tbt41_reg_write(TBT41_ADDR_IODIR,dir)
 	tbt41_reg_write(TBT41_ADDR_GPPU,pullup)
 	tbt41_port_config_set=OK
@@ -234,7 +230,7 @@ function tbt41_port_config_get(byref dir as byte,byref pullup as byte, channel a
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	pullup=tbt41_reg_read(TBT41_ADDR_GPPU)
 	dir=tbt41_reg_read(TBT41_ADDR_IODIR)
 	tbt41_port_config_get=OK
@@ -251,7 +247,7 @@ function tbt41_port_set(data as byte, channel as byte) as ok_ng
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	tbt41_reg_write(TBT41_ADDR_GPIO,data)
 	tbt41_port_set=OK
 end function
@@ -267,27 +263,27 @@ function tbt41_port_get(byref data as byte, channel as byte)as ok_ng
 	#endif
 		exit function
 	end if
-	i2c.num=channel
+	si2c_get(channel)
 	data=tbt41_reg_read(TBT41_ADDR_GPIO)
 	tbt41_port_get=OK
 end function
 
 sub tbt41_reg_write(reg as tbt41_regs,data as byte)
-	i2c.start()
-	i2c.write(TBT41_WRITE_ADDR)
-	i2c.write(reg)
-	i2c.write(data)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT41_WRITE_ADDR)
+	si2c_write(reg)
+	si2c_write(data)
+	si2c_stop()
 end sub
 
 function tbt41_reg_read(addr as tbt41_regs)as byte
-	i2c.start()
-	i2c.write(TBT41_WRITE_ADDR)
-	i2c.write(addr)
-	i2c.start()
-	i2c.write(TBT41_READ_CODE)
-	tbt41_reg_read=i2c.read(NACK)
-	i2c.stop()
+	si2c_start()
+	si2c_write(TBT41_WRITE_ADDR)
+	si2c_write(addr)
+	si2c_start()
+	si2c_write(TBT41_READ_CODE)
+	tbt41_reg_read=si2c_read(NACK)
+	si2c_stop()
 end function
 
 sub tbt41_bit_access(byref data as byte,bit as byte,act as tbt41_clr_set)
