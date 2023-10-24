@@ -244,7 +244,11 @@ function si2c_read(acknak_request as boolean) as byte
 
 	if si2c_num>3 then
 #IF I2C_AVAILABLE
-		si2c_read = i2c.read(acknak_request)
+		if acknak_request=true then
+			si2c_read = i2c.read(ACK)
+		else
+			si2c_read = i2c.read(NACK)
+		end if
 #ELSE
 		si2c_read=0
 		compval=&h80							'Initialize the MASK
