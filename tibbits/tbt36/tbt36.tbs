@@ -103,7 +103,7 @@ function tbt36_init(byref signature as string, use_ssi as no_yes, pin_clk as byt
 		'when format= 12G mode ,it should be full resolution mode
 		format=format or &h0B
 	#endif
-	
+	i2c_num_tbt36=channel
 	'Set sampling rate 100 samples per second. 
 	tbt36_write_reg(TBT36_REG_BW_RATE,&h0A)
 	'set resolution + range
@@ -147,7 +147,9 @@ sub tbt36_get(byref x_value as integer, byref y_value as integer, byref z_value 
 		exit sub
 	end if
 
+	
 	si2c_get(channel)
+	i2c_num_tbt36=channel
 
 	'Read X axis value
 	hi_byte=tbt36_get_reg(TBT36_REG_DATA_X1)
@@ -245,7 +247,7 @@ end sub
 sub tbt36_write_reg(cmd as byte, data as byte)
 	si2c_start()
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
@@ -254,21 +256,19 @@ sub tbt36_write_reg(cmd as byte, data as byte)
 
 	si2c_write(cmd)
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
 	si2c_write(data)
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
-
-
 	si2c_stop()
 
-	if si2c_is_busy()=YES then
+	if si2c_is_busy(i2c_num_tbt36)=YES then
 		tbt36_error()
 	end if
 
@@ -278,20 +278,20 @@ function tbt36_get_reg(cmd as byte) as byte
 	dim tmp as byte
 	si2c_start()
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
 	si2c_write(TBT36_WRITE_ADDR)
 	si2c_write(cmd)
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
 	si2c_start()
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
@@ -299,12 +299,12 @@ function tbt36_get_reg(cmd as byte) as byte
 	si2c_write(TBT36_READ_CODE)
 	tmp=si2c_read(false)  
 
-	if si2c_is_busy()=NO then
+	if si2c_is_busy(i2c_num_tbt36)=NO then
 		tbt36_error()
 	end if
 
 	si2c_stop()
-	if si2c_is_busy()=YES then
+	if si2c_is_busy(i2c_num_tbt36)=YES then
 		tbt36_error()
 	end if
 
