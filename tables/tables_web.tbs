@@ -3,6 +3,7 @@ include "global.tbh"
 
 dim tbl_web_enabled_tables(TBL_MAX_NUM_TABLES) as string(TBL_MAX_TABLE_NAME_LEN)
 dim tbl_web_tbl_status as en_tbl_status_codes
+dim tbl_web_fields(TBL_MAX_TOTAL_NUM_FIELDS) as string
 
 sub tbl_web_start()
 	dim i as byte
@@ -85,73 +86,93 @@ sub tbl_web_get_tables(byref selected_type as string)
 	next i
 end sub
 
+sub tbl_web_get_table_active_rows(byref table as string, byref tbl_rows as word, byref tbl_rows_all as word)
+	
+	dim html_tbl as tbl_type
+	
+	tbl_select(table, table)
+	if tbl_get_table_info(table,html_tbl) = EN_TBL_STATUS_OK then
+		tbl_get_num_records(tbl_rows,NO)
+        tbl_get_num_records(tbl_rows_all,YES)
+    end if
+	
+end sub
+
+function tbl_web_get_flds(byref table as string) as byte
+	dim j, num_of_fld as byte
+	dim field_metadata as tbl_field_type
+
+	
+	num_of_fld = tbl_get_num_fields(table)
+    for j = 0 to num_of_fld - 1
+        tbl_get_field_info(table,j,field_metadata)
+        tbl_web_fields(j) = field_metadata.field_name
+    next j
+	
+	tbl_web_get_flds = num_of_fld
+	
+end function
+
+function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
+	dim j as byte
+	dim fld_data as string
+	dim tmp_data as string=""
+	tbl_record_sg(index,EN_TBL_GET)
+	tmp_data=str(index)+","
+	for j = 0 to num_of_fld - 1
+		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
+		tmp_data=tmp_data+fld_data
+		if j<num_of_fld - 1 then
+			tmp_data=tmp_data+","
+		else
+			tmp_data=tmp_data+"\r\n"
+		end if
+	next j
+	tbl_web_get_fld_data = tmp_data 
+end function
+
 sub tbl_web_get_rows(byref table as string)
 	dim i as word
 	dim j, num_of_fld as byte
-	dim fld_data as string
-	dim fld_name as string(TBL_MAX_FIELD_NAME_LEN)
-	dim html_tbl as tbl_type
 	dim tbl_rows, tbl_rows_all as word
-	dim row_max as word
-	dim field_metadata as tbl_field_type
-	dim initialized as boolean=false
 	dim fields(TBL_MAX_TOTAL_NUM_FIELDS) as string
 	dim tmp_data as string=""
 	
-	tbl_select(table,table)
-	
-	if tbl_get_table_info(table,html_tbl) = EN_TBL_STATUS_OK then
-		tbl_get_num_records(tbl_rows,NO)
-		tbl_get_num_records(tbl_rows_all,YES)
-		tmp_data=str(tbl_rows)+"\r\n"
-		while sock.txfree < len(tmp_data)
-			doevents
-		wend
-		sock.setdata(tmp_data)
-		sock.send()
-		row_max=tbl_rows_all
-		if row_max > tbl_rows then
-			row_max=tbl_rows
-		end if
-		
-		num_of_fld = tbl_get_num_fields(table)
-		
-		if tbl_rows_all=0 then
-			exit sub
-		end if
-		for i = 1 to tbl_rows_all
-			if tbl_rows_all=0 then
-				exit for
-			end if
-			if tbl_is_record_deleted(i)<>YES then
-				tbl_record_sg(i,EN_TBL_GET)
-				tmp_data=str(i)+","
-				for j = 0 to num_of_fld - 1
-					if initialized=false then
-						tbl_get_field_info(table,j,field_metadata)
-						fld_name = field_metadata.field_name
-						fields(j)=fld_name
-					end if
-					tbl_field_sg(fields(j),fld_data,EN_TBL_GET)
-					tmp_data=tmp_data+fld_data
-					if j<num_of_fld - 1 then
-						tmp_data=tmp_data+","
-					else
-						tmp_data=tmp_data+"\r\n"
-					end if
-					while sock.txfree < len(tmp_data)
-						doevents
-					wend
-					sock.setdata(tmp_data)
-					sock.send()
-					tmp_data=""
-				next j
-				initialized=true
-			end if
-			
-		next i
-	end if
+	tbl_web_get_table_active_rows(table, tbl_rows, tbl_rows_all)
+
+    if (tbl_rows = 0 or tbl_rows_all = 0) then
+        exit sub
+    end if
+    
+	num_of_fld = tbl_web_get_flds(table)
+
+
+    tmp_data=str(tbl_rows)+"\r\n"
+    while sock.txfree < len(tmp_data)
+        doevents
+    wend
+    sock.setdata(tmp_data)
+    sock.send()
+
+    for i = 1 to tbl_rows_all
+        if tbl_rows_all=0 then
+            exit for
+        end if
+        if tbl_is_record_deleted(i)<>YES then
+			tmp_data=tbl_web_get_fld_data(i, num_of_fld)
+			while sock.txfree < len(tmp_data)
+				doevents
+			wend
+			sock.setdata(tmp_data)
+			sock.send()
+			tmp_data=""
+        end if
+        
+    next i
+
+
 end sub
+
 
 function tbl_web_add_row(byref table as string,byref row as string) as string
 'field1,field2,field3,etc.
