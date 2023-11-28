@@ -139,10 +139,6 @@ sub tbl_web_get_rows(byref table as string)
 	dim tmp_data as string=""
 	
 	tbl_web_get_table_active_rows(table, tbl_rows, tbl_rows_all)
-
-    if (tbl_rows = 0 or tbl_rows_all = 0) then
-        exit sub
-    end if
     
 	num_of_fld = tbl_web_get_flds(table)
 
