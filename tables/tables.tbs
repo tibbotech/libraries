@@ -1146,10 +1146,12 @@ public function tbl_clear() as en_tbl_status_codes
 		goto finish
 	end if
 	
+	if fd.transactionstart()<>PL_FD_STATUS_OK then goto tbl_fail
 	if fd.setfilesize(0)<>PL_FD_STATUS_OK then 
 		tbl_clear=EN_TBL_STATUS_FAILURE
 		goto finish
 	end if
+	if fd.transactioncommit()<>PL_FD_STATUS_OK then goto tbl_fail
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto tbl_fail
 	if tbl_attributes_sg(tbl_selected_file_name,"","",EN_TBL_SET)<>PL_FD_STATUS_OK then goto tbl_fail
