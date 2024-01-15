@@ -222,3 +222,25 @@ sub time_delay_ms(delay_ms as word)
 	while sys.timercountms < target
 	wend
 end sub
+
+function hex_mac(mac as string) as string
+	dim i as integer = 0
+	dim startpos as integer = 1
+	dim endpos as integer = 0
+	dim num as word = ""
+	dim result as string = ""
+	
+	for i = 0 to 5
+		endpos = instr(startpos,mac,".",0)
+		num = val(  mid(mac,startpos,  endpos-startpos) )
+		if num<>0 then
+			result = result + right(hex( num ),2) + ":"
+		else
+			result = result + "00" + ":"
+		end if
+		startpos=endpos+1
+	next i
+
+	hex_mac = left(result,len(result)-1)
+
+end function

@@ -120,8 +120,6 @@ declare current_fw_upg_state as pl_upg_state_t
 declare function device_firmware_upload_async(source as PL_FW_UPG_SOURCE, number as byte) as no_yes
 declare function device_firmware_upload_update() as no_yes
 
-declare function hex_mac(mac as string) as string
-
 declare sub set_baudrate(baudrate as dword)
 declare sub upgrade_set_buffer(buffer as string)
 
