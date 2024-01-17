@@ -98,7 +98,7 @@ sub tbl_web_get_table_active_rows(byref table as string, byref tbl_rows as word,
 	
 end sub
 
-function tbl_web_get_flds(byref table as string) as string
+sub tbl_web_get_flds(byref table as string)
 	dim j, num_of_fld as byte
 	dim field_metadata as tbl_field_type
 
@@ -109,8 +109,25 @@ function tbl_web_get_flds(byref table as string) as string
         tbl_web_fields(j) = field_metadata.field_name
     next j
 	
-	tbl_web_get_flds = tbl_web_fields
+end sub
+
+function tbl_web_get_header(table as string) as string
+	dim num_of_fld, i as byte
 	
+	tbl_web_get_header = "\x22index\x22,"
+	
+	tbl_web_get_flds(table)
+	
+	num_of_fld = tbl_get_num_fields(table)
+	
+	for i = 0 to num_of_fld - 1 
+		tbl_web_get_header = tbl_web_get_header + "\x22" + tbl_web_fields(i) + "\x22"
+		if i <> num_of_fld - 1 then
+			tbl_web_get_header = tbl_web_get_header + ","
+		end if 
+	next i
+
+    tbl_web_get_header=tbl_web_get_header+"\r\n"
 end function
 
 function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
@@ -144,24 +161,13 @@ sub tbl_web_get_rows(byref table as string)
 	dim i as word
 	dim j, num_of_fld as byte
 	dim tbl_rows, tbl_rows_all as word
-	dim fields(TBL_MAX_TOTAL_NUM_FIELDS) as string
-	dim tmp_data as string="\x22index\x22,"
+	dim tmp_data as string=""
 	
 	tbl_web_get_table_active_rows(table, tbl_rows, tbl_rows_all)
     
-	
-	tbl_web_get_flds(table)
-
 	num_of_fld = tbl_get_num_fields(table)
-	
-	for i = 0 to num_of_fld - 1 
-		tmp_data = tmp_data + "\x22" + tbl_web_fields(i) + "\x22"
-		if i <> num_of_fld - 1 then
-			tmp_data = tmp_data + ","
-		end if 
-	next i
+	tmp_data = tbl_web_get_header(table)
 
-    tmp_data=tmp_data+"\r\n"
     while sock.txfree < len(tmp_data)
         doevents
     wend
