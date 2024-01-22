@@ -6,10 +6,6 @@
 	#define FD_SECTOR_SIZE 256
 #endif
 
-#ifndef FIRMWARE_UPGRADE_FILENAME
-	#define FIRMWARE_UPGRADE_FILENAME ""
-#endif
-
 declare num_of_files as byte
 declare upload_started as boolean
 declare dns_socket, upgrade_socket as byte
