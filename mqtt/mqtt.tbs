@@ -537,27 +537,32 @@ sub mqtt_proc_data()
 						callback_mqtt_connect_ok()
 						proc_data_state=EN_MQTT_PD_STATES_READING_HEADER
 		
-		case PUBLISH:	select case proc_data_state
-						case EN_MQTT_PD_STATES_READING_PAYLOAD:
-							if mqtt_sock_peeklen()<2 then exit sub
-							dim topic_length_bytes as byte(2)=mqtt_sock_getdata(2)
-							mqtt_proc_data_variables.topic_length=(topic_length_bytes(0) shl 8) or topic_length_bytes(1)
-							if mqtt_sock_peeklen()<mqtt_proc_data_variables.topic_length then exit sub
-							mqtt_proc_data_variables.topic=mqtt_sock_getdata(mqtt_proc_data_variables.topic_length)
-							if mqtt_proc_data_variables.qos<>QOS_AT_MOST_ONCE then
-								mqtt_proc_data_variables.packet_identifier=mqtt_sock_getdata(2)
-							end if
-							mqtt_proc_data_variables.remaining_length=mqtt_proc_data_variables.remaining_length-mqtt_proc_data_variables.topic_length-len(mqtt_proc_data_variables.packet_identifier)-2
-							proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD_DATA
-						case EN_MQTT_PD_STATES_READING_PAYLOAD_DATA:
-							buf=mqtt_sock_getdata(mqtt_proc_data_variables.remaining_length)						
-							mqtt_proc_data_variables.remaining_length=mqtt_proc_data_variables.remaining_length-len(buf)						
-							#if MQTT_DEBUG_PRINT=1
-								mqtt_debug_print("Notification: topic="+mqtt_proc_data_variables.topic+", data="+buf)
-							#endif
-							callback_mqtt_notif(mqtt_proc_data_variables.topic,buf,mqtt_proc_data_variables.remaining_length)
-							mqtt_publish_reply()
-						end select		
+		case PUBLISH:	
+			buf=""
+			select case proc_data_state
+				case EN_MQTT_PD_STATES_READING_PAYLOAD:
+					if mqtt_sock_peeklen()<2 then exit sub
+					dim topic_length_bytes as byte(2)=mqtt_sock_getdata(2)
+					mqtt_proc_data_variables.topic_length=(topic_length_bytes(0) shl 8) or topic_length_bytes(1)
+					if mqtt_sock_peeklen()<mqtt_proc_data_variables.topic_length then exit sub
+					mqtt_proc_data_variables.topic=mqtt_sock_getdata(mqtt_proc_data_variables.topic_length)
+					if mqtt_proc_data_variables.qos<>QOS_AT_MOST_ONCE then
+						mqtt_proc_data_variables.packet_identifier=mqtt_sock_getdata(2)
+					end if
+					mqtt_proc_data_variables.remaining_length=mqtt_proc_data_variables.remaining_length-mqtt_proc_data_variables.topic_length-len(mqtt_proc_data_variables.packet_identifier)-2
+					
+					proc_data_state=EN_MQTT_PD_STATES_READING_PAYLOAD_DATA
+				case EN_MQTT_PD_STATES_READING_PAYLOAD_DATA:
+					buf=mqtt_sock_getdata(mqtt_proc_data_variables.remaining_length)						
+					mqtt_proc_data_variables.remaining_length=mqtt_proc_data_variables.remaining_length-len(buf)						
+			end select
+			if mqtt_proc_data_variables.remaining_length=0 then
+				#if MQTT_DEBUG_PRINT=1
+					mqtt_debug_print("Notification: topic="+mqtt_proc_data_variables.topic+", data="+buf)
+				#endif
+				callback_mqtt_notif(mqtt_proc_data_variables.topic,buf,mqtt_proc_data_variables.remaining_length)
+				mqtt_publish_reply()
+			end if
 												
 		case PUBACK:	#if MQTT_DEBUG_PRINT=1
 							mqtt_debug_print("Publish ack.")
