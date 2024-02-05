@@ -134,11 +134,29 @@ function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
 	dim j, k, x as byte
 	dim fld_data as string
 	dim tmp_data as string=""
+	dim tmp_fld_data as string
 	tbl_record_sg(index,EN_TBL_GET)
 	tmp_data="\x22"+str(index)+"\x22,"
 	for j = 0 to num_of_fld - 1
 		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
+        tmp_fld_data=""
 		tmp_data=tmp_data+"\x22"
+		k = 1
+        do
+            x = instr(k, fld_data, "\r\n", 1)
+
+			if x <> 0 then
+                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cr\x5cn"
+				k = x + 2
+            end if
+
+			if x = 0 then
+				x = len(fld_data)
+				tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k + 1)
+			end if
+
+        loop while x <> len(fld_data)
+		fld_data = tmp_fld_data
 		k = 1
 		do
 			x = instr(k, fld_data, "\x22",1)
@@ -203,7 +221,16 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 	dim s as string
 	dim error as string
 	dim stemp as string(16)
+    dim enclosed_in_quotes as no_yes=NO
+    dim delimiter as string=","
+    dim enclosed_quote_offset as byte=0
 	tbl_web_add_row=""
+
+    if instr(1, row, "\x22", 1) = 1 and instr(len(row) - 2, row, "\x22", 1) <> 0 then
+        enclosed_in_quotes=YES
+        delimiter = "\x22,\x22"
+        enclosed_quote_offset = 1
+    end if
 
 	tbl_select(table,table)
 	tbl_web_tbl_status=tbl_get_table_info(table,html_tbl)
@@ -215,15 +242,18 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
-			pos2=instr(pos1,row,",",1)
-			s=mid(row,pos1,pos2-pos1)
+			pos2=instr(pos1,row,delimiter,1)
+            if enclosed_in_quotes=YES and pos2=0 then
+                pos2 = len(row)
+            end if
+			s=mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
 			if s="" then 
 				tbl_web_tbl_status = tbl_get_field_def(table,field_metadata.field_name,s)
 				if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify
 			end if
 			tbl_web_tbl_status = tbl_field_sg(field_metadata.field_name,s,EN_TBL_SET)
 			if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify
-			pos1=pos2+1
+			pos1=pos2+1+enclosed_quote_offset
 		next i
 		
 		tbl_web_tbl_status=tbl_record_add(stemp)
@@ -311,7 +341,17 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 	dim s as string
 	dim error as string
 	dim stemp as string(16)
+    dim enclosed_in_quotes as no_yes=NO
+    dim delimiter as string=","
+    dim enclosed_quote_offset as byte=0
 	tbl_web_edit_row=""
+
+    if instr(1, row, "\x22", 1) = 1 and instr(len(row) - 2, row, "\x22", 1) <> 0 then
+        enclosed_in_quotes=YES
+        delimiter = "\x22,\x22"
+        enclosed_quote_offset = 1
+    end if
+
 
 	tbl_select(table,table)
 	tbl_web_tbl_status=tbl_get_table_info(table,html_tbl)
@@ -324,15 +364,18 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
-			pos2=instr(pos1,row,",",1)
-			s=mid(row,pos1,pos2-pos1)
+			pos2=instr(pos1,row,delimiter,1)
+            if enclosed_in_quotes=YES and pos2=0 then
+                pos2 = len(row)
+            end if
+			s=mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
 			if s="" then 
 				tbl_web_tbl_status = tbl_get_field_def(table,field_metadata.field_name,s)
 				if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify
 			end if
 			tbl_web_tbl_status = tbl_field_sg(field_metadata.field_name,s,EN_TBL_SET)
 			if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify
-			pos1=pos2+1
+			pos1=pos2+1+enclosed_quote_offset
 		next i
 		
 		tbl_web_tbl_status=tbl_record_edit(index)
