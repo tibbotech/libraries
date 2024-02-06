@@ -131,7 +131,7 @@ function tbl_web_get_header(table as string) as string
 end function
 
 function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
-	dim j, k, x as byte
+	dim j, k, x, tmp_instr as byte
 	dim fld_data as string
 	dim tmp_data as string=""
 	dim tmp_fld_data as string
@@ -143,17 +143,21 @@ function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
 		tmp_data=tmp_data+"\x22"
 		k = 1
         do
-            x = instr(k, fld_data, "\r\n", 1)
-
-			if x <> 0 then
-                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cr\x5cn"
-				k = x + 2
-            end if
+            x = instr(k, fld_data, "\r", 1)
+            tmp_instr = instr(k, fld_data, "\n", 1)
+            if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
+                x = tmp_instr
+                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cn"
+            else if x <> 0 then
+                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cr"
+			end if
 
 			if x = 0 then
 				x = len(fld_data)
 				tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k + 1)
 			end if
+			
+			k = x + 1
 
         loop while x <> len(fld_data)
 		fld_data = tmp_fld_data
