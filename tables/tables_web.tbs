@@ -131,43 +131,23 @@ function tbl_web_get_header(table as string) as string
 end function
 
 function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
-	dim j, k, x, tmp_instr as byte
+	dim j, k, x as byte
 	dim fld_data as string
 	dim tmp_data as string=""
-	dim tmp_fld_data as string
 	tbl_record_sg(index,EN_TBL_GET)
 	tmp_data="\x22"+str(index)+"\x22,"
 	for j = 0 to num_of_fld - 1
 		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
-        tmp_fld_data=""
 		tmp_data=tmp_data+"\x22"
-		k = 1
-        do
-            x = instr(k, fld_data, "\r", 1)
-            tmp_instr = instr(k, fld_data, "\n", 1)
-            if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-                x = tmp_instr
-                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cn"
-            else if x <> 0 then
-                tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k) + "\x5cr"
-			end if
+		fld_data = escape_string(fld_data)
 
-			if x = 0 then
-				x = len(fld_data)
-				tmp_fld_data = tmp_fld_data + mid(fld_data, k, x - k + 1)
-			end if
-			
-			k = x + 1
-
-        loop while x <> len(fld_data)
-		fld_data = tmp_fld_data
 		k = 1
 		do
-			x = instr(k, fld_data, "\x22",1)
+			x = instr(k, fld_data, "\x5c\x22",1)
 			if x = 0 then
 				x = len(fld_data) + 1
 			end if
-			tmp_data = tmp_data + mid(fld_data, k, x - k + 1) + "\x22"
+			tmp_data = tmp_data + mid(fld_data, k, x - k) + "\x22"
 			k = x + 1
 		loop while x <> len(fld_data) + 1
 		if j<num_of_fld - 1 then
@@ -242,15 +222,25 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 		num_of_fld = tbl_get_num_fields(table)
 		pos1=1
 		for i = 0 to num_of_fld-1
+			s=""
 			tbl_get_field_info(table,i,field_metadata)
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
 			pos2=instr(pos1,row,delimiter,1)
-            if enclosed_in_quotes=YES and pos2=0 then
-                pos2 = len(row)
+            if enclosed_in_quotes=YES then
+				while instr(pos1,row,"\x5c\x22,\x22\x5c",1) = pos2 - 1
+					pos1=pos1+1
+					s = s + mid(row,pos1, pos2 - pos1 - 1) + delimiter
+					pos1 = pos2+3
+					pos2=instr(pos1 + 1,row,delimiter,1)
+				wend
+			
+				if pos2 = 0 then
+					pos2 = len(row)
+				end if
             end if
-			s=mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
+			s= s + mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
 			if s="" then 
 				tbl_web_tbl_status = tbl_get_field_def(table,field_metadata.field_name,s)
 				if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify
@@ -364,15 +354,25 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 		pos1=1
 		tbl_record_sg(index,EN_TBL_GET)
 		for i = 0 to num_of_fld-1
+			s=""
 			tbl_get_field_info(table,i,field_metadata)
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
 			pos2=instr(pos1,row,delimiter,1)
-            if enclosed_in_quotes=YES and pos2=0 then
-                pos2 = len(row)
+            if enclosed_in_quotes=YES then
+				while instr(pos1,row,"\x22\x22,\x22\x22",1) = pos2 - 1
+					pos1=pos1+1
+					s = s + mid(row,pos1, pos2 - pos1 - 1) + delimiter
+					pos1 = pos2+3
+					pos2=instr(pos1 + 1,row,delimiter,1)
+				wend
+			
+				if pos2 = 0 then
+					pos2 = len(row)
+				end if
             end if
-			s=mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
+			s= s + mid(row,pos1+enclosed_quote_offset,pos2-pos1-enclosed_quote_offset)
 			if s="" then 
 				tbl_web_tbl_status = tbl_get_field_def(table,field_metadata.field_name,s)
 				if tbl_web_tbl_status <> EN_TBL_STATUS_OK then goto verify

@@ -5,3 +5,6 @@ declare function math_pow(base as integer, exp as integer) as real
 declare function math_hex_to_float(num as string) as real
 declare function ftofixed(r as real, decimals as byte) as string
 declare function hex_mac(mac as string) as string
+declare function json_get_value(byref key as string, byref data as string) as string
+declare function escape_string(data as string) as string
+declare function unescape_string(data as string) as string
