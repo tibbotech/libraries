@@ -303,41 +303,26 @@ function escape_string(data as string) as string
     dim x, tmp_instr as byte
     dim tmp_str as string=""
     dim k as byte=1
-    dim escaped_char as string=""
+    dim escaped_char as string(1)="\x5c"
+	dim i as byte=0
     escape_string=""
-    do
-        x = instr(k, data, "\r", 1)
-        escaped_char = "\x5cr"
-
-        tmp_instr = instr(k, data, "\n", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            escaped_char = "\x5cn"
-        end if
-
-        tmp_instr = instr(k, data, "\x22", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            escaped_char = "\x5c\x22"
-        end if
-		
-		tmp_instr = instr(k, data, "\x5c", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            escaped_char = "\x5c\x5c"
-        end if
-		
-        if x <> 0 then
-            escape_string = escape_string + mid(data, k, x - k) + escaped_char
-        end if
-
-        if x = 0 then
-            x = len(data)
-            escape_string = escape_string + mid(data, k, x - k + 1)
-        end if
-			
-        k = x + 1
-    loop while x <> len(data)
+	
+	dim escape_strings as string="\x22\r\n\x5c\t"
+    while k < len(data) + 1
+		for i=0 to len(escape_strings)-1
+			dim escape_char as string(1)=mid(escape_strings,i+1,1)
+			dim current_char as string(1)=mid(data,k,1)
+			if escape_char = current_char then
+				x=k
+				dim tmp1 as string=mid(data,1,x-1)
+				dim tmp2 as string=mid(data,x,len(data)-x+1)
+				data=tmp1+escaped_char+tmp2
+				k = k + 1
+			end if
+		next i
+		k=k+1
+    wend
+	escape_string=data
 end function
 
 function unescape_string(data as string) as string
@@ -345,42 +330,34 @@ function unescape_string(data as string) as string
     dim tmp_str as string=""
     dim k as byte=1
     dim unescaped_char as string=""
-    unescape_string=""
-    do
-        x = instr(k, data, "\x5cr", 1)
-		offset=2
-		unescaped_char="\r"
-		
-        tmp_instr = instr(k, data, "\x5cn", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            unescaped_char = "\n"
-			offset=2
-        end if
+    unescape_string=data
 
-        tmp_instr = instr(k, data, "\x5c\x22", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            unescaped_char = "\x22"
-			offset=2
-        end if
+	while k < len(unescape_string) - 1
+		dim current_char as string(1)=mid(unescape_string,k,1)
+		'\
+		if current_char="\x5c" then
+			current_char=mid(unescape_string,k + 1,1)
+			select case current_char
+			case "r":
+				unescaped_char="\r"
+			case "n":
+				unescaped_char="\n"
+			case "t":
+				unescaped_char="\t"
+			case "\x5c":
+				unescaped_char="\x5c"
+			case "\x22":
+				unescaped_char="\x22"
+			case else:
+				unescaped_char=current_char
+			end select
+			dim tmp1 as string=mid(unescape_string,1,k-1)
+			dim tmp2 as string=mid(unescape_string,k + 2,255)
+			unescape_string=tmp1+unescaped_char+tmp2
+			k = k - 1
+		end if
 		
-		tmp_instr = instr(k, data, "\x5c\x5c", 1)
-        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
-            x = tmp_instr
-            unescaped_char = "\x5c"
-			offset=2
-        end if
-		
-        if x <> 0 then
-            unescape_string = unescape_string + mid(data, k, x - k) + unescaped_char
-        end if
-
-        if x = 0 then
-            x = len(data)
-            unescape_string = unescape_string + mid(data, k, x - k + 1)
-        end if
-			
-        k = x + offset
-    loop while x <> len(data)
+		k=k+1
+    wend
+	
 end function
