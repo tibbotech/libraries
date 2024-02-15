@@ -320,6 +320,13 @@ function escape_string(data as string) as string
             x = tmp_instr
             escaped_char = "\x5c\x22"
         end if
+		
+		tmp_instr = instr(k, data, "\x5c", 1)
+        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
+            x = tmp_instr
+            escaped_char = "\x5c\x5c"
+        end if
+		
         if x <> 0 then
             escape_string = escape_string + mid(data, k, x - k) + escaped_char
         end if
@@ -357,6 +364,14 @@ function unescape_string(data as string) as string
             unescaped_char = "\x22"
 			offset=2
         end if
+		
+		tmp_instr = instr(k, data, "\x5c\x5c", 1)
+        if tmp_instr <> 0 and (tmp_instr < x or x = 0) then
+            x = tmp_instr
+            unescaped_char = "\x5c"
+			offset=2
+        end if
+		
         if x <> 0 then
             unescape_string = unescape_string + mid(data, k, x - k) + unescaped_char
         end if

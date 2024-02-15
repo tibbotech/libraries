@@ -227,12 +227,14 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
-			pos2=instr(pos1,row,delimiter,1)
+			pos2=instr(pos1 + 1,row,delimiter,1)
             if enclosed_in_quotes=YES then
-				while instr(pos1,row,"\x5c\x22,\x22\x5c",1) = pos2 - 1
-					pos1=pos1+1
-					s = s + mid(row,pos1, pos2 - pos1 - 1) + delimiter
-					pos1 = pos2+3
+				while (instr(pos1,row,"\x5c\x22",1) > 0 and instr(pos1,row,"\x5c\x22",1) < instr(pos1 + 1,row,delimiter,1))
+					or (num_of_fld = 1 and instr(pos1,row,"\x5c\x22",1) > 0)
+					pos1 = pos1 + 1
+					pos2=instr(pos1,row,"\x5c\x22",1)
+					s = s + mid(row,pos1, pos2 - pos1) + "\x22"
+					pos1 = pos2+1
 					pos2=instr(pos1 + 1,row,delimiter,1)
 				wend
 			
@@ -359,12 +361,14 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 '			if i>0 then
 '				pos1=instr(pos1,row,",",i)
 '			end if
-			pos2=instr(pos1,row,delimiter,1)
+			pos2=instr(pos1 + 1,row,delimiter,1)
             if enclosed_in_quotes=YES then
-				while instr(pos1,row,"\x22\x22,\x22\x22",1) = pos2 - 1
-					pos1=pos1+1
-					s = s + mid(row,pos1, pos2 - pos1 - 1) + delimiter
-					pos1 = pos2+3
+				while (instr(pos1,row,"\x5c\x22",1) > 0 and instr(pos1,row,"\x5c\x22",1) < instr(pos1 + 1,row,delimiter,1))
+					or (num_of_fld = 1 and instr(pos1,row,"\x5c\x22",1) > 0)
+					pos1 = pos1 + 1
+					pos2=instr(pos1,row,"\x5c\x22",1)
+					s = s + mid(row,pos1, pos2 - pos1) + "\x22"
+					pos1 = pos2+1
 					pos2=instr(pos1 + 1,row,delimiter,1)
 				wend
 			
