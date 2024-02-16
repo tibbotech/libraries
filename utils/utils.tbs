@@ -303,20 +303,21 @@ function escape_string(data as string) as string
     dim x, tmp_instr as byte
     dim tmp_str as string=""
     dim k as byte=1
-    dim escaped_char as string(1)="\x5c"
 	dim i as byte=0
     escape_string=""
 	
-	dim escape_strings as string="\x22\r\n\x5c\t"
+	dim special_characters as string="\x22\r\n\x5c\t"
+	dim escaped_chars as string="\x22rn\x5ct"
     while k < len(data) + 1
-		for i=0 to len(escape_strings)-1
-			dim escape_char as string(1)=mid(escape_strings,i+1,1)
+		for i=0 to len(special_characters)-1
+			dim escape_char as string(1)=mid(special_characters,i+1,1)
+			dim escaped_char as string(1)=mid(escaped_chars,i+1,1)
 			dim current_char as string(1)=mid(data,k,1)
 			if escape_char = current_char then
 				x=k
 				dim tmp1 as string=mid(data,1,x-1)
-				dim tmp2 as string=mid(data,x,len(data)-x+1)
-				data=tmp1+escaped_char+tmp2
+				dim tmp2 as string=mid(data,x + 1,len(data)-x)
+				data=tmp1+"\x5c"+escaped_char+tmp2
 				k = k + 1
 			end if
 		next i
@@ -354,7 +355,6 @@ function unescape_string(data as string) as string
 			dim tmp1 as string=mid(unescape_string,1,k-1)
 			dim tmp2 as string=mid(unescape_string,k + 2,255)
 			unescape_string=tmp1+unescaped_char+tmp2
-			k = k - 1
 		end if
 		
 		k=k+1
