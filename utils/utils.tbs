@@ -244,3 +244,120 @@ function hex_mac(mac as string) as string
 	hex_mac = left(result,len(result)-1)
 
 end function
+
+
+function json_get_value(byref key as string, byref data as string) as string
+    json_get_value=""
+    dim start_pos as byte=0
+    dim end_pos as byte=0
+    dim current_key as string=""
+    start_pos=instr(1,data,"{",1)
+    while start_pos<>0
+        'get current key
+        start_pos=instr(start_pos,data,"\x22",1)
+        if start_pos<>0 then
+            end_pos=instr(start_pos+1,data,"\x22",1)
+            current_key=mid(data,start_pos+1,end_pos-start_pos-1)
+
+            'get value
+            start_pos=instr(end_pos,data,":",1)
+            if start_pos<>0 then
+                end_pos=instr(start_pos,data,",",1)
+                if end_pos=0 then
+                    end_pos=instr(start_pos,data,"}",1)
+                end if
+                
+            end if
+            if current_key=key then
+                dim is_string as boolean=instr(start_pos,data,"\x22",1)=start_pos+1
+                if is_string then
+                    'is string so look for closing quote
+                    dim tmp_end as byte=start_pos+1
+                    while tmp_end<len(data)
+                        tmp_end=instr(tmp_end+1,data,"\x22",1)
+                        if tmp_end=0 then
+                            exit while
+                        end if
+                        if mid(data,tmp_end-1,1)<>"\x5c" then
+                            end_pos=tmp_end+1
+                            exit while
+                        end if
+                    wend
+                end if
+                json_get_value=mid(data,start_pos+1,end_pos-start_pos-1)
+                if is_string then
+					json_get_value=unescape_string(json_get_value)
+                end if
+                if instr(1,json_get_value,"\x22",1)=1 then
+                    json_get_value=mid(json_get_value,2,len(json_get_value)-2)
+                end if
+                exit function
+            end if
+            start_pos=end_pos+1
+
+        end if
+    wend
+end function
+
+function escape_string(data as string) as string
+    dim x, tmp_instr as byte
+    dim tmp_str as string=""
+    dim k as byte=1
+	dim i as byte=0
+    escape_string=""
+	
+	dim special_characters as string="\x22\r\n\x5c\t"
+	dim escaped_chars as string="\x22rn\x5ct"
+    while k < len(data) + 1
+		for i=0 to len(special_characters)-1
+			dim escape_char as string(1)=mid(special_characters,i+1,1)
+			dim escaped_char as string(1)=mid(escaped_chars,i+1,1)
+			dim current_char as string(1)=mid(data,k,1)
+			if escape_char = current_char then
+				x=k
+				dim tmp1 as string=mid(data,1,x-1)
+				dim tmp2 as string=mid(data,x + 1,len(data)-x)
+				data=tmp1+"\x5c"+escaped_char+tmp2
+				k = k + 1
+			end if
+		next i
+		k=k+1
+    wend
+	escape_string=data
+end function
+
+function unescape_string(data as string) as string
+    dim x, tmp_instr, offset as byte
+    dim tmp_str as string=""
+    dim k as byte=1
+    dim unescaped_char as string=""
+    unescape_string=data
+
+	while k < len(unescape_string) - 1
+		dim current_char as string(1)=mid(unescape_string,k,1)
+		'\
+		if current_char="\x5c" then
+			current_char=mid(unescape_string,k + 1,1)
+			select case current_char
+			case "r":
+				unescaped_char="\r"
+			case "n":
+				unescaped_char="\n"
+			case "t":
+				unescaped_char="\t"
+			case "\x5c":
+				unescaped_char="\x5c"
+			case "\x22":
+				unescaped_char="\x22"
+			case else:
+				unescaped_char=current_char
+			end select
+			dim tmp1 as string=mid(unescape_string,1,k-1)
+			dim tmp2 as string=mid(unescape_string,k + 2,255)
+			unescape_string=tmp1+unescaped_char+tmp2
+		end if
+		
+		k=k+1
+    wend
+	
+end function
