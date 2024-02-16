@@ -3067,7 +3067,13 @@ end sub
 '------------------------------------------------------------------------------
 #if TBL_DEBUG_PRINT
 sub tbl_debugprint(byref print_data as string)
-	if tbl_do_not_debug_print=NO then sys.debugprint(TBL_STAMP+print_data+TBL_CR_LF)
+	if tbl_do_not_debug_print=NO then 
+	#IFDEF RETARGET_DEBUG_PRINT
+	sys.trace(TBL_STAMP+print_data+TBL_CR_LF)
+	#ELSE
+	sys.debugprint(TBL_STAMP+print_data+TBL_CR_LF)
+	#ENDIF
+	end if
 end sub
 #endif
 
