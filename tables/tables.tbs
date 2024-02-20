@@ -1126,6 +1126,7 @@ finish:
 			tbl_debug_print_error("tbl_close("+file_name+")",tbl_close)
 		#endif
 	end if
+	tbl_selected_file_name=""
 end function
 
 '------------------------------------------------------------------------------
@@ -2656,7 +2657,11 @@ public function tbl_get_table_name() as string
 	if tbl_selected_file_name="" then
 		tbl_get_table_name=""
 	else
-		tbl_get_table_name=tbl_info(tbl_info_index).table_name
+		if tbl_selected_file_name="" then
+			tbl_get_table_name=""
+		else
+			tbl_get_table_name=tbl_info(tbl_info_index).table_name
+		end if
 	end if
 end function
 
