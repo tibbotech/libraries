@@ -982,6 +982,10 @@ public function tbl_select_for_read(byref table_name_or_num as string, byref fil
 	dim i,j as word
 	dim s as string
 
+    if table_name_or_num = "" then
+		exit function
+	end if
+
 	if tbl_init_flag<>TBL_INIT_SIGNATURE then
 		tbl_select_for_read=EN_TBL_STATUS_NOT_STARTED
 		#if TBL_DEBUG_PRINT
