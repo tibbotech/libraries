@@ -848,7 +848,8 @@ public function tbl_select(byref table_name_or_num as string, byref file_name as
 		exit function
 	end if
 	
-	if len(table_name_or_num)>TBL_MAX_TABLE_NAME_LEN or len(file_name)>TBL_MAX_FILE_NAME_LEN then
+	if len(table_name_or_num)>TBL_MAX_TABLE_NAME_LEN or len(file_name)>TBL_MAX_FILE_NAME_LEN
+    or len(table_name_or_num)=0 or len(file_name)=0 then
 		tbl_select=EN_TBL_STATUS_INV_PARAM
 		#if TBL_DEBUG_PRINT
 			tbl_debug_print_error("tbl_select("+table_name_or_num+")",tbl_select)
