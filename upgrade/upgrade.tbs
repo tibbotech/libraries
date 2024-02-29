@@ -278,11 +278,13 @@ set_sector:
 		fd.setbuffer(fw, 128) 	
 		fd.setsector(current_fw_upg_state.fw_sector)
 		#ELSE
+		dim prev_num as byte=fd.filenum
 		dim fd_status as pl_fd_status_codes
 		fd.filenum=filenum_open("UPG",FIRMWARE_UPGRADE_FILENAME,fd_status)
 		fd.setpointer(fd.filesize+1)
 		fd.setdata(fw_buffer)
 		fd.setdata(fw)
+		fd.filenum=prev_num
 		#ENDIF
 		current_fw_upg_state.fw_sector = current_fw_upg_state.fw_sector + 1
 	end if
