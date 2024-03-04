@@ -426,6 +426,7 @@ sub mqtt_sock_event(newstate as enum pl_sock_state, newstatesimple as enum pl_so
 		#if MQTT_DEBUG_PRINT=1
 		mqtt_debug_print("Lost connection. Reconnecting in "+str(MQTT_RECONNECT_TIME)+" seconds...")
 		#endif
+		callback_mqtt_connect_lost()
 	end if
 	select case newstate
 	case PL_SST_EST_AOPENED:
