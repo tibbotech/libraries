@@ -1,0 +1,14 @@
+'DEFINES-------------------------------------------------------------
+const TBT62_S1_CLK   = PL_IO_NUM_9_TX0		'PL_IO_NUM_11_TX1
+const TBT62_S1_DATA  = PL_IO_NUM_8_RX0		'PL_IO_NUM_10_RX1
+const TBT62_S1_RESET = PL_IO_NUM_0			'PL_IO_NUM_1
+const TBT62_S1_BUSY  = PL_IO_NUM_16_INT0	'PL_IO_NUM_17_INT1
+
+#define TBT62_DEBUG_PRINT 0
+
+'INCLUDES------------------------------------------------------------
+include "libraries\super_i2c.tbh"
+include "libraries\tbt62.tbh"
+include "ssi\trunk\ssi.tbh"
+
+'DECLARATIONS--------------------------------------------------------

@@ -1,0 +1,264 @@
+include "global.tbh"
+
+const CR_LF = chr(13) + chr(10)
+
+dim tbt_channel as byte
+dim temp, hum as real
+dim timer as byte
+
+'Uncomment the following line if you want to use imperial units
+'#define USE_IMPERIAL_UNITS
+
+#ifdef USE_IMPERIAL_UNITS
+#define UNITS TBT62_IMPERIAL_UNITS
+#else
+#define UNITS TBT62_METRIC_UNITS
+#endif
+
+sub on_sys_init()
+	
+	dim Sensor_ID as string(8)
+	dim i as byte
+	dim voltage as string(2)
+	
+	timer = 0
+	
+	sys.debugprint("TBT62 initialize - ")
+
+	select case tbt62_init("MAIN", TBT62_S1_DATA, TBT62_S1_CLK, TBT62_S1_RESET, TBT62_S1_BUSY, UNITS, tbt_channel, YES)
+	case TBT62_INIT_OK:
+		sys.debugprint("Success" + CR_LF)
+		
+	case TBT62_INIT_ERROR_SI2C_NO_EMPTY_CHANNEL:
+		sys.debugprint("No empty SI2C channel!" + CR_LF)
+		exit sub
+		
+	case TBT62_INIT_ERROR_NO_VALID_VERSION:
+		sys.debugprint("No Tibbit installed or wrong version!" + CR_LF)
+		exit sub
+		
+	case TBT62_INIT_ERROR_FAULT_CHECK_3V3:
+		sys.debugprint("Fault 3.3V check!" + CR_LF)
+		
+	case TBT62_INIT_ERROR_FAULT_CHECK_VCC:
+		sys.debugprint("Fault VCC check!" + CR_LF)
+		
+	case TBT62_INIT_ERROR_POWER_FAULT_CHECK:
+		sys.debugprint("Fault PowerFault signal check!" + CR_LF)
+		
+	end select
+	
+	' Set VCC on
+	sys.debugprint("Set VCC on - ")
+	if not tbt62_vcc_control(TBT62_VCC_ON, tbt_channel) then
+		sys.debugprint("fault!" + CR_LF)
+		exit sub
+	else
+		sys.debugprint("succesfully" + CR_LF)
+	end if
+	
+	dim voltager as real
+	' Get voltage VCC
+	sys.debugprint("Get voltage VCC - ")
+	voltager = tbt62_get_VCC_voltage(tbt_channel)
+	if voltager = -1000 then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	end if
+	sys.debugprint("Voltage Vcc : " + ftostr(voltager, FTOSTR_MODE_PLAIN, 3) + "V" + CR_LF)
+	
+	' Get voltage 3V3
+	sys.debugprint("Get voltage 3v3 - ")
+	voltager = tbt62_get_3V3_voltage(tbt_channel)
+	if voltager = -1000 then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	end if
+	sys.debugprint("Voltage 3.3V : " + ftostr(voltager, FTOSTR_MODE_PLAIN, 3) + "V" + CR_LF)
+	
+	' Get power fault
+	sys.debugprint("Get power fault - ")
+	dim powerFault as byte
+	powerFault = tbt62_get_power_fault(tbt_channel)
+	if powerFault = 255 then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	end if
+	sys.debugprint("Power Fault status : " + str(powerFault) + CR_LF)
+	
+	' Single Wire MODE
+	sys.debugprint("Single Wire test" + CR_LF)
+	
+	sys.debugprint("Set mode SingleWire for channel 1 - ")
+	if not tbt62_set_mode(TBT62_SINGLE_WIRE, TBT62_CHANNEL_1, tbt_channel) then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	else
+		sys.debugprint("success" + CR_LF)
+	end if
+
+	sys.debugprint("Get temp and hum - ")
+	select case tbt62_sw_get_temp_hum(temp, hum, DHT11, TBT62_CHANNEL_1, tbt_channel)
+	case TBT62_NO_FAULT:
+		sys.debugprint("success" + CR_LF)
+		#ifndef USE_IMPERIAL_UNITS
+		sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°C, Hum: " + ftostr(hum, FTOSTR_MODE_PLAIN, 5) + "% RH" + CR_LF)
+		#else
+		sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°F, Hum: " + ftostr(hum, FTOSTR_MODE_PLAIN, 5) + "% RH" + CR_LF)
+		#endif
+	case TBT62_FAULT_TIBBIT:
+		sys.debugprint("send command fault!" + CR_LF)
+	'	exit sub
+
+	case TBT62_FAULT_CONTROLSUM:
+		sys.debugprint("Control sum fault!" + CR_LF)
+	'	exit sub
+	
+	case TBT62_FAULT_NO_SENSOR
+		sys.debugprint("No sensor!" + CR_LF)
+
+	end select
+	
+	' OneWire mode
+	sys.debugprint("OneWire test" + CR_LF)
+	sys.debugprint("Select channel 2 - ")
+	if not tbt62_send_command(TBT62_CMD_SELECTCHANNEL + TBT62_CHANNEL_2, tbt_channel) then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	else
+		sys.debugprint("success" + CR_LF)
+	end if
+
+	sys.debugprint("Set mode OneWire for channel 2 - ")
+	if not tbt62_set_mode(TBT62_ONE_WIRE, TBT62_CHANNEL_2, tbt_channel) then
+		sys.debugprint("send command fault!" + CR_LF)
+		exit sub
+	else
+		sys.debugprint("success" + CR_LF)
+	end if
+	' Search devices and request temperature from found temperature sensors
+	'Find first device
+	sys.debugprint("Find first device - ")
+	if not tbt62_send_command(TBT62_CMD_SEARCHFIRST, tbt_channel) then
+		sys.debugprint(" send command fault!" + CR_LF)
+		exit sub
+	end if
+			
+	while (true)
+		' Wait BUSY
+		sys.debugprint("finding. Wait BUSY - ")
+		while (tbt62_checkBusy(tbt_channel) = false)
+		wend
+			
+		' Read results of search sensor
+		sys.debugprint("Read ID - ")
+		if not tbt62_read_data(Sensor_ID, 8, tbt_channel) then
+			sys.debugprint("send command fault!" + CR_LF)
+			exit sub
+		end if
+		
+		' Check Sensor ID
+		if (Sensor_ID = (chr(255) + chr(255) + chr(255) + chr(255) + chr(255) + chr(255) + chr(255) + chr(255))) then
+				sys.debugprint(" Sensors not found!" + CR_LF)
+			exit while
+		end if
+		
+		sys.debugprint("Sensor ID: " + tbt62_ID_Hex(Sensor_ID) + CR_LF)
+		
+		' Get temperature
+		sys.debugprint("Get temperature..." + CR_LF)
+		select case tbt62_ow_get_temperature(temp, Sensor_ID, TBT62_CHANNEL_2, tbt_channel)
+		case TBT62_NO_FAULT:
+			#ifndef USE_IMPERIAL_UNITS
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°C" + CR_LF)
+			#else
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°F" + CR_LF)
+			#endif
+			
+		case TBT62_FAULT_TIBBIT:
+			sys.debugprint(" send command fault!" + CR_LF)
+			exit sub
+			
+		case TBT62_FAULT_CONTROLSUM:
+			sys.debugprint("Control sum fault!" + CR_LF)
+			
+		case TBT62_FAULT_NO_SENSOR
+			sys.debugprint("No sensor!" + CR_LF)
+
+		end select
+		
+		'Find next device
+		sys.debugprint("Find next device - ")
+		if not tbt62_send_command(TBT62_CMD_SEARCHNEXT, tbt_channel) then
+			sys.debugprint(" send command fault!" + CR_LF)
+			exit sub
+		end if
+			
+	wend
+	
+end sub
+
+sub on_sys_timer()
+
+	if timer < 20 then
+		timer = timer + 1
+	else
+		timer = 0
+
+			' Single Wire MODE
+		sys.debugprint("Single Wire test" + CR_LF)
+		
+		sys.debugprint("Get temp and hum - ")
+		select case tbt62_sw_get_temp_hum(temp, hum, DHT11, TBT62_CHANNEL_1, tbt_channel)
+		case TBT62_NO_FAULT:
+			sys.debugprint("success" + CR_LF)
+			#ifndef USE_IMPERIAL_UNITS
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°C, Hum: " + ftostr(hum, FTOSTR_MODE_PLAIN, 5) + "% RH" + CR_LF)
+			#else
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°F, Hum: " + ftostr(hum, FTOSTR_MODE_PLAIN, 5) + "% RH" + CR_LF)
+			#endif
+
+		case TBT62_FAULT_TIBBIT:
+			sys.debugprint("send command fault!" + CR_LF)
+		'	exit sub
+
+		case TBT62_FAULT_CONTROLSUM:
+			sys.debugprint("Control sum fault!" + CR_LF)
+		'	exit sub
+
+		case TBT62_FAULT_NO_SENSOR
+			sys.debugprint("No sensor!" + CR_LF)
+
+		end select
+
+		'id: 28 06 1E DB 0C 00 00 5C 
+		'28 06 1E DB 0C 00 00 5C 
+		dim SID as string(8)
+		dim tmp as real
+		SID="\x28\x06\x1E\xDB\x0C\x00\x00\x5C"
+		
+		' Get temperature
+		sys.debugprint("OneWire test. Get temperature..." + CR_LF)
+		select case tbt62_ow_get_temperature(temp, SID, TBT62_CHANNEL_2, tbt_channel)
+		case TBT62_NO_FAULT:
+			#ifndef USE_IMPERIAL_UNITS
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°C" + CR_LF)
+			#else
+			sys.debugprint("Temp: " + ftostr(temp, FTOSTR_MODE_PLAIN, 5)+ "°F" + CR_LF)
+			#endif
+			
+		case TBT62_FAULT_TIBBIT:
+			sys.debugprint(" send command fault!" + CR_LF)
+			
+		case TBT62_FAULT_CONTROLSUM:
+			sys.debugprint("Control sum fault!" + CR_LF)
+			
+		case TBT62_FAULT_NO_SENSOR
+			sys.debugprint("No sensor!" + CR_LF)
+
+		end select
+
+	end if
+	
+	
+end sub
