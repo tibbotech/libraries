@@ -1,4 +1,4 @@
-include "PIC_LVP.tbh"
+include "global.tbh"
 
 dim icsp_sda as pl_io_num = PL_IO_NULL
 dim icsp_scl as pl_io_num = PL_IO_NULL
@@ -9,8 +9,10 @@ dim icsp_mclr as pl_io_num = PL_IO_NULL
 enum pic_lvp_cmd
 	CMD_LOAD_CONFIG                        = &h00,	' read  (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_PROGRAM_MEMORY       = &h02,	' write (0) data(14) (0)
+	CMD_LOAD_DATA_FOR_PROGRAM_MEMORY_WINC  = &h22,	' write (0) data(14) (0)
 	CMD_LOAD_DATA_FOR_DATA_MEMORY          = &h03,	' write (0) data(8) zero(6) (0)
 	CMD_READ_DATA_FROM_PROGRAM_MEMORY      = &h04,	' read  (0) data(14) (0)
+	CMD_READ_DATA_FROM_PROGRAM_MEMORY_WINC = &h24,	' read  (0) data(14) (0)
 	CMD_READ_DATA_FROM_DATA_MEMORY         = &h05,	' read  (0) data(8) zero(6) (0)
 	CMD_INCREMENT_ADDRESS                  = &h06,	' -
 	CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING = &h08,	' -
@@ -19,7 +21,8 @@ enum pic_lvp_cmd
 	CMD_BULK_ERASE_DATA_MEMORY             = &h0B,	' -
 	CMD_ROW_ERASE_PROGRAM_MEMORY           = &h11,  ' -
 	CMD_RESET_ADDRESS                      = &h16,	' -
-	CMD_BEGIN_EXTERNALLY_TIMED_PROGRAMMING = &h18	' -
+	CMD_BEGIN_EXTERNALLY_TIMED_PROGRAMMING = &h18,	' -
+	CMD_LOAD_PC_ADDRESS                    = &h1D	' write (0) address(22) (0)
 end enum
 
 enum pic_lvp_cmd_new
@@ -77,13 +80,14 @@ sub delay()
 
 	dim i as byte 
 	dim d as byte 
+	
 	if sys.runmode=PL_SYS_MODE_RELEASE then 
 		d = 8
 	else 
 		d = 1 
 	end if
+	
 	for i = 0 to d
-		
 	next i
 	
 end sub
@@ -175,14 +179,22 @@ sub pic_command(b as byte)
 	' and taken from his project. Big thanks, Steve :)
 	'
 	pic_send_bits(b, 6)
+	
+	tms = 0
 	select case b
 		case CMD_READ_DATA_FROM_PROGRAM_MEMORY
+			tms = 1
+			
+		case CMD_READ_DATA_FROM_PROGRAM_MEMORY_WINC
 			tms = 1
 			
 		case CMD_INCREMENT_ADDRESS
 			tms = 1
 			
 		case CMD_RESET_ADDRESS
+			tms = 1
+			
+		case CMD_LOAD_PC_ADDRESS
 			tms = 1
 			
 		case CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING
@@ -206,10 +218,12 @@ sub pic_command(b as byte)
 	case else:
 		exit sub
 	end select
+	
 	if sys.runmode = PL_SYS_MODE_RELEASE then 
 		tms = tms *8
 	end if
-	for i=0 to tms
+	
+	for i = 0 to tms
 	next i
 
 end sub
@@ -268,28 +282,28 @@ sub pic_command_new(command as byte)
 	
 	pic_send_bits_new(command, 8)
 	select case command
-		case NEW_CMD_LOAD_DATA_FOR_NVM:
+		case NEW_CMD_LOAD_DATA_FOR_NVM
 		
-		case NEW_CMD_LOAD_DATA_FOR_NVM_INC:
+		case NEW_CMD_LOAD_DATA_FOR_NVM_INC
 			tms = 0
 			
-		case NEW_CMD_BULK_ERASE_PROGRAMM_MEMORY:
+		case NEW_CMD_BULK_ERASE_PROGRAMM_MEMORY
 			tms = 900
 			
 		case NEW_CMD_LOAD_PC_ADDRESS:
 			tms = 0
 			
-		case NEW_CMD_END_EXTERNALLY_TIMED_PROGRAMMING:
-		case NEW_CMD_BEGIN_EXTERNALLY_TIMED_PROGRAMMING:
-		case NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING:
+		case NEW_CMD_END_EXTERNALLY_TIMED_PROGRAMMING
+		case NEW_CMD_BEGIN_EXTERNALLY_TIMED_PROGRAMMING
+		case NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING
 			tms = 700
 			
-		case NEW_CMD_ROW_ERASE_PROGRAM_MEMORY:
-		case NEW_CMD_INCREMENT_ADDRESS:
+		case NEW_CMD_ROW_ERASE_PROGRAM_MEMORY
+		case NEW_CMD_INCREMENT_ADDRESS
 			tms = 0
 			
-		case NEW_CMD_READ_DATA_FROM_NVM:
-		case NEW_CMD_READ_DATA_FROM_NVM_INC:
+		case NEW_CMD_READ_DATA_FROM_NVM
+		case NEW_CMD_READ_DATA_FROM_NVM_INC
 			tms = 0
 			
 	case else:
@@ -319,15 +333,24 @@ function pic_command_payload_get_new(command as byte) as dword
 	
 end function
 
-function pic_recv_pgm_word() as word
+function pic_recv_pgm_word(options as byte) as word
 
 	dim w as word
 	
-	pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY)
-	w = pic_recv_bits()
-	pic_recv_pgm_word = swab(w) ' swap nibbles
+	select case options
+	case 0:
+		pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY)
+		w = pic_recv_bits()
+		pic_recv_pgm_word = swab(w) ' swap nibbles
 
-	pic_command(CMD_INCREMENT_ADDRESS)
+		pic_command(CMD_INCREMENT_ADDRESS)
+
+	case 2:
+		pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY_WINC)
+		w = pic_recv_bits()
+		pic_recv_pgm_word = swab(w) ' swap nibbles
+
+	end select
 
 end function
 
@@ -341,12 +364,20 @@ function pic_recv_data_byte() as byte
 	
 end function
 
-function pic_recv_cfg_word() as word
+function pic_recv_cfg_word(options as byte) as word
 
-	pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY)
-	pic_recv_cfg_word = pic_recv_bits() ' No need to swap nibbles
+	select case options
+	case 0:
+		pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY)
+		pic_recv_cfg_word = pic_recv_bits() ' No need to swap nibbles
 
-	pic_command(CMD_INCREMENT_ADDRESS)
+		pic_command(CMD_INCREMENT_ADDRESS)
+		
+	case 2:
+		pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY_WINC)
+		pic_recv_cfg_word = pic_recv_bits() ' No need to swap nibbles
+
+	end select
 
 end function
 
@@ -354,19 +385,52 @@ end function
 ' Loads a current latch with 14 bits of data, then
 ' increments latch address
 '
-sub pic_send_pgm_word(w as word, doinc as boolean)
+sub pic_send_pgm_word(w as word, doinc as boolean, options as byte)
 
 	dim t as word
 	
 	t = swab(w) ' swap nibbles
-	pic_command(CMD_LOAD_DATA_FOR_PROGRAM_MEMORY)
-	pic_send_bits((t shl 1) and &h7FFE, 16)
 	
-	if doinc then
-		pic_command(CMD_INCREMENT_ADDRESS)
-	end if
-	
+	select case options
+	case 0:
+		pic_command(CMD_LOAD_DATA_FOR_PROGRAM_MEMORY)
+		pic_send_bits((t shl 1) and &h7FFE, 16)
+		
+		if doinc then
+			pic_command(CMD_INCREMENT_ADDRESS)
+		end if
+		
+	case 2:
+		if doinc then
+			pic_command(CMD_LOAD_DATA_FOR_PROGRAM_MEMORY_WINC)
+		else 
+			pic_command(CMD_LOAD_DATA_FOR_PROGRAM_MEMORY)
+		end if
+		pic_send_bits((t shl 1) and &h7FFE, 16)
+		
+	end select
 end sub
+
+sub pic_send_ee_word(b as byte)
+
+	dim w as word 
+	
+	w = b
+	
+	pic_command(CMD_LOAD_DATA_FOR_PROGRAM_MEMORY)
+	pic_send_bits((w shl 1) and &h7FFE, 16)
+		
+end sub
+
+function pic_read_ee_word() as byte
+
+	dim w as word 
+
+	pic_command(CMD_READ_DATA_FROM_PROGRAM_MEMORY_WINC)
+	w = pic_recv_bits()
+	pic_read_ee_word = w
+		
+end function
 
 sub pic_send_data_byte(b as byte)
 
@@ -393,28 +457,34 @@ sub pic_erase_data()
 	
 end sub
 
-sub pic_bulk_erase_device(option as byte)
+sub pic_load_pc_address(address as dword)
 	
-	if option = 0 then
+	pic_command(CMD_LOAD_PC_ADDRESS)
+	pic_send_bits((address shl 1) and &h7FFFFE, 24)
+	
+end sub
 
+sub pic_bulk_erase_device(options as byte)
+
+	select case options
+	case 0:
+	case 2:
 		pic_command(CMD_LOAD_CONFIG) 
 		pic_recv_bits()
 
 		pic_command(CMD_BULK_ERASE_PROGRAM_MEMORY)
 		
 		pic_erase_data()
-		
-	else
-		if option = 1 then
-			
+	
+	case 1:
 			' New PIC
 			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h0000)
 			pic_command_new(NEW_CMD_BULK_ERASE_PROGRAMM_MEMORY)
 			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8000)
 			pic_command_new(NEW_CMD_BULK_ERASE_PROGRAMM_MEMORY)
-			
-		end if
-	end if
+		
+	end select
+
 end sub
 
 ' Performs one-word program cycle, as depicted on picture 5-3 on page 24 of the pdf
@@ -470,21 +540,23 @@ sub pic_enter_lvp_mode(options as byte)
 	' This is a 'magic' sequence of bits, which forces PIC
 	' to fall into the low voltage programming mode
 
-	if options = 0 then	' OLD PICs
+	select case options
+	case 0:		' OLD PICs
+	case 2:		' 16(L)F183xx
 		' Note that bit order is LSB to MSB!
 		pic_send_bits(&b01010000, 8) ' P
 		pic_send_bits(&b01001000, 8) ' H
 		pic_send_bits(&b01000011, 8) ' C
 		pic_send_bits(&b01001101, 9) ' M + 1 extra 0 bit
-	end if
-	
-	if options = 1 then	' NEW PICs
+
+	case 1:		' NEW PICs
 		pic_send_bits_new(&b01001101010000110100100001010000, 32)
 		'pic_send_bits(&b10110010, 8) ' M 
 		'pic_send_bits(&b11000010, 8) ' C 
 		'pic_send_bits(&b00010010, 8) ' H 
 		'pic_send_bits(&b00001010, 8) ' P 
-	end if
+		
+	end select
 	
 	delay_ms(20)
 	
@@ -512,7 +584,7 @@ sub pic_leave_lvp_mode()
 end sub
 
 
-function pic_id(id as word, byref model as string, byref rev as byte, byref options as byte) as boolean
+function pic_id(id as word, byref model as string, byref rev as byte, byref options as byte, byref mask as word) as boolean
 
 	dim ids as word
 	
@@ -523,6 +595,8 @@ function pic_id(id as word, byref model as string, byref rev as byte, byref opti
 	ids = id and &h3FE0
 	
 	model = ""
+	
+	mask = &h3FE0
 	
 	select case ids
 		case &b10011110000000
@@ -580,6 +654,9 @@ function pic_id(id as word, byref model as string, byref rev as byte, byref opti
 		exit function
 	end if
 			
+	rev = 0
+	mask = &h3FFF
+	
 	select case id
 		case &h3000:
 			model = "16F1574"
@@ -607,52 +684,52 @@ function pic_id(id as word, byref model as string, byref rev as byte, byref opti
 			options = 0
 		case &h3066
 			model = "16F18313"
-			options = 0
+			options = 2
 		case &3068
 			model = "16LF18313"
-			options = 0
+			options = 2
 		case &h3067
 			model = "16F18323"
-			options = 0
+			options = 2
 		case &h3069
 			model = "16LF18323"
-			options = 0
+			options = 2
 		case &h303A
 			model = "16F18324"
-			options = 0
+			options = 2
 		case &h303C
 			model = "16LF18324"
-			options = 0
+			options = 2
 		case &h303B
 			model = "16F18344"
-			options = 0
+			options = 2
 		case &h303D
 			model = "16LF18344"
-			options = 0
+			options = 2
 		case &h303E
 			model = "16F18325"
-			options = 0
+			options = 2
 		case &h3040
 			model = "16LF18325"
-			options = 0
+			options = 2
 		case &h303F
 			model = "16F18345"
-			options = 0
+			options = 2
 		case &h3041
 			model = "16LF18345"
-			options = 0
+			options = 2
 		case &h30A4
 			model = "16F18326"
-			options = 0
+			options = 2
 		case &h30A6
 			model = "16LF18326"
-			options = 0
+			options = 2
 		case &h30A5
 			model = "16F18346"
-			options = 0
+			options = 2
 		case &h30A7
 			model = "16LF18346"
-			options = 0
+			options = 2
 		case &h30CA
 			model = "16F18424"
 			options = 1
@@ -718,6 +795,7 @@ function load_firmware(byref name as string, byref fw as firmware) as boolean
 	dim s, st as string
 	dim rlen, rtyp as byte
 	dim crlf as string(2)
+	dim crlfsize as byte
 	
 	load_firmware = false
 
@@ -743,8 +821,10 @@ function load_firmware(byref name as string, byref fw as firmware) as boolean
 	' Determine, whether line endings in hex file is Windows-style or Unix-style
 	if 0 = romfile.find32(0, "\r\n", 1) then
 		crlf = "\n"
+		crlfsize = 1
 	else
 		crlf = "\r\n"
+		crlfsize = 2
 	end if
 	
 	lba = 0
@@ -770,7 +850,7 @@ function load_firmware(byref name as string, byref fw as firmware) as boolean
 		' Get the record
 		romfile.pointer32 = p
 		s = romfile.getdata(e - p)
-		p = e + 2
+		p = e + crlfsize
 		
 		' Parse the record
 		rlen = val("&h" + mid(s, 2, 2))
@@ -854,7 +934,9 @@ function program_user_id(byref fw as firmware, n as byte, nn as byte, options as
 	sys.debugprint(" Uploading ")
 #endif
 
-	if options = 0 then
+	select case options
+	case 0:
+	case 2:
 		' Set config address space
 		pic_command(CMD_LOAD_CONFIG)
 		pic_recv_bits()
@@ -867,8 +949,8 @@ function program_user_id(byref fw as firmware, n as byte, nn as byte, options as
 				exit function
 			end if
 		next i
-	else
-		if options = 1 then
+
+	case 1:
 			' NEW PIC
 			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8000)
 			
@@ -892,11 +974,10 @@ function program_user_id(byref fw as firmware, n as byte, nn as byte, options as
 					exit function
 				end if
 			next i
-			
-		end if
-	end if
-			
-	program_user_id = true
+
+	end select
+
+program_user_id = true
 
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("\r\n Success\r\n")
@@ -917,8 +998,8 @@ function program_config_words(byref fw as firmware, n as byte, nn as byte, optio
 	sys.debugprint(" Uploading ")
 #endif
 
-	if options = 0 then
-	
+	select case options 
+	case 0:
 		pic_command(CMD_RESET_ADDRESS)
 
 		pic_command(CMD_LOAD_CONFIG) 
@@ -945,34 +1026,60 @@ function program_config_words(byref fw as firmware, n as byte, nn as byte, optio
 		if pic_send_cfg_word(config1) <> true then			' 0x8008
 			exit function
 		end if
-	else
-		if options = 1 then
+	
+	case 2:
+		pic_load_pc_address(0)
+
+		pic_command(CMD_LOAD_CONFIG) 
+		pic_recv_bits()
+
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8001
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8002
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8003
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8004
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8005
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8006
+		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8007
+
+		' Config words 1 and 2
+		'
+		config0 = swab(fw.config(7)) and &h3FFF
+		config1 = swab(fw.config(8)) and &h3FFF
 		
-			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8007)	' Configs address
-			
-			for i = 0 to 3
-				pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, swab(fw.config(i + 7)))
-				pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
-				for j = 0 to 1000
-				next j
-				pic_command_new(NEW_CMD_INCREMENT_ADDRESS)
-			next i
-			
-			' Verify
-			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8007)	' Configs address
-			
-			for i = 0 to 3
-				temp = swab(pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC))
-				if temp <> fw.config(i + 7) then
-#ifdef PIC_LVP_DEBUG_PRINT
-					sys.debugprint("\r\n Data check error: " + hex(i+&h8007) + ": read " + hex(swab(temp)) + ", expected " + hex(swab(fw.config(i+7))) + "\r\n")
-#endif
-					exit function
-				end if
-			next i
-			
+		sys.debugprint(" CONFIG1 and CONFIG2 words are " + hex(config0) + " and " + hex(config1) + "\r\n")
+		
+		if pic_send_cfg_word(config0) <> true then			' 0x8007
+			exit function
 		end if
-	end if
+		if pic_send_cfg_word(config1) <> true then			' 0x8008
+			exit function
+		end if
+	
+	case 1:
+		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8007)	' Configs address
+		
+		for i = 0 to 3
+			pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, swab(fw.config(i + 7)))
+			pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
+			for j = 0 to 1000
+			next j
+			pic_command_new(NEW_CMD_INCREMENT_ADDRESS)
+		next i
+		
+		' Verify
+		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8007)	' Configs address
+		
+		for i = 0 to 3
+			temp = swab(pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC))
+			if temp <> fw.config(i + 7) then
+#ifdef PIC_LVP_DEBUG_PRINT
+				sys.debugprint("\r\n Data check error: " + hex(i+&h8007) + ": read " + hex(swab(temp)) + ", expected " + hex(swab(fw.config(i+7))) + "\r\n")
+#endif
+				exit function
+			end if
+		next i
+		
+	end select
 	
 	program_config_words = true
 
@@ -982,7 +1089,7 @@ function program_config_words(byref fw as firmware, n as byte, nn as byte, optio
 
 end function
 
-function program_programm(byref fw as firmware, n as byte, nn as byte, option as byte) as boolean
+function program_programm(byref fw as firmware, n as byte, nn as byte, options as byte) as boolean
 
 	dim i, j, temp, datalen as word
 	
@@ -1001,37 +1108,49 @@ function program_programm(byref fw as firmware, n as byte, nn as byte, option as
 	sys.debugprint(" Uploading ")
 #endif
 
-	if option = 0 then
+	select case options
+	case 0
 		pic_command(CMD_RESET_ADDRESS)
-	else
-		if option = 1 then
-			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, 0)
-		end if
-	end if
+	
+	case 1
+		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, 0)
+		
+	case 2
+		pic_load_pc_address(0)
+		
+	end select 
 
 	for i = 0 to datalen - 1 step 32
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("#")
 #endif
-		if option = 0 then
+		select case options
+		case 0
 			for j = 0 to 31
-				pic_send_pgm_word(fw.data(i + j), j < 31)
+				pic_send_pgm_word(fw.data(i + j), j < 31, options)
 			next j
 			pic_command(CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
 			pic_command(CMD_INCREMENT_ADDRESS)
-		else
-			if option = 1 then
-				for j = 0 to 31
-					if j < 31 then 
-						pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM_INC, swab(fw.data(i + j)))
-					else
-						pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, swab(fw.data(i + j)))
-					end if
-				next j
-				pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
-				pic_command_new(NEW_CMD_INCREMENT_ADDRESS)
-			end if
-		end if
+			
+		case 1
+			for j = 0 to 31
+				if j < 31 then 
+					pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM_INC, swab(fw.data(i + j)))
+				else
+					pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, swab(fw.data(i + j)))
+				end if
+			next j
+			pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
+			pic_command_new(NEW_CMD_INCREMENT_ADDRESS)
+			
+		case 2
+			for j = 0 to 31
+				pic_send_pgm_word(fw.data(i + j), j < 31, options)
+			next j
+			pic_command(CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
+			pic_command(CMD_INCREMENT_ADDRESS)
+		
+		end select
 	next i
 
 #ifdef PIC_LVP_DEBUG_PRINT
@@ -1044,33 +1163,47 @@ function program_programm(byref fw as firmware, n as byte, nn as byte, option as
 	sys.debugprint(" Verifying ")
 #endif
 	
-	if option = 0 then
+	select case options
+	case 0
 		pic_command(CMD_RESET_ADDRESS)
-	else
-		if option = 1 then
-			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, 0)
-		end if
-	end if
+	
+	case 1
+		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, 0)
+			
+	case 2
+		pic_load_pc_address(0)
+	
+	end select
 
 	for i = 0 to datalen - 1 step 32
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("#")
 #endif
+
+		dim fail as boolean
+		fail = false
 		for j = 0 to 31
-			if option = 0 then
-				temp = pic_recv_pgm_word()
-			else
-				if option = 1 then
-					temp = swab(pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC))
-				end if
-			end if 
+			select case options
+			case 0:
+			case 2:
+				temp = pic_recv_pgm_word(options)
+			
+			case 1:
+				temp = swab(pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC))
+				
+			end select
+			
 			if temp <> fw.data(i + j) then
 #ifdef PIC_LVP_DEBUG_PRINT
 				sys.debugprint("\r\n Data check error: "+hex(i+j)+": read "+hex(swab(temp))+", expected "+hex(swab(fw.data(i+j)))+"\r\n")
 #endif
-				exit function
+				'exit function
+				fail = true
 			end if
 		next j
+		
+		if fail then exit function
+		
 	next i
 
 #ifdef PIC_LVP_DEBUG_PRINT
@@ -1092,14 +1225,19 @@ function program_data(byref fw as firmware, n as byte, nn as byte, options as by
 	sys.debugprint("DATA MEMORY. TRY " + str(n) + " OF " + str(nn) + "\r\n")
 #endif
 
-	if options = 0 then
+	select case options
+	case 0:
 		pic_command(CMD_LOAD_CONFIG) 
 		pic_recv_bits()
-	else
-		if options = 1 then
-			pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &hf000)	'EEPROM address
-		end if
-	end if
+	
+	case 2:
+		pic_load_pc_address(&hF000)
+		
+	case 1:
+		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &hf000)	'EEPROM address
+		
+	end select
+	
 #ifdef PIC_LVP_DEBUG_PRINT
 	sys.debugprint(" Uploading ")
 #endif
@@ -1108,34 +1246,53 @@ function program_data(byref fw as firmware, n as byte, nn as byte, options as by
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("#")
 #endif
-		if options = 0 then
+
+		select case options
+		case 0:
 			pic_send_data_byte(fw.eeprom(i))
 			pic_command(CMD_BEGIN_EXTERNALLY_TIMED_PROGRAMMING)
 			pic_command(CMD_END_EXTERNALLY_TIMED_PROGRAMMING)
-		else
-			if options = 1 then
-				pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, fw.eeprom(i))
-				pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
-			end if
-		end if
+
+		case 2:
+			pic_send_ee_word(fw.eeprom(i))
+			pic_command(CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
+		
+		case 1:
+			pic_command_payload_new(NEW_CMD_LOAD_DATA_FOR_NVM, fw.eeprom(i))
+			pic_command_new(NEW_CMD_BEGIN_INTERNALLY_TIMED_PROGRAMMING)
+			
+		end select
+
 		' Verify
 		
-		if options = 0 then
+		select case options
+		case 0:
 			temp = pic_recv_data_byte()
-		else
-			if options = 1 then
-				temp = pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC)
-			end if
-		end if
+			
+		case 2:
+			temp = pic_read_ee_word()
+		
+		case 1:
+			temp = pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM_INC)
+			
+		end select
+
 		if fw.eeprom(i) <> temp then
 #ifdef PIC_LVP_DEBUG_PRINT
 			sys.debugprint("\r\n Data check error: "+hex(i)+": read "+hex(temp)+", expected "+hex(fw.eeprom(i))+"\r\n")
 #endif
 			exit function
 		end if
-		if options = 0 then
+		select case options
+		case 0:
 			pic_command(CMD_INCREMENT_ADDRESS)
-		end if
+			
+		case 2:
+		
+		case 1:
+			
+		end select
+
 	next i
 
 #ifdef PIC_LVP_DEBUG_PRINT
@@ -1148,9 +1305,10 @@ end function
 
 function check_pic(options as byte) as boolean
 	
-	dim pic as dword
+	dim pic as word
 	dim rev as byte
 	dim model as string(10)
+	dim mask as word
 	dim config1 as word
 	dim config2 as word
 	
@@ -1160,7 +1318,9 @@ function check_pic(options as byte) as boolean
 	sys.debugprint("PIC CHECKING\r\n")
 #endif
 
-	if options = 0 then
+	select case options
+	case 0
+	case 2
 		' Set config address space
 		pic_command(CMD_LOAD_CONFIG)
 		pic_recv_bits()
@@ -1172,15 +1332,15 @@ function check_pic(options as byte) as boolean
 		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8005
 		pic_command(CMD_INCREMENT_ADDRESS)	' 0x8006
 
-		pic = pic_recv_cfg_word()
-		config1 = pic_recv_cfg_word()
-		config2 = pic_recv_cfg_word()
+		pic = pic_recv_cfg_word(options)
+		config1 = pic_recv_cfg_word(options)
+		config2 = pic_recv_cfg_word(options)
 		
-		if pic_id(pic, model, rev, options) = true then
+		if pic_id(pic, model, rev, options, mask) = true then
 #ifdef PIC_LVP_DEBUG_PRINT
 			sys.debugprint(" Detected old " + model + " revision " + str(rev) + "\r\n")
 #endif
-			if (pic and &h3FE0) <> PIC_LVP_TARGET_TYPE then
+			if (pic and mask) <> PIC_LVP_TARGET_TYPE then
 #ifdef PIC_LVP_DEBUG_PRINT
 				sys.debugprint(" Wrong PIC!!!\r\n")
 #endif
@@ -1192,13 +1352,12 @@ function check_pic(options as byte) as boolean
 #endif
 			exit function
 		end if
-	end if
 	
-	if options = 1 then
+	case 1
 		pic_command_payload_new(NEW_CMD_LOAD_PC_ADDRESS, &h8006)	  ' ID device address
 		pic = pic_command_payload_get_new(NEW_CMD_READ_DATA_FROM_NVM) ' Get data
 		
-		if pic_id(pic, model, rev, options) = true then
+		if pic_id(pic, model, rev, options, mask) = true then
 			' New PIC detected
 			
 #ifdef PIC_LVP_DEBUG_PRINT
@@ -1216,7 +1375,7 @@ function check_pic(options as byte) as boolean
 #endif
 			exit function
 		end if
-	end if
+	end select
 	
 	check_pic = true
 
@@ -1244,12 +1403,13 @@ function program_firmware(byref fw as firmware) as boolean
 
 	dim try as byte
 	dim options as byte
+	dim mask as word
 	dim name as string(20)
 	dim rev as byte
 
 	program_firmware = false
 	
-	if pic_id(PIC_LVP_TARGET_TYPE, name, rev, options) <> true then
+	if pic_id(PIC_LVP_TARGET_TYPE, name, rev, options, mask) <> true then
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("Unknown TARGET PIC\r\n")
 #endif
@@ -1289,7 +1449,7 @@ function program_firmware(byref fw as firmware) as boolean
 			pic_leave_lvp_mode()
 			pic_do_reset()
 			delay_ms(25)
-			'pic_enter_lvp_mode()
+			pic_enter_lvp_mode(options)
 			pic_bulk_erase_device(options)
 
 		end if
