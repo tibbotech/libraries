@@ -66,7 +66,6 @@ includepp "dashboard_settings.xtxt"
 includepp "filenum.xtxt"
 includepp "tables.xtxt"
 
-
 include "libraries/sock/sock.tbh"
 include "libraries/time/time.tbh"
 include "libraries/settings/settings.tbh"
@@ -85,6 +84,7 @@ include "libraries/tables/tables.tbh"
 include "libraries/tables/tables_web.tbh"
 include "libraries/mqtt/mqtt.tbh"
 include "libraries/lcd/lcd_graph.tbh"
+include "libraries/pic/PIC_LVP.tbh"
 
 
 'DECLARATIONS--------------------------------------------------------
