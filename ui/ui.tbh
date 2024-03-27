@@ -65,7 +65,7 @@ enum en_ui_mode
 end enum
 
 declare ui_mode as en_ui_mode
-declare ui_setting_name as string(20)
+declare ui_setting_name as string
 declare ui_active as boolean
 
 

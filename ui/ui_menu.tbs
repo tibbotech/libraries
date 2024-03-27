@@ -50,7 +50,7 @@ dim cached_ib_str as string(IB_MAX_LEN)
 
 dim ui_menu_exit_flag as no_yes
 dim menu_addr_array(MENU_MAX_ITEM_PER_LVL) as menu_display_item
-dim ui_setting_name as string(20)
+dim ui_setting_name as string
 
 #if MENU_CURSOR_STYLE > 0
 	dim previous_display_index as byte
