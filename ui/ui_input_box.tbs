@@ -614,9 +614,11 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 		if mask = ib_ip_mask then
 			ib_trim_ip_str(ib_edit_str)
 		end if
+        ib_pressed_key=4
 		ui_exit_level()
 	case INPUT_BOX_CANCEL:
 		input_box_result=INPUT_BOX_RESULT_CANCEL
+        ib_pressed_key=4
 		ui_exit_level()
 	case else
 	end select
