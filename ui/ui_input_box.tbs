@@ -409,13 +409,6 @@ sub ib_str_pos_selector()
 		prev_x=cursor_x	
 	else
 		'lcd_clear(INPUT_BOX_X,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,lcd.getprintwidth(ib_str),INPUT_BOX_CURSOR_WIDTH)
-		'lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)
-		'lcd.fill(cursor_x - 1,INPUT_BOX_Y,w + 3,INPUT_BOX_H)
-		'lcd.forecolor = LCD_INPUTBOX_BACKCOLOR
-		'lcd.backcolor = LCD_INPUTBOX_FORECOLOR
-		'lcd.printaligned(s1, cursor_x + 3,INPUT_BOX_Y,w,INPUT_BOX_H - 3)
-		'lcd.forecolor = LCD_INPUTBOX_FORECOLOR
-		'lcd.backcolor = LCD_INPUTBOX_BACKCOLOR
 		lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)
 		lcd.fill(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)	
 	end if
@@ -577,7 +570,6 @@ sub ui_input_box_timer_proc()
 	if ib_timeout_ctr>0 then
 		ib_timeout_ctr=ib_timeout_ctr-1
 	end if
-	sys.debugprint("timer proc " + str(key_action))
 
 	'device specific timer behavior. for example, user repeatedly press a one key to scroll through characters, and stopped for 3 second,
 	'the input box cursor move to the next position.
