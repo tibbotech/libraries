@@ -426,6 +426,7 @@ function ui_menu_call_ib(byref item_data as string(60),reprint as no_yes) as ui_
 		case "D": char_range=INPUT_BOX_CHAR_RANGE_09
 		case "A": char_range=INPUT_BOX_CHAR_RANGE_AZ
 		case "B": char_range=INPUT_BOX_CHAR_RANGE_09AZ
+		case "C": char_range=INPUT_BOX_CHAR_RANGE_DIGITS
 		end select
 		pos2=instr(1,item_data,chr(COMMA),6)
 		temp=mid(item_data,pos1+1,pos2-pos1-1)

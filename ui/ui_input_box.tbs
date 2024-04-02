@@ -24,6 +24,8 @@ declare sub ib_str_pos_selector()
 declare sub ib_str_pos_increament(restart as no_yes)
 declare sub ui_input_box_timer_proc()
 declare sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc as byte, byref insert_mode as no_yes)
+declare sub ib_pad_ip_str(byref edit_str as string)
+declare sub ib_trim_ip_str(byref edit_str as string)
 '--------------------------------------------------------------------------------
 dim chr_asc, lcd_pos_index, sourcestr_index, ib_len, display_len, display_start_index, ib_input_length as byte
 dim cursor_x, prev_x as word
@@ -34,6 +36,11 @@ dim input_type as input_box_char_ranges
 dim input_box_result as ui_input_box_results
 dim ib_timeout_ctr, ib_timeout as byte
 dim ib_edit_str as string(IB_MAX_LEN)
+dim ib_long_pressed as boolean
+dim ib_pressed_key as byte=4
+dim ib_pressed_poll_timer as dword
+dim ib_key_action as input_box_key_actions
+dim ib_ip_mask as string(15)= "   .   .   .   "
 
 '================================================================================
 public function ui_input_box(
@@ -51,6 +58,10 @@ public function ui_input_box(
 	dim kp_event as pl_kp_event_codes
 	dim kp_code as byte
 	dim t,w1,w2 as word
+	
+	if mask_str = ib_ip_mask then
+		ib_pad_ip_str(edit_str)
+	end if
 	
 	romfile.open(LCD_FIX_FONT)
 	lcd.setfont(romfile.offset)	
@@ -123,10 +134,10 @@ public function ui_input_box(
 ' 	end if
 	
 ' 	'making sure that ui_msg_box_timer_proc() is not excuted more than once per timer interval(500ms)
-' 	if t<> sys.timercount then
-' 		t=sys.timercount
-' 		ui_input_box_timer_proc()
-' 	end if
+ 	if t<> sys.timercount then
+ 		t=sys.timercount
+ 		ui_input_box_timer_proc()
+ 	end if
 
 ' 	if timeout=0 then
 ' 		goto wait
@@ -205,15 +216,21 @@ increment_pos:
 end sub
 
 '--------------------------------------------------------------------------------
-sub ib_str_pos_decreament()
+sub ib_str_pos_decreament(restart as no_yes)
 'Move the cursor in the input box to the left
-	if lcd_pos_index > 0 then
+	if lcd_pos_index > 1 then
 		lcd_pos_index=lcd_pos_index - 1 
 		sourcestr_index=sourcestr_index-1	
 		if mid(mask,lcd_pos_index,1) <> chr(&h20) and lcd_pos_index > 0  then
 			lcd_pos_index=lcd_pos_index - 1
 		end if
 		if display_start_index > 0 then display_start_index=display_start_index-1
+	else
+		if restart=YES then
+			sourcestr_index=len(sourcestr)
+			lcd_pos_index=len(sourcestr)
+			display_start_index=len(sourcestr)
+		end if
 	end if
 	
 	chr_asc=asc(mid(sourcestr,sourcestr_index,1))
@@ -239,7 +256,7 @@ sub ib_backspace()
 		if len(sourcestr) < j and len(mask) > k then
 			mask=left(mask, len(mask)-1)
 		end if
-		ib_str_pos_decreament
+		ib_str_pos_decreament(YES)
 	end if
 end sub
 
@@ -326,13 +343,13 @@ sub ib_print()
 		if len(sourcestr)>ib_input_length then
 			s2=left(s2,ib_input_length)
 			sourcestr=left(sourcestr,ib_input_length)
-			ib_str_pos_decreament()
+			ib_str_pos_decreament(YES)
 		end if		
 		s2=ib_insert_format(s2,mask)
 	else
 		if len(sourcestr)>ib_input_length then
 			sourcestr=left(sourcestr,ib_input_length)
-			ib_str_pos_decreament()
+			ib_str_pos_decreament(YES)
 		end if	
 		s2=ib_insert_format(sourcestr,mask)
 	end if 
@@ -340,8 +357,8 @@ sub ib_print()
 		if display_start_index > 0 then
 			if len(s2) - display_start_index <= display_len  then
 				s1=mid(s2,display_start_index,display_len)
-				if ib_str <> "<" + s1 + "]" then
-					ib_str="<" + s1 + "]" 
+				if ib_str <> "<" + s1 + " " then
+					ib_str="<" + s1 + " " 
 				end if
 			else
 				if ib_str <> "<" + mid(s2,display_start_index,display_len)+ ">" then
@@ -351,23 +368,24 @@ sub ib_print()
 				end if
 			end if
 		else 
-			ib_str="["+mid(s2,display_start_index,display_len)+ ">"
+			ib_str=" "+mid(s2,display_start_index,display_len)+ ">"
 		end if		
 	else
 	 	b=display_len-len(s2)
 		for i=1 to b
 		s2=s2 + chr(&h20)
 		next i
-		ib_str="["+ s2 + "]"
+		ib_str=" "+ s2 + " "
 		display_start_index=0
 		if len(ib_str) < ib_len then	
-			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str+"]"),lcd.fontheight+2)	
+			lcd_clear(INPUT_BOX_X,INPUT_BOX_Y,lcd.getprintwidth(ib_str+" "),lcd.fontheight+2)	
 		end if
 		ib_len=len(ib_str)
 	end if
 print:	
 	lcd.textalignment=PL_LCD_TEXT_ALIGNMENT_MIDDLE_LEFT
 	lcd.printaligned(ib_str, INPUT_BOX_X, INPUT_BOX_Y,INPUT_BOX_W,INPUT_BOX_H)
+
 end sub
 
 '--------------------------------------------------------------------------------
@@ -391,8 +409,15 @@ sub ib_str_pos_selector()
 		prev_x=cursor_x	
 	else
 		'lcd_clear(INPUT_BOX_X,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,lcd.getprintwidth(ib_str),INPUT_BOX_CURSOR_WIDTH)
-		lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)
-		lcd.fill(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w,INPUT_BOX_CURSOR_WIDTH)	
+		'lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)
+		'lcd.fill(cursor_x - 1,INPUT_BOX_Y,w + 3,INPUT_BOX_H)
+		'lcd.forecolor = LCD_INPUTBOX_BACKCOLOR
+		'lcd.backcolor = LCD_INPUTBOX_FORECOLOR
+		'lcd.printaligned(s1, cursor_x + 3,INPUT_BOX_Y,w,INPUT_BOX_H - 3)
+		'lcd.forecolor = LCD_INPUTBOX_FORECOLOR
+		'lcd.backcolor = LCD_INPUTBOX_BACKCOLOR
+		lcd_clear(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)
+		lcd.fill(cursor_x+1,INPUT_BOX_Y+lcd.fontheight+INPUT_BOX_CURSOR_OFFSET-INPUT_BOX_CURSOR_WIDTH,w + 1,INPUT_BOX_CURSOR_WIDTH)	
 	end if
 #else
 	dim s2 as string(IB_MAX_LEN)
@@ -418,11 +443,11 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h39	'A->9
 			
 		case &h61:chr_asc=&h5A	'a->Z
-
+		case &h2e:chr_asc=&h39
 		case &h30:
 			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h7A	'0->z
 			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h39	'0->9
-		
+			if input_type=INPUT_BOX_CHAR_RANGE_DIGITS then chr_asc=&h39
 		case else
 			chr_asc=chr_asc-1
 		end select
@@ -432,6 +457,7 @@ sub ib_chr_changing(dir as input_box_change_chr_dir)
 			if input_type=INPUT_BOX_CHAR_RANGE_09 then chr_asc=&h30	'space->0
 			if input_type=INPUT_BOX_CHAR_RANGE_09AZ then chr_asc=&h41	'space->A
 		case &h39:chr_asc=&h2e  '9->.
+			if input_type=INPUT_BOX_CHAR_RANGE_DIGITS then chr_asc=&h30
 		case &h2e:chr_asc=&h20	'.->space
 		case &h5A:chr_asc=&h61	'Z->a
 		
@@ -450,10 +476,13 @@ verified:
 	s2=right(sourcestr,len(sourcestr)-sourcestr_index)
 	sourcestr=s1+chr(chr_asc)+s2
 	
-	lcd_clear(cursor_x+1,INPUT_BOX_Y,w,lcd.fontheight)
+	lcd_clear(cursor_x+1,INPUT_BOX_Y,w + 1,lcd.fontheight)
 	lcd.print(chr(chr_asc),cursor_x+2,INPUT_BOX_Y+3)
+	if lcd.getprintwidth(mid(sourcestr, sourcestr_index, 1)) <> w then
+		ib_print()
+	end if
 #if INPUT_BOX_CURSOR_STYLE > 0 	
-	ib_str_pos_selector
+	ib_str_pos_selector()
 #endif
 end sub
 
@@ -481,13 +510,55 @@ end sub
 
 '--------------------------------------------------------------------------------
 public sub ui_input_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
-	dim key_action as input_box_key_actions
+	dim key_action as input_box_key_actions=INPUT_BOX_NONE
 	dim insert_mode as no_yes
 	
+	
 	ib_timeout_ctr=ib_timeout
-	key_action=INPUT_BOX_NONE
 
-	device_ib_key_proc(key_event,key_code,key_action,chr_asc,insert_mode)
+	select case key_code
+	case KEY_F2:
+		if key_event = PL_KP_EVENT_PRESSED then
+			ib_long_pressed = false
+		end if
+		if key_event = PL_KP_EVENT_LONGPRESSED then
+			ib_long_pressed = true
+			key_action = INPUT_BOX_CHAR_BACKWARD
+		end if
+		if key_event = PL_KP_EVENT_REPEATPRESSED then
+			ib_pressed_key = KEY_F2
+			exit sub
+		end if
+		if key_event = PL_KP_EVENT_RELEASED then
+			if ib_long_pressed = false then
+				key_action = INPUT_BOX_CHAR_FORWARD
+				ui_input_box_action(key_action,chr_asc,insert_mode)
+			end if
+			ib_long_pressed = false
+			ib_pressed_key=4
+			key_action = INPUT_BOX_NONE
+		end if
+	case KEY_F3:
+		if key_event = PL_KP_EVENT_PRESSED and ib_long_pressed = false then
+			ib_long_pressed = false
+		end if
+		if key_event = PL_KP_EVENT_LONGPRESSED or key_event = PL_KP_EVENT_REPEATPRESSED then
+			ib_long_pressed = true
+			key_action = INPUT_BOX_POS_BACKWARD
+		end if
+		if key_event = PL_KP_EVENT_RELEASED then
+			if ib_long_pressed = false then
+				key_action = INPUT_BOX_POS_FORWARD
+				ui_input_box_action(key_action,chr_asc,insert_mode)
+			end if
+			ib_long_pressed = false
+			ib_pressed_key=4
+			key_action = INPUT_BOX_NONE
+		end if
+	case else:
+		device_ib_key_proc(key_event,key_code,key_action,chr_asc,insert_mode)
+	end select
+		
 	ui_input_box_action(key_action,chr_asc,insert_mode)
 
 end sub
@@ -506,6 +577,8 @@ sub ui_input_box_timer_proc()
 	if ib_timeout_ctr>0 then
 		ib_timeout_ctr=ib_timeout_ctr-1
 	end if
+	sys.debugprint("timer proc " + str(key_action))
+
 	'device specific timer behavior. for example, user repeatedly press a one key to scroll through characters, and stopped for 3 second,
 	'the input box cursor move to the next position.
 	device_ib_timer_event(key_action,chr_asc,insert_mode)		
@@ -528,7 +601,7 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 		ib_print()
 		ib_str_pos_selector()	
 	case INPUT_BOX_POS_BACKWARD:
-		ib_str_pos_decreament
+		ib_str_pos_decreament(YES)
 		ib_print()
 		ib_str_pos_selector()
 	case INPUT_BOX_BACKSPACE:
@@ -546,10 +619,75 @@ sub ui_input_box_action(byref key_action as input_box_key_actions,byref key_asc 
 		sourcestr=remove_trailing_chr(sourcestr, chr(&h20)) 
 		input_box_result=INPUT_BOX_RESULT_OK
 		ib_edit_str=sourcestr
+		if mask = ib_ip_mask then
+			ib_trim_ip_str(ib_edit_str)
+		end if
 		ui_exit_level()
 	case INPUT_BOX_CANCEL:
 		input_box_result=INPUT_BOX_RESULT_CANCEL
 		ui_exit_level()
 	case else
 	end select
+end sub
+
+public sub ui_input_box_proc_timer()
+	if ib_pressed_key > 3 then
+		exit sub
+	end if
+	
+	select case ib_pressed_key
+		case KEY_F2:
+			if sys.timercountms >= ib_pressed_poll_timer then
+			ib_pressed_poll_timer = sys.timercountms + 100
+				ib_chr_changing(INPUT_BOX_CHANGE_CHR_FORWARD)
+			end if
+	end select
+	
+end sub
+
+sub ib_pad_ip_str(byref edit_str as string)
+	dim index as byte
+	dim prevIndex as byte=1
+	dim i as byte=0
+	dim formatted_str as string=""
+	while len(formatted_str) < 15
+		index = instr(prevIndex + 1, edit_str, ".", 1)
+		if index = 0 then
+			index = len(edit_str) + 1
+		end if
+		if index - prevIndex <> 3 then
+			for i=0 to 2 - (index - prevIndex)
+				formatted_str = formatted_str + "0"
+			next i
+		end if
+		formatted_str = formatted_str + mid(edit_str, prevIndex, index - prevIndex + 1)
+		prevIndex = index + 1
+	wend
+	edit_str = formatted_str
+end sub
+
+sub ib_trim_ip_str(byref edit_str as string)
+	dim formatted_str as string""
+	dim index as byte
+	dim trim as boolean=true
+	dim count_zero as byte=0
+	dim curr as string
+	for index = 1 to len(edit_str)
+		curr = mid(edit_str, index, 1)
+		if curr = "0" and trim = true then
+			count_zero = count_zero + 1
+			goto next_index
+		end if
+		trim = false
+		formatted_str = formatted_str + curr
+		if curr = "." then
+			count_zero = 0
+			trim = true
+		end if
+	next_index:
+		if count_zero = 3 then
+			formatted_str = formatted_str + "0"
+		end if
+	next index
+	edit_str = formatted_str
 end sub
