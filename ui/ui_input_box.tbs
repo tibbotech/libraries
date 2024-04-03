@@ -83,6 +83,7 @@ public function ui_input_box(
 	display_start_index=0
 	lcd_pos_index=0
 	chr_asc=255
+	ib_pressed_key=4
 
 	'prepare mask string
 	if mask="" then
