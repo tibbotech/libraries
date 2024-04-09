@@ -48,9 +48,16 @@ public function filenum_open(byref signature as string, byref filename as string
 					filenum_debugprint("'"+signature+"' tried to open file '"+filename+"'. This file is already opened on file number "+str(filenum_open)+".")
 				#endif
 				
+				fd.filenum=f
 				status=PL_FD_STATUS_OK
 				filenum_open=f
-				exit function
+				if fd.fileopened=YES then
+					exit function
+				else
+					sys.trace("closing\r\n")
+					fd.close()
+					exit for
+				end if
 			end if
 		end if
 	next f
