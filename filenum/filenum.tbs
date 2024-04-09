@@ -54,7 +54,6 @@ public function filenum_open(byref signature as string, byref filename as string
 				if fd.fileopened=YES then
 					exit function
 				else
-					sys.trace("closing\r\n")
 					fd.close()
 					exit for
 				end if
