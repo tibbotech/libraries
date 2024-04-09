@@ -638,7 +638,7 @@ sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
 	if http_check_socket_list()=NG then
 		exit sub
 	end if	
-	if sock.statesimple=PL_SSTS_CLOSED and http_request_item.state >= DNS_COMPLETE then
+	if sock.statesimple=PL_SSTS_CLOSED and http_request_item.state >= DNS_COMPLETE and sock.rxlen=0 then
 		http_failed("Connection closed")
 		exit sub
 	end if
