@@ -70,7 +70,8 @@ end enum
 enum input_box_char_ranges 
 	INPUT_BOX_CHAR_RANGE_09,
 	INPUT_BOX_CHAR_RANGE_AZ,
-	INPUT_BOX_CHAR_RANGE_09AZ
+	INPUT_BOX_CHAR_RANGE_09AZ,
+	INPUT_BOX_CHAR_RANGE_DIGITS
 end enum
 
 enum input_box_change_chr_dir
@@ -108,3 +109,5 @@ declare function ui_input_box(
 ) as ui_input_box_results 
 
 declare sub ui_input_box_key_proc(key_event as pl_kp_event_codes, key_code as byte)
+
+declare sub ui_input_box_proc_timer()

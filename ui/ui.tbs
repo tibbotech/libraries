@@ -43,7 +43,23 @@ public function device_settings_sg(setting_name as string(50),index as byte, byr
 					b1=b2
 				loop while b1<>0
 				setting_val=left(s2,len(s2)-1)
-			end if	
+			end if
+			if chr(stg_stype_get(setting_name))="T" then
+				setting_val = datetime_timestamp_to_string(lval(setting_val), "YYYY/MM/DD HH:mm")
+			end if
+			if chr(stg_stype_get(setting_name))="M" then
+				dim hrs as byte = val(setting_val) / 3600
+				dim min as byte = val(setting_val) / 60 MOD 60
+				dim hrs_str as string(2)=stri(hrs)
+				dim min_str as string(2)=stri(min)
+				if len(hrs_str) = 1 then
+					hrs_str = "0" + hrs_str
+				end if
+				if len(min_str) = 1 then
+					min_str = "0" + min_str
+				end if
+				setting_val = hrs_str + ":" + min_str
+			end if
 		end if
 		device_settings_sg=setting_result		
 	else
@@ -52,7 +68,35 @@ public function device_settings_sg(setting_name as string(50),index as byte, byr
 			index=val(right(setting_name,len(setting_name)-b1))
 			setting_name=left(setting_name,b1-1)
 		end if		
+		if chr(stg_stype_get(setting_name))="T" then
+			dim sanitized_setting_val as string=""
+			
+			dim days as word
+			dim mins as word
+			dim secs as byte
+			dim i as byte=1
+			do
+				if asc(mid(setting_val, i, 1)) > 47 and asc(mid(setting_val, i, 1)) < 58 then
+					sanitized_setting_val = sanitized_setting_val + mid(setting_val, i, 1)
+				end if 
+				i = i + 1
+			loop while i < len(setting_val) + 1
+			datetime_from_timestamp(datetime_str_to_timestamp(sanitized_setting_val, "YYYYMMDDhhmm"), days, mins, secs)
+			td_local_to_gmt(days, mins, datetime_tz_offset, PL_OFF)
+			setting_val = datetime_to_timestamp(days, mins, secs)
+		end if
+		if chr(stg_stype_get(setting_name))="M" then
+			dim hours as byte=val(mid(setting_val, 1, 2))
+			dim min as byte=val(mid(setting_val, 4, 2))
+			if hours > 24 or min > 59 then
+				device_settings_sg = EN_STG_STATUS_INVALID
+				goto error_device_settings_sg
+			end if
+			setting_val=hours * 3600 + min * 60
+		end if
 		device_settings_sg=stg_sg(setting_name,index,setting_val,EN_STG_SET)
+		
+		error_device_settings_sg:
 	end if
 	
 end function

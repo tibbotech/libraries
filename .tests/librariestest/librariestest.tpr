@@ -439,6 +439,22 @@ condition=
 locked=no
 location=
 
+[file56]
+path=libraries/pic/PIC_LVP.tbh
+type=header
+format=
+condition=
+locked=no
+location=
+
+[file57]
+path=libraries/pic/PIC_LVP.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
 [address2]
 platform=TPP2W(G2)
 transport=udp_broadcast
