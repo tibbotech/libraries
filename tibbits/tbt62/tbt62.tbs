@@ -377,7 +377,7 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 	' Send STOP
 	si2c_stop()
 
-	if version <> "TBT" + chr(&h62) + chr(&h00) + chr(&h01) then
+	if version <> "TBT" + chr(&h62) + chr(&h00) + chr(&h02) then
 		tbt62_checkTibbit = TBT62_INIT_ERROR_NO_VALID_VERSION
 		exit function
 	end if
