@@ -117,7 +117,7 @@ declare sub callback_mqtt_notif(byref topic as string,byref data as string,remai
 
 #if MQTT_LARGE_PACKETS 
 
-	declare sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as dword)
+	declare sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as dword, retain as boolean)
 	'API procedure, starts the procedure of publishing to the MQTT server (broker). Must be called before calling mqtt_continue_publish().
 	'<b>topic</b> - Name of the topic to be published
 	'<b>qos</b> - QoS level
