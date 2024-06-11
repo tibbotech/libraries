@@ -1,8 +1,11 @@
 include "global.tbh"
 
-const TBT62_INIT_SIGNATURE=&h4454
+const TBT62_PIC_LVP_TARGET_TYPE = PIC_16F18456
+const TBT62_INIT_SIGNATURE = &h4454
 const TBT62_CR_LF = chr(13) + chr(10)
 const TBT62_DEBUG_STAMP = "TBT62> "
+const TBT62_VERSION_SIGNATURE = "TBT" + chr(&h62)
+const TBT62_CURRENT_VERSION = chr(&h00) + chr(&h02)
 
 #if TBT62_DEBUG_PRINT
 declare sub tbt62_debug_print(print_data as string)
@@ -14,9 +17,10 @@ dim tbt62_reset_pin(16) as byte
 dim tbt62_use(16) as NO_YES
 dim tbt62_channel(16) as EN_TBT62_CHANNEL
 dim tbt62_mode(16, 2) as EN_TBT62_MODE
+dim tbt62_powerOnTimer(16) as dword
 dim tbt62_Specific as EN_TBT62_UNITS
 
-declare function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
+declare function tbt62_checkTibbit(tbt_channel as byte, SCL as byte, SDA as byte, MCLR as byte) as EN_TBT62_INIT_RESULT
 declare function CRC8(pcBlock as string, len as byte) as byte
 
 function convertCtoF(tempC as real)	as real
@@ -58,6 +62,7 @@ function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, rese
 			tbt62_channel(i) = TBT62_CHANNEL_1
 			tbt62_mode(i, TBT62_CHANNEL_1) = TBT62_ONE_WIRE
 			tbt62_mode(i, TBT62_CHANNEL_2) = TBT62_ONE_WIRE
+			tbt62_powerOnTimer(i) = 0
 		next i
 	end if
 	
@@ -69,13 +74,11 @@ function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, rese
 	#endif
 	
 	tbt_channel = si2c_register(signature, data_pin, clk_pin, use_ssi)
-
+	
 	if tbt_channel = 255 then 
 		tbt62_init = TBT62_INIT_ERROR_SI2C_NO_EMPTY_CHANNEL
 		exit function
 	end if
-	
-	si2c_get(tbt_channel)
 	
 	tbt62_reset_pin(tbt_channel) = reset_pin
 	tbt62_busy_pin(tbt_channel) = busy_pin
@@ -86,9 +89,31 @@ function tbt62_init(signature as string, data_pin as byte, clk_pin as byte, rese
 	#if TBT62_DEBUG_PRINT = 1
 		tbt62_debug_print("i2c num:" + str(tbt_channel))
 	#endif
+	
+	if tbt_channel < 4 then
+		ssi.channel = tbt_channel
+		ssi.enabled = NO
+		ssi.baudrate = TBT62_SSI_BAUDRATE
+		ssi.clkmap = clk_pin
+		ssi.dimap = data_pin
+		ssi.domap = data_pin
+		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO
+		ssi.direction = PL_SSI_DIRECTION_LEFT
+		ssi.mode = PL_SSI_MODE_0
+		ssi.enabled = YES
+		
+		io.num = clk_pin
+		io.state = HIGH
+		io.num = data_pin
+		io.state = HIGH
+	'else
+	'	if use_ssi = YES then
+	'		tbt62_init = NG
+	'	end if
+	end if
 
 	' Init and self-diagnostic TIBBIT
-	tbt62_init = tbt62_checkTibbit(tbt_channel)
+	tbt62_init = tbt62_checkTibbit(tbt_channel, clk_pin, data_pin, reset_pin)
 	
 	#if TBT62_DEBUG_PRINT = 1
 		tbt62_debug_print("Init end")
@@ -250,8 +275,8 @@ sub tbt62_delayMS(delay_ms as dword)
 
 	dim tmr as dword
 	
-	tmr = sys.timercountms + delay_ms
-	while tmr > sys.timercountms 
+	tmr = sys.timercountms
+	while sys.timercountms - tmr < delay_ms
 	wend
 
 end sub
@@ -283,6 +308,12 @@ function tbt62_vcc_control(state as EN_TBT62_VCC_CONTROL, tbt_channel as byte) a
 		exit function
 	end if
 	
+	if state = TBT62_VCC_ON then
+		tbt62_powerOnTimer(tbt_channel) = sys.timercountms
+	else
+		tbt62_powerOnTimer(tbt_channel) = 0
+	end if
+
 	tbt62_vcc_control = true
 	
 end function
@@ -332,10 +363,11 @@ function tbt62_get_3V3_voltage(tbt_channel as byte) as real
 	
 end function
 
-function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
+function tbt62_checkTibbit(tbt_channel as byte, SCL as byte, SDA as byte, MCLR as byte) as EN_TBT62_INIT_RESULT
 
 	dim version as string(6)
 	dim i as byte
+	dim data as byte
 	
 	tbt62_checkTibbit = TBT62_INIT_OK
 
@@ -377,9 +409,20 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 	' Send STOP
 	si2c_stop()
 
-	if version <> "TBT" + chr(&h62) + chr(&h00) + chr(&h02) then
-		tbt62_checkTibbit = TBT62_INIT_ERROR_NO_VALID_VERSION
-		exit function
+	' Check version signature
+	if left(version, 4) <> TBT62_VERSION_SIGNATURE then
+		' Not TBT62 installed
+		tbt62_checkTibbit = TBT62_INIT_ERROR_UNKNOWN_TIBBIT
+	end if
+	
+	' Check version number
+	if right(version, 2) <> TBT62_CURRENT_VERSION then
+		' Wrong Tibbit version
+		' Update
+		pic_lvp_start(TBT62_PIC_LVP_TARGET_TYPE, SCL, SDA, MCLR)
+		if not pic_lvp_upload_firmware("Tibbit62_FW_00_02.hex") then
+			tbt62_checkTibbit = TBT62_INIT_ERROR_NO_VALID_VERSION
+		end if
 	end if
 	
 	' Check 3.3 voltage
@@ -391,29 +434,36 @@ function tbt62_checkTibbit(tbt_channel as byte) as EN_TBT62_INIT_RESULT
 		exit function
 	end if
 	
+	dim fault as boolean
+	fault = false
+	
 	'Check VCC voltage
 	' VCC on
 	if not tbt62_vcc_control(TBT62_VCC_ON, tbt_channel) then
 		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
-		exit function
+		fault = true
 	end if
 	
-	' Get MCC
-	voltage = tbt62_get_voltage(TBT62_VOLTAGE_VCC, tbt_channel)
-	if voltage < 4.5 OR voltage > 5.5 then
-		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
-		exit function
+	if fault = false then
+		' Get VCC voltage
+		voltage = tbt62_get_voltage(TBT62_VOLTAGE_VCC, tbt_channel)
+		if voltage < 4.5 OR voltage > 5.5 then
+			tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
+			fault = true
+		end if
 	end if
 	
-	' Check Power Fault
-	i = tbt62_get_power_fault(tbt_channel)
-	if i = 255 or i = 0 then
-		tbt62_checkTibbit = TBT62_INIT_ERROR_POWER_FAULT_CHECK
-		exit function
+	if fault = false then
+		' Check Power Fault
+		data = tbt62_get_power_fault(tbt_channel)
+		if data = 255 or data = 0 then
+			tbt62_checkTibbit = TBT62_INIT_ERROR_POWER_FAULT_CHECK
+			fault = true
+		end if
 	end if
-
+	
 	' VCC off
-	if not tbt62_vcc_control(TBT62_VCC_ON, tbt_channel) then
+	if not tbt62_vcc_control(TBT62_VCC_OFF, tbt_channel) then
 		tbt62_checkTibbit = TBT62_INIT_ERROR_FAULT_CHECK_VCC
 		exit function
 	end if
@@ -688,6 +738,17 @@ function tbt62_sw_get_temp_hum(byref temperature as real, byref humidity as real
 	if not tbt62_check_channel(channel, tbt_channel) then
 		' Error change channel
 		exit function
+	end if
+	
+	' Check time after Power On
+	if tbt62_powerOnTimer(tbt_channel) <> 0 then
+		dim delay as dword 
+		delay = tbt62_powerOnTimer(tbt_channel) + 2000 - sys.timercountms
+		if delay <> 0 AND delay <= 2000 then
+			' Need wait
+			tbt62_delayMS(delay)
+		end if
+		tbt62_powerOnTimer(tbt_channel) = 0
 	end if
 	
 	' ready to Read data from Sensor
