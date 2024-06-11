@@ -127,7 +127,7 @@ function tbl_web_get_header(table as string) as string
 		end if 
 	next i
 
-    tbl_web_get_header=tbl_web_get_header+"\r\n"
+    tbl_web_get_header=tbl_web_get_header
 end function
 
 function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
@@ -153,7 +153,7 @@ function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
 		if j<num_of_fld - 1 then
 			tmp_data=tmp_data+","
 		else
-			tmp_data=tmp_data+"\r\n"
+			tmp_data=tmp_data
 		end if
 	next j
 	tbl_web_get_fld_data = tmp_data 
@@ -168,7 +168,7 @@ sub tbl_web_get_rows(byref table as string)
 	tbl_web_get_table_active_rows(table, tbl_rows, tbl_rows_all)
     
 	num_of_fld = tbl_get_num_fields(table)
-	tmp_data = tbl_web_get_header(table)
+	tmp_data = tbl_web_get_header(table)+"\r\n"
 
     while sock.txfree < len(tmp_data)
         doevents
@@ -181,7 +181,7 @@ sub tbl_web_get_rows(byref table as string)
             exit for
         end if
         if tbl_is_record_deleted(i)<>YES then
-			tmp_data=tbl_web_get_fld_data(i, num_of_fld)
+			tmp_data=tbl_web_get_fld_data(i, num_of_fld)+"\r\n"
 			while sock.txfree < len(tmp_data)
 				doevents
 			wend

@@ -12,45 +12,6 @@ const MQTT_TIMEOUT=2000
 const MQTT_LEVEL	=&h04
 const MQTT_PROTOCOL	="MQTT"
 
-enum en_mqtt_message_types
-
-	CONNECT=&h10
-	CONNACK=&h20
-	PUBLISH=&h30
-	PUBACK=&h40
-	PUBREC=&h50
-	PUBREL=&h60
-	PUBCOMP=&h70
-	SUBSCRIBE=&h80
-	SUBACK=&h90
-	UNSUBSCRIBE=&hA0
-	UNSUBACK=&hB0
-	PINGREQ=&hC0
-	PINGRESP=&hD0
-	DISCONNECT=&hE0
-	
-end enum
-
-enum en_mqtt_proc_data_states
-	
-	EN_MQTT_PD_STATES_READING_HEADER,
-	EN_MQTT_PD_STATES_READING_PAYLOAD,
-	EN_MQTT_PD_STATES_READING_PAYLOAD_DATA
-	
-end enum
-
-type mqtt_proc_data_variable
-
-	message_type as en_mqtt_message_types
-	topic_length as word
-	topic as string
-	qos as en_qos_choices
-	remaining_length as word
-	fixed_header_length as word
-	packet_identifier as string
-	
-end type
-
 dim proc_data_state as en_mqtt_proc_data_states 
 dim mqtt_proc_data_variables as mqtt_proc_data_variable
 dim mqtt_init_flag as word
@@ -540,6 +501,7 @@ sub mqtt_proc_data()
 						mqtt_proc_data_variables.packet_identifier=mqtt_sock_getdata(2)
 					end if
 					mqtt_proc_data_variables.remaining_length=mqtt_proc_data_variables.remaining_length-mqtt_proc_data_variables.topic_length-len(mqtt_proc_data_variables.packet_identifier)-2
+					mqtt_proc_data_variables.total_length=mqtt_proc_data_variables.remaining_length
 					
 					if mqtt_proc_data_variables.remaining_length=0 then
 						#if MQTT_DEBUG_PRINT=1
@@ -557,7 +519,9 @@ sub mqtt_proc_data()
 						mqtt_debug_print("Notification: topic="+mqtt_proc_data_variables.topic+", data="+buf)
 					#endif
 					callback_mqtt_notif(mqtt_proc_data_variables.topic,buf,mqtt_proc_data_variables.remaining_length)
-					mqtt_publish_reply()
+					if mqtt_proc_data_variables.remaining_length=0 then
+						mqtt_publish_reply()
+					end if
 			end select
 												
 		case PUBACK:	#if MQTT_DEBUG_PRINT=1
@@ -718,7 +682,7 @@ end sub
 
 #if MQTT_LARGE_PACKETS
 	
-sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as dword)
+sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as dword, retain as boolean)
 'API procedure, starts the procedure of publishing to the MQTT server (broker). Must be called before calling mqtt_continue_publish().
 '<b>topic</b> - Name of the topic to be published
 '<b>qos</b> - QoS level
@@ -752,7 +716,13 @@ sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as d
 	else
 		buf=chr(0)+chr(len(topic))+topic+mqtt_get_packet_identifier()
 	end if
-	buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf) + length) + buf
+
+	if retain then
+		buf=chr(PUBLISH+1+(qos*2))+mqtt_build_remaining_length(len(buf) + length) + buf
+	else 
+		buf=chr(PUBLISH+(qos*2))+mqtt_build_remaining_length(len(buf) + length) + buf
+	end if
+	
 	mqtt_send_data(buf)	
 
 end sub

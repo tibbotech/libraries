@@ -90,9 +90,9 @@ public function tbl_start() as en_tbl_status_codes
 		tbl_debugprint("---START---")
 	#endif
 	
-	if TBL_MAX_TABLE_NAME_LEN=0 or TBL_MAX_TABLE_NAME_LEN>26 then
+	if TBL_MAX_TABLE_NAME_LEN=0 or TBL_MAX_TABLE_NAME_LEN>32 then
 		#if TBL_DEBUG_PRINT
-			tbl_debugprint("ERROR: TBL_MAX_TABLE_NAME_LEN must be between 1 and 26, you now have '#TBL_MAX_TABLE_NAME_LEN "+str(TBL_MAX_TABLE_NAME_LEN)+"'.")
+			tbl_debugprint("ERROR: TBL_MAX_TABLE_NAME_LEN must be between 1 and 32, you now have '#TBL_MAX_TABLE_NAME_LEN "+str(TBL_MAX_TABLE_NAME_LEN)+"'.")
 		#endif
 		tbl_info_index=0
 		tbl_start=EN_TBL_STATUS_WRONG_DEFINE

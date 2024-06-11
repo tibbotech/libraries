@@ -234,7 +234,11 @@ function hex_mac(mac as string) as string
 		endpos = instr(startpos,mac,".",0)
 		num = val(  mid(mac,startpos,  endpos-startpos) )
 		if num<>0 then
-			result = result + right(hex( num ),2) + ":"
+			if num < 16 then
+				result = result + "0" + hex( num ) + ":"
+			else
+				result = result + right(hex( num ),2) + ":"
+			end if
 		else
 			result = result + "00" + ":"
 		end if
