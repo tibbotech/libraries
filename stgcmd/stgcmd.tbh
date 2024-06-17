@@ -1,5 +1,1 @@
 declare function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as string, byref current_send_chunk as string, byref html_send_state as byte) as string
-
-declare sub callback_stgcmd_buzz_command()
-'Callback procedure, indicates that the buzz ("B") command was received from the host.<br/>
-'Procedure body has to be created elsewhere in the project (externally with respect to the library).

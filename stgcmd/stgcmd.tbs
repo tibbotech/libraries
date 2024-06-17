@@ -75,18 +75,10 @@ public function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as str
 		case else:
 			goto reply_failed
 		end select
-	
-	case "B": 'buzz the device ---------------------------------- 
-		callback_stgcmd_buzz_command()
-		goto reply_ok
 
 	case "I": 'initialize settings --------------------------
 		if stg_restore_multiple(EN_STG_INIT_MODE_OVERRIDE)<>EN_STG_STATUS_OK then goto reply_failed
 		goto reply_ok		
-
-	case "E": 'reboot -------------------------------------------
-		wln.disable()
-		sys.reboot()
 	
 	case else
 		goto reply_err
