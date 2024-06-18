@@ -1,1 +1,1 @@
-declare function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as string, byref current_send_chunk as string, byref html_send_state as byte) as string
+declare function stgcmd_proc_cmd(byref cmd_str as string) as string
