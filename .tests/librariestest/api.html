@@ -127,7 +127,7 @@ end select
             dim x,y as byte
             const LUIS_MAX_CMD_LEN = STG_MAX_SETTING_VALUE_LEN + STG_MAX_SETTING_NAME_LEN + 3
             dim http_cmd_str as string(LUIS_MAX_CMD_LEN)
-            result = stgcmd_proc_cmd(cmd_str, "", "", "")
+            result = stgcmd_proc_cmd(cmd_str)
             if result<>"" then
                 sock.setdata(result)
                 sock.send()
