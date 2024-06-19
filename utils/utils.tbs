@@ -235,9 +235,9 @@ function hex_mac(mac as string) as string
 		num = val(  mid(mac,startpos,  endpos-startpos) )
 		if num<>0 then
 			if num < 16 then
-				result = result + "0" + hex( num ) + ":"
+				result = result + "0" + right(hex(num),1) + ":"
 			else
-				result = result + right(hex( num ),2) + ":"
+				result = result + right(hex(num),2) + ":"
 			end if
 		else
 			result = result + "00" + ":"
