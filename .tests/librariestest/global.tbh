@@ -138,6 +138,7 @@ declare sub signal_strength_set(strength as byte)
 #endif
 
 declare DNS_socket as byte
+declare sub callback_stgcmd_buzz_command()
 declare upgrade_socket_http as byte
 
 declare SNTP_socket as byte

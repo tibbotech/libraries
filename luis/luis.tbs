@@ -207,8 +207,13 @@ function luis_on_bt_data_arrival() as en_luis_status_codes
 	
 		luis_bt_cmd_str=bt.getdata(luis_delim)
 		luis_bt_cmd_str=left(luis_bt_cmd_str,len(luis_bt_cmd_str)-1)
-		reply=stgcmd_proc_cmd(luis_bt_cmd_str, LUIS_GOP_result, luis_current_send_chunk, luis_html_send_state)
-		if reply<>"" then
+        if mid(luis_bt_cmd_str,2,STG_MAX_SETTING_NAME_LEN) = "OP" then
+			luis_html_send_state=EN_LUIS_HTML_GOP_RESULT
+			luis_current_send_chunk=LUIS_GOP_result
+		else
+		    reply=stgcmd_proc_cmd(luis_bt_cmd_str)
+		end if
+        if reply<>"" then
 			bt.setdata(reply)
 			bt.send()
 			luis_bt_cmd_str=""

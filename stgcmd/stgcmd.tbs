@@ -4,19 +4,11 @@ include "global.tbh"
 
 const STGCMD_CMD_ESC_CHAR = "@"
 
-enum en_html_send_states
-	EN_HTML_GOP_RESULT,
-	EN_HTML_SEND_PART1,
-	EN_HTML_SEND_CONFIG,
-	EN_HTML_SEND_PART2
-end enum
-
-
-public function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as string, byref current_send_chunk as string, byref html_send_state as byte) as string
+public function stgcmd_proc_cmd(byref cmd_str as string) as string
 	stgcmd_proc_cmd=""
 	dim reply_str as string
 	dim x as byte
-	dim setting_name as string(STG_MAX_SETTING_NAME_LEN)
+	dim setting_name as string
 	dim explicit_index as no_yes
 	dim index as byte
 	dim s2 as string(64)
@@ -40,53 +32,64 @@ public function stgcmd_proc_cmd(byref cmd_str as string, byref GOP_result as str
 	select case left(cmd_str,1)
 
 	case "G": 'get setting --------------------------------------
-		setting_name=mid(cmd_str,2,STG_MAX_SETTING_NAME_LEN)
-		if setting_name = "OP" then
-			html_send_state=EN_HTML_GOP_RESULT
-			current_send_chunk=gop_result
-			exit function
-		end if
-		
-		select case stg_sg(setting_name,0,reply_str,EN_STG_GET)
-		case EN_STG_STATUS_OK:
-			goto reply_ok_have_data
-		case EN_STG_STATUS_UNKNOWN:
-			goto reply_err
-		case EN_STG_STATUS_INVALID_INDEX:
-			goto reply_err
-		case else:
-			goto reply_failed
-		end select
+        #IFDEF STG_MAX_SETTING_NAME_LEN
+            setting_name=mid(cmd_str,2,STG_MAX_SETTING_NAME_LEN)
+            select case stg_sg(setting_name,0,reply_str,EN_STG_GET)
+            case EN_STG_STATUS_OK:
+                goto reply_ok_have_data
+            case EN_STG_STATUS_UNKNOWN:
+                goto reply_err
+            case EN_STG_STATUS_INVALID_INDEX:
+                goto reply_err
+            case else:
+                goto reply_failed
+            end select
+        #ELSE
+            goto reply_failed
+        #ENDIF
 
 	case "S": 'set setting --------------------------------------
 		if explicit_index=NO then
 			setting_name=mid(cmd_str,2,2)
 			stg_data=right(cmd_str,len(cmd_str)-3)
 		end if
-		select case stg_sg(setting_name,0,stg_data,EN_STG_SET)
-		case EN_STG_STATUS_OK:
-			goto reply_ok_have_data
-		case EN_STG_STATUS_INVALID:
-			goto reply_err
-		case EN_STG_STATUS_INVALID_INDEX:
-			goto reply_err
-		case EN_STG_STATUS_UNKNOWN:
-			goto reply_err
-		case else:
-			goto reply_failed
-		end select
-	
+
+        #IFDEF STG_MAX_SETTING_NAME_LEN
+            select case stg_sg(setting_name,0,stg_data,EN_STG_SET)
+            case EN_STG_STATUS_OK:
+                goto reply_ok
+            case EN_STG_STATUS_INVALID:
+                goto reply_err
+            case EN_STG_STATUS_INVALID_INDEX:
+                goto reply_err
+            case EN_STG_STATUS_UNKNOWN:
+                goto reply_err
+            case else:
+                goto reply_failed
+            end select
+        #ELSE
+            goto reply_failed
+        #ENDIF
+
 	case "B": 'buzz the device ---------------------------------- 
 		callback_stgcmd_buzz_command()
 		goto reply_ok
 
 	case "I": 'initialize settings --------------------------
-		if stg_restore_multiple(EN_STG_INIT_MODE_OVERRIDE)<>EN_STG_STATUS_OK then goto reply_failed
-		goto reply_ok		
-
+        #IFDEF STG_MAX_SETTING_NAME_LEN
+            if stg_restore_multiple(EN_STG_INIT_MODE_OVERRIDE)<>EN_STG_STATUS_OK then goto reply_failed
+            goto reply_ok
+        #ELSE
+            goto reply_failed
+        #ENDIF
+		goto reply_ok	
+   
 	case "E": 'reboot -------------------------------------------
-		wln.disable()
+		#IF WLN_AVAILABLE=1
+        wln.disable()
+        #ENDIF
 		sys.reboot()
+	
 	
 	case else
 		goto reply_err
