@@ -213,7 +213,7 @@ function ftofixed(r as real, decimals as byte) as string
 		if instr(1,ftofixed,"-",1) <> 0 then
 			pos=pos-1
 		end if
-		ftofixed=ftostr(r,FTOSTR_MODE_AUTO,pos+decimals-1)
+		ftofixed=ftostr(r,FTOSTR_MODE_PLAIN,pos+decimals-1)
 	end if
 end function
 
