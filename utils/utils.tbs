@@ -110,7 +110,13 @@ sub base64_decode(byref input as string, byref result as string)
 	for i = 0 to 255 - 1
 		in(i) = 0
 	next i
-	in = input
+	if len(input)=0 then
+		exit sub
+	end if
+	for i=0 to len(input)-1
+		dim bb as byte=asc(mid(input,i+1,1))
+		in(i)=bb
+	next i
 	
 	for i = 0 to 255 - 1
 		if in(i) <> 0 then
