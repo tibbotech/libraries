@@ -107,15 +107,9 @@ sub base64_decode(byref input as string, byref result as string)
 	dim v as dword
 	dim out as byte(255)
 	dim in as byte(255)
-	for i = 0 to 255 - 1
+	in = input
+	for i = len(input) to 255 - 1
 		in(i) = 0
-	next i
-	if len(input)=0 then
-		exit sub
-	end if
-	for i=0 to len(input)-1
-		dim bb as byte=asc(mid(input,i+1,1))
-		in(i)=bb
 	next i
 	
 	for i = 0 to 255 - 1
