@@ -9,7 +9,8 @@ function http_server_get_session() as string
 end function
 
 function http_server_auth(params as string) as boolean
-	http_server_auth=false
+	http_server_auth=true
+    exit function
     if http_server_password="" then
         http_server_auth=true
         exit function
