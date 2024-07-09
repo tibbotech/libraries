@@ -1,0 +1,271 @@
+include "global.tbh"
+
+dim http_servers as http_server_state(HTTP_SERVER_COUNT)
+
+declare sub http_server_send_response(index as byte)
+
+sub http_server_start()
+	dim ii as byte
+    for ii=0 to HTTP_SERVER_COUNT-1 'allocate sockets for the webserver
+        sock.num=sock_get("W" + str(ii))
+		http_servers(ii).socket=sock.num
+        http_servers(ii).state=HTTP_SERVER_STATE_IDLE
+        sock.connectiontout=120
+        sock.txbuffrq(10)
+        sock.rxbuffrq(10)
+        ' sock.varbuffrq(1)
+        sys.buffalloc()
+        ' sock.redir(PL_REDIR_SOCK0 + sock.num)
+        
+        sock.protocol=PL_SOCK_PROTOCOL_TCP
+        sock.localportlist="80"
+        sock.allowedinterfaces="NET,WLN"
+        sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
+    next ii
+end sub
+
+function http_server_get(socket_num as byte) as byte
+    http_server_get=255
+    dim ii as byte
+    for ii=0 to HTTP_SERVER_COUNT-1 'allocate sockets for the webserver
+        if http_servers(ii).socket=socket_num then
+            http_server_get=ii
+            exit function
+        end if
+    next ii
+end function
+
+sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+    dim index as byte=http_server_get(sock.num)
+    if index<>255 then
+        if newstatesimple=PL_SSTS_EST then
+            http_servers(index).state=HTTP_SERVER_STATE_RQ_METHOD
+            http_servers(index).request_path=""
+            http_servers(index).request_file_name=""
+            http_servers(index).request_method=""
+            http_servers(index).request_header_end=""
+            http_servers(index).request_length=0
+            http_servers(index).file_pos=0
+            http_servers(index).resp_buf=""
+            http_servers(index).request_body=""
+        else if sock.statesimple=PL_SSTS_CLOSED then
+            http_servers(index).state=HTTP_SERVER_STATE_IDLE
+            sock.txclear()
+            sock.rxclear()
+        end if
+
+        
+        
+    end if
+end sub
+
+sub http_server_send_response_header(index as byte)
+    dim server as http_server_state=http_servers(index)
+    dim header as string="HTTP/1.1 200 OK\r\n"
+    http_servers(index).request_file_name=http_servers(index).request_path
+    if left(http_servers(index).request_path,1)="/" then
+        http_servers(index).request_file_name=right(http_servers(index).request_file_name,len(http_servers(index).request_file_name)-1)
+    end if
+    if http_servers(index).request_file_name="" then
+        http_servers(index).request_file_name="index.html"
+    end if
+    dim file_name as string=http_servers(index).request_file_name
+    if instr(1,file_name,"?",1)>0 then
+        file_name=left(file_name,instr(1,file_name,"?",1)-1)
+    end if
+    if instr(1,file_name,"#",1)>0 then
+        file_name=left(file_name,instr(1,file_name,"#",1)-1)
+    end if
+
+    http_servers(index).request_file_name=file_name
+    
+
+    dim extension as string=http_servers(index).request_file_name
+    dim content_encoding as string=""
+    dim dot_index as byte=1
+    while instr(dot_index,extension,".",1)>0
+        extension=right(extension,len(extension)-instr(dot_index,extension,".",1))
+        dot_index=dot_index+1
+    wend
+    
+    dim callback_result as boolean=callback_http_server_endpoint_called(http_servers(index))
+    if callback_result=true then
+        http_servers(index).state=HTTP_SERVER_STATE_IDLE
+        ' headers already sent
+        while sock.txlen<>0
+            doevents
+        wend
+        sock.close()
+        exit sub
+    end if
+    
+    dim content_type as string="text/html"
+    select case extension
+        case "json":
+            content_type="application/json"
+        case "js":
+            romfile.open(http_servers(index).request_file_name+".gz")
+            if romfile.size<>0 then
+                http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+                content_encoding="Content-Encoding: gzip\r\n"
+            end if
+            content_type="application/javascript"
+        case "css":
+            romfile.open(http_servers(index).request_file_name+".gz")
+            if romfile.size<>0 then
+                http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+                content_encoding="Content-Encoding: gzip\r\n"
+            end if
+            content_type="text/css"
+        case "html":
+            content_type="text/html"
+        case "png":
+            content_type="image/png"
+        case "jpg", "jpeg":
+            content_type="image/jpeg"
+        case else:
+            content_type=""
+    end select
+
+    romfile.open(http_servers(index).request_file_name)
+    if content_type="" OR romfile.size=0 then
+        header="HTTP/1.1 404 Not Found\r\n"
+    else
+        http_servers(index).file_size=romfile.size
+        http_servers(index).file_pos=0
+    end if
+
+    header=header+"Server: "+DEVICE_NAME+"\r\n"
+    header=header+"Content-Type: "+content_type+"\r\n"
+    header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
+    header=header+content_encoding
+    header=header+"Connection: close\r\n"
+    header=header+"\r\n"
+
+    sock.notifysent(sock.txbuffsize-len(header))
+    http_servers(index).resp_buf=header
+    http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+end sub
+
+sub http_server_send_response(index as byte)
+    dim server as http_server_state=http_servers(index)
+    if http_servers(index).state<>HTTP_SERVER_STATE_RS_BODY then
+        exit sub
+    end if
+    sock.num=server.socket
+    romfile.open(http_servers(index).request_file_name)
+    romfile.pointer32=http_servers(index).file_pos
+
+    'blocking version
+    ' while http_servers(index).file_pos<http_servers(index).file_size 
+    '     dim data as string=romfile.getdata(255)
+    '     http_servers(index).file_pos=romfile.pointer32
+    '     while sock.txfree<255
+    '         doevents
+    '     wend
+    '     sock.setdata(data)
+    '     sock.send()
+    ' wend
+    ' http_servers(index).state=HTTP_SERVER_STATE_IDLE
+    ' while sock.txlen<>0
+    '     doevents
+    ' wend
+    ' sock.close()
+
+
+
+    if http_servers(index).file_pos<=http_servers(index).file_size then
+        dim data as string=romfile.getdata(255)
+        http_servers(index).file_pos=romfile.pointer32
+        http_servers(index).resp_buf=data
+        sock.notifysent(sock.txbuffsize-len(data))
+    else
+        http_servers(index).state=HTTP_SERVER_STATE_IDLE
+        sock.close()
+    end if
+end sub
+
+sub http_server_proc_sock_data()
+	dim index as byte=http_server_get(sock.num)
+    if index<>255 then
+        dim data as string=""
+
+        select case http_servers(index).state
+            case HTTP_SERVER_STATE_RQ_METHOD
+                dim c as string(1)=sock.getdata(1)
+                while c<>" " AND c<>""
+                    http_servers(index).request_method=http_servers(index).request_method+c
+                    c=sock.getdata(1)
+                wend
+                http_servers(index).state=HTTP_SERVER_STATE_RQ_URI
+            case HTTP_SERVER_STATE_RQ_URI
+                dim c as string(1)=sock.getdata(1)
+                while c<>" " AND c<>""
+                    http_servers(index).request_path=http_servers(index).request_path+c
+                    c=sock.getdata(1)
+                wend
+                http_servers(index).request_file_name=http_servers(index).request_path
+                http_servers(index).state=HTTP_SERVER_STATE_RQ_HEADER
+            case HTTP_SERVER_STATE_RQ_HEADER
+                dim c as string(1)=sock.getdata(1)
+                dim header as string=""
+                dim colon as string(1)=""
+                dim value as string=""
+                while c<>""
+                    if c="\r" OR c="\n" then
+                        http_servers(index).request_header_end=http_servers(index).request_header_end+c
+                    else
+                        if colon="" then
+                            if c=":" then
+                                colon=c
+                            else
+                                header=header+c
+                            end if
+                        else
+                            value=value+c
+                        end if
+                        http_servers(index).request_header_end=""
+                    end if
+                    if http_servers(index).request_header_end="\r\n" then
+                        if header="Content-Length" then
+                            http_servers(index).request_length=lval(value)
+                        end if
+                        header=""
+                        value=""
+                        colon=""
+                    end if
+                    if http_servers(index).request_header_end="\r\n\r\n" then
+                        if http_servers(index).request_length>0 then
+                            http_servers(index).state=HTTP_SERVER_STATE_RQ_BODY
+                        else
+                            http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
+                            http_server_send_response_header(index)
+                        end if
+                        exit while
+                    end if
+                    c=sock.getdata(1)
+                wend
+            case HTTP_SERVER_STATE_RQ_BODY
+                data=sock.getdata(255)
+                http_servers(index).request_body=http_servers(index).request_body+data
+                if len(http_servers(index).request_body)>=http_servers(index).request_length then
+                    http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
+                    http_server_send_response_header(index)
+                end if
+            
+            case else:
+                data=sock.getdata(255)
+
+
+        end select
+    end if
+end sub
+
+sub http_server_proc_sock_data_sent()
+    dim index as byte=http_server_get(sock.num)
+    if index<>255 then
+        sock.setdata(http_servers(index).resp_buf)
+        sock.send()
+        http_server_send_response(index)
+    end if
+end sub

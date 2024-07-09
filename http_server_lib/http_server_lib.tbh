@@ -1,0 +1,36 @@
+#IFNDEF HTTP_SERVER_COUNT
+	#DEFINE HTTP_SERVER_COUNT 3
+#ENDIF
+
+enum http_server_op_state
+	HTTP_SERVER_STATE_IDLE
+	HTTP_SERVER_STATE_RQ_METHOD
+	HTTP_SERVER_STATE_RQ_URI
+	HTTP_SERVER_STATE_RQ_HEADER
+	HTTP_SERVER_STATE_RQ_BODY
+	HTTP_SERVER_STATE_RS_HEADER
+	HTTP_SERVER_STATE_RS_BODY
+end enum
+
+type http_server_state
+	socket as byte
+	state as http_server_op_state
+	request_path as string
+	request_body as string
+	request_file_name as string(50)
+	request_method as string(10)
+	request_header_end as string(4)
+	request_length as dword
+	resp_buf as string
+	file_size as dword
+	file_pos as dword
+end type
+
+
+declare http_servers as http_server_state(HTTP_SERVER_COUNT)
+declare sub http_server_start()
+declare sub http_server_proc_sock_data()
+declare sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+declare sub http_server_proc_timer()
+declare sub http_server_proc_sock_data_sent()
+declare function callback_http_server_endpoint_called(server as http_server_state) as boolean

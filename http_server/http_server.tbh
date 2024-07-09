@@ -3,5 +3,5 @@ declare http_server_password as string
 declare http_server_session as string
 
 declare function http_server_find_param(byref http_req_string as string, byref argument as string) as string
-declare function http_server_auth() as boolean
+declare function http_server_auth(params as string) as boolean
 declare function http_server_get_session() as string
