@@ -305,13 +305,12 @@ end function
 
 function escape_string(data as string) as string
     dim x, tmp_instr as byte
-    dim tmp_str as string=""
     dim k as byte=1
 	dim i as byte=0
     escape_string=""
 	
-	dim special_characters as string="\x22\r\n\x5c\t"
-	dim escaped_chars as string="\x22rn\x5ct"
+	dim special_characters as string(10)="\x22\r\n\x5c\t"
+	dim escaped_chars as string(10)="\x22rn\x5ct"
     while k < len(data) + 1
 		for i=0 to len(special_characters)-1
 			dim escape_char as string(1)=mid(special_characters,i+1,1)
@@ -332,9 +331,8 @@ end function
 
 function unescape_string(data as string) as string
     dim x, tmp_instr, offset as byte
-    dim tmp_str as string=""
     dim k as byte=1
-    dim unescaped_char as string=""
+    dim unescaped_char as string(1)=""
     unescape_string=data
 
 	while k < len(unescape_string) - 1
