@@ -6,6 +6,7 @@ enum http_server_op_state
 	HTTP_SERVER_STATE_IDLE
 	HTTP_SERVER_STATE_RQ_METHOD
 	HTTP_SERVER_STATE_RQ_URI
+	HTTP_SERVER_STATE_RQ_PROTOCOL
 	HTTP_SERVER_STATE_RQ_HEADER
 	HTTP_SERVER_STATE_RQ_BODY
 	HTTP_SERVER_STATE_RS_HEADER
@@ -15,15 +16,20 @@ end enum
 type http_server_state
 	socket as byte
 	state as http_server_op_state
-	request_path as string
-	request_body as string
+	request_buf as string
+	request_path as string(128)
+	request_body as string(128)
 	request_file_name as string(50)
 	request_method as string(10)
+	request_header_name as string(30)
+	request_header_value as string(128)
 	request_header_end as string(4)
+	request_authenticated as boolean
 	request_length as dword
 	resp_buf as string
 	file_size as dword
 	file_pos as dword
+	ts as dword
 end type
 
 
@@ -33,4 +39,8 @@ declare sub http_server_proc_sock_data()
 declare sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
 declare sub http_server_proc_timer()
 declare sub http_server_proc_sock_data_sent()
-declare function callback_http_server_endpoint_called(server as http_server_state) as boolean
+declare sub http_server_response_status(code as word)
+declare sub http_server_response_header(byref header as string(50), byref value as string(50))
+declare sub http_server_response_header_end()
+declare sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+declare function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
