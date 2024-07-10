@@ -84,6 +84,9 @@ declare function modbus_callback_ReadInputRegister(address as word) as word
 declare function modbus_callback_set_holding_register(address as word, data as word) as boolean
 declare function modbus_read_word(byref bytes as byte(255), start as byte) as word
 declare function modbus_queue_get_count() as byte
+declare function modbus_crc16(data as byte(255), byte_cnt as byte) as word
+declare function modbus_queue_pop() as modbus_request_item
+declare function modbus_print_packet(byref s as string) as string
 declare sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
 declare sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
 
@@ -93,3 +96,5 @@ declare sub modbus_master_request(devaddr as byte, request as byte, start as wor
 declare sub modbus_queue_clear()
 declare sub modbus_proc_timer()
 declare sub modbus_proc_ser_data_sent()
+declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
+declare sub modbus_master_send_next()

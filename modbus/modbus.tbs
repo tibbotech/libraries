@@ -1,15 +1,10 @@
 include "global.tbh"
 
 declare sub modbus_queue_add(request_item as modbus_request_item)
-declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
-declare sub modbus_master_send_next()
 declare sub modbus_debug_print(byref message as string)
-declare function modbus_print_packet(byref s as string) as string
 declare function modbus_get_input_register(register as word) as word
 declare function modbus_get_holding_register(register as word) as word
-declare function modbus_queue_pop() as modbus_request_item
 declare function modbus_master_get_request(byref request_item as modbus_request_item) as string
-declare function modbus_crc16(data as byte(255), byte_cnt as byte) as word
 declare function modbus_time_elapsed(end_time as dword) as boolean
 
 
