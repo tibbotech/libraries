@@ -977,3 +977,11 @@ end sub
 sub ui_menu_exit()
 
 end sub
+
+sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+
+end sub
+
+function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
+
+end function
