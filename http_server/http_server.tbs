@@ -228,7 +228,7 @@ sub http_server_send_response_header(index as byte)
         http_servers(index).file_size=romfile.size
         http_servers(index).file_pos=0
 		
-		header=header+"Server: "+DEVICE_NAME+"\r\n"
+		header=header+"Server: Tibbo\r\n"
 		header=header+"Content-Type: "+content_type+"\r\n"
 		header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
 		header=header+content_encoding
