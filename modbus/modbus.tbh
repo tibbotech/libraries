@@ -63,6 +63,7 @@ type modbus_request_item
 	count as word
 	interface_number as byte
 	protocol as modbusProtocol
+	transactionId as word
 end type
 
 declare modbus_queue_start as char
@@ -92,7 +93,7 @@ declare sub callback_modbus_slave_reply_timeout(byref request_item as modbus_req
 
 declare sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 declare sub modbus_slave_receive(byref recv_data as string, interface_number as byte, protocol as modbusProtocol)
-declare sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol)
+declare sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol, transactionId as word)
 declare sub modbus_queue_clear()
 declare sub modbus_proc_timer()
 declare sub modbus_proc_ser_data_sent()

@@ -435,7 +435,7 @@ function modbus_time_elapsed(end_time as dword) as boolean
 	end if
 end function
 
-sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol)
+sub modbus_master_request(devaddr as byte, request as byte, start as word, count as word, regdata as string, interface_number as byte, protocol as modbusProtocol, transactionId as word)
 	dim request_item as modbus_request_item
 	request_item.data = regdata
 	request_item.device_id = devaddr
@@ -445,6 +445,7 @@ sub modbus_master_request(devaddr as byte, request as byte, start as word, count
 	request_item.count = count
 	request_item.interface_number = interface_number
 	request_item.protocol = protocol
+	request_item.transactionId = transactionId
 	
 	modbus_queue_add(request_item)
 end sub
