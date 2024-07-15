@@ -361,5 +361,27 @@ function unescape_string(data as string) as string
 		
 		k=k+1
     wend
-	
+end function
+
+function str_to_hex(byref hash as string) as string
+	dim i as byte
+	dim j as byte
+    dim result as byte(255)
+	str_to_hex=""
+	for i=0 to len(hash)-1
+		dim part as string(2)=mid(hex(asc(mid(hash,i+1,1))),3,2)
+		if len(part)=1 then
+			part="0" + part
+		end if
+		str_to_hex=str_to_hex+part
+	next i
+    result=str_to_hex
+	j=len(str_to_hex)
+	str_to_hex=""
+    for i=0 to j-1
+        if result(i)<97 AND result(i)>=65 then
+            result(i)=result(i)+32
+        end if
+		str_to_hex=str_to_hex+chr(result(i))
+    next i
 end function

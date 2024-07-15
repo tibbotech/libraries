@@ -8,3 +8,4 @@ declare function hex_mac(mac as string) as string
 declare function json_get_value(byref key as string, byref data as string) as string
 declare function escape_string(data as string) as string
 declare function unescape_string(data as string) as string
+declare function str_to_hex(byref hash as string) as string
