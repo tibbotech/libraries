@@ -677,7 +677,7 @@ end sub
 function var_temp_raw_update() as word
     
 
-            modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", SER_TBT05_S1_NAME, modbus_RTU)
+            modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", SER_TBT05_S1_NAME, modbus_RTU,1)
 end function
             
 
