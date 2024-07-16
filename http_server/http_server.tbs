@@ -181,6 +181,11 @@ sub http_server_send_response_header(index as byte)
             end if
             content_type="application/javascript"
         case "css":
+            romfile.open(http_servers(index).request_file_name+".gz")
+            if romfile.size<>0 then
+                http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+                content_encoding="Content-Encoding: gzip\r\n"
+            end if
             content_type="text/css"
         case "html":
             content_type="text/html"
