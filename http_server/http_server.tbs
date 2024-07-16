@@ -116,7 +116,7 @@ function http_server_auth_response_get(byref params as string, byref item as str
     end if
 end function
 
-function hex_str(byref hash as string) as string
+function hex_str(hash as string) as string
 	dim i as byte
 	dim j as byte
     dim result as byte(255)
