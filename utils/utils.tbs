@@ -15,7 +15,7 @@ function math_pow(base as integer, exp as integer) as real
 end function
 
 
-function math_hex_to_float(num as string) as real
+function math_hex_to_float(byref num as string(5)) as real
 	dim tmp as dword = lval("&h" + num)
 	dim sign as byte = (tmp SHR 31)
 	dim mantissa as dword = (tmp AND &h7FFFFF) OR &h800000      ' 11244903
@@ -223,7 +223,7 @@ sub time_delay_ms(delay_ms as word)
 	wend
 end sub
 
-function hex_mac(mac as string) as string
+function hex_mac(byref mac as string) as string
 	dim i as integer = 0
 	dim startpos as integer = 1
 	dim endpos as integer = 0
@@ -303,7 +303,7 @@ function json_get_value(byref key as string, byref data as string) as string
     wend
 end function
 
-function escape_string(data as string) as string
+function escape_string(byref data as string) as string
     dim x, tmp_instr as byte
     dim k as byte=1
 	dim i as byte=0
@@ -329,7 +329,7 @@ function escape_string(data as string) as string
 	escape_string=data
 end function
 
-function unescape_string(data as string) as string
+function unescape_string(byref data as string) as string
     dim x, tmp_instr, offset as byte
     dim k as byte=1
     dim unescaped_char as string(1)=""

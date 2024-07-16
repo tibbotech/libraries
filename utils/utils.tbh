@@ -2,10 +2,10 @@ declare sub base64_encode(byref input_str as string, input_len as byte, byref re
 declare sub base64_decode(byref input as string, byref result as string)
 declare sub time_delay_ms(delay_ms as word)
 declare function math_pow(base as integer, exp as integer) as real
-declare function math_hex_to_float(num as string) as real
+declare function math_hex_to_float(byref num as string(5)) as real
 declare function ftofixed(r as real, decimals as byte) as string
-declare function hex_mac(mac as string) as string
+declare function hex_mac(byref mac as string) as string
 declare function json_get_value(byref key as string, byref data as string) as string
-declare function escape_string(data as string) as string
-declare function unescape_string(data as string) as string
+declare function escape_string(byref data as string) as string
+declare function unescape_string(byref data as string) as string
 declare function str_to_hex(byref hash as string) as string

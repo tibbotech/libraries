@@ -16,7 +16,7 @@ sub http_server_start()
 		http_servers(ii).socket=sock.num
         http_servers(ii).state=HTTP_SERVER_STATE_IDLE
         sock.connectiontout=120
-        sock.txbuffrq(3)
+        sock.txbuffrq(HTTP_SEVER_RX_BUFF_SIZE)
         sock.rxbuffrq(1)
         sys.buffalloc()
         
@@ -26,33 +26,6 @@ sub http_server_start()
         sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
     next ii
 end sub
-
-function http_server_get_session() as string
-    http_server_get_session=http_server_session
-end function
-
-function http_server_auth() as boolean
-	http_server_auth=false
-    if http_server_password="" then
-        http_server_auth=true
-        exit function
-    end if
-    dim params as string=sock.httprqstring
-	dim hash as string=http_server_find_param(params, "p")
-    dim result as string=""
-    dim hash2 as string=""
-    dim input_str as string=http_server_password+http_server_session
-    hash2=md5(input_str, "", MD5_FINISH, len(input_str))
-    dim i as byte=0
-
-    for i=0 to 15
-        dim tmp as string="&h"+mid(hash,1+i * 2, 2)
-        result=result+chr(val(tmp))
-    next i
-    if result=hash2 then 
-        http_server_auth=true
-    end if
-end function
 
 function http_server_find_param(byref http_req_string as string, byref argument as string) as string
     dim x, y as byte
@@ -95,7 +68,7 @@ sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_s
             http_servers(index).request_length=0
             http_servers(index).file_pos=0
             http_servers(index).resp_buf=""
-            http_servers(index).request_body=""
+            http_servers(index).request_value_buffer=""
             http_servers(index).request_authenticated=http_server_password=""
         else if sock.statesimple=PL_SSTS_CLOSED then
             http_servers(index).state=HTTP_SERVER_STATE_IDLE
@@ -143,7 +116,7 @@ function http_server_auth_response_get(byref params as string, byref item as str
     end if
 end function
 
-function hex_str(hash as string) as string
+function hex_str(byref hash as string) as string
 	dim i as byte
 	dim j as byte
     dim result as byte(255)
@@ -167,7 +140,6 @@ function hex_str(hash as string) as string
 end function
 
 sub http_server_send_response_header(index as byte)
-    dim server as http_server_state=http_servers(index)
     dim header as string="HTTP/1.1 200 OK\r\n"
 
     dim extension as string(10)=right(http_servers(index).request_file_name,10)
@@ -184,7 +156,7 @@ sub http_server_send_response_header(index as byte)
             if http_server_session_nonce="" then
 				http_server_session_nonce=lstr(sys.timercountms)
 			end if
-            dim opaque as string="a"
+            dim opaque as string(1)="a"
             http_server_response_header("WWW-Authenticate","Digest algorithm=MD5,qop=\x22auth\x22,nonce=\x22"+http_server_session_nonce+"\x22,opaque=\x22"+opaque+"\x22")
             http_server_response_header_end()
             while sock.txlen<>0
@@ -252,11 +224,10 @@ sub http_server_send_response_header(index as byte)
 end sub
 
 sub http_server_send_response(index as byte)
-    dim server as http_server_state=http_servers(index)
     if http_servers(index).state<>HTTP_SERVER_STATE_RS_BODY then
         exit sub
     end if
-    sock.num=server.socket
+    sock.num=http_servers(index).socket
 
     romfile.open(http_servers(index).request_file_name)
     romfile.pointer32=http_servers(index).file_pos
@@ -358,7 +329,7 @@ sub http_server_proc_sock_data()
                     http_servers(index).state=HTTP_SERVER_STATE_RQ_HEADER
                     http_servers(index).request_header_end=""
                     http_servers(index).request_header_name=""
-                    http_servers(index).request_header_value=""
+                    http_servers(index).request_value_buffer=""
                     ci=ti+1
                 end if
             case HTTP_SERVER_STATE_RQ_HEADER
@@ -370,36 +341,36 @@ sub http_server_proc_sock_data()
                 end if
                 ti=instr(ci,data,"\r",1)
                 if ti<>0 then
-                    http_servers(index).request_header_value=http_servers(index).request_header_value+mid(data,ci,ti-ci)
+                    http_servers(index).request_value_buffer=http_servers(index).request_value_buffer+mid(data,ci,ti-ci)
                     http_servers(index).request_header_end=http_servers(index).request_header_end+"\r\n"
                     ci=ti+1
                 else
                     if http_servers(index).request_header_end="" then
                         http_servers(index).request_header_name=mid(data,ci,len(data)-ci)
                     else
-                        http_servers(index).request_header_value=mid(data,ci,255)
+                        http_servers(index).request_value_buffer=mid(data,ci,255)
                     end if
                     ci=len(data)
                 end if
                 if http_servers(index).request_header_end=":\r\n" then
-                    if instr(1,http_servers(index).request_header_value," ",1)=1 then
-                        http_servers(index).request_header_value=right(http_servers(index).request_header_value,len(http_servers(index).request_header_value)-1)
+                    if instr(1,http_servers(index).request_value_buffer," ",1)=1 then
+                        http_servers(index).request_value_buffer=right(http_servers(index).request_value_buffer,len(http_servers(index).request_value_buffer)-1)
                     end if
-                    callback_http_server_header_received(http_servers(index),http_servers(index).request_header_name,http_servers(index).request_header_value)
-                    ' sys.debugprint("Header: "+http_servers(index).request_header_name+" Value: "+http_servers(index).request_header_value)
+                    callback_http_server_header_received(http_servers(index),http_servers(index).request_header_name,http_servers(index).request_value_buffer)
+                    ' sys.debugprint("Header: "+http_servers(index).request_header_name+" Value: "+http_servers(index).request_value_buffer)
                     if http_servers(index).request_header_name="Content-Length" then
-                        http_servers(index).request_length=lval(http_servers(index).request_header_value)
+                        http_servers(index).request_length=lval(http_servers(index).request_value_buffer)
                     else if http_servers(index).request_header_name="Authorization" AND http_server_password<>"" then
                         dim ha1 as string=""
                         dim ha2 as string=""
                         
                         dim response as string=""
-                        ti=instr(1,http_servers(index).request_header_value,"response=\x22",1)
+                        ti=instr(1,http_servers(index).request_value_buffer,"response=\x22",1)
                         if ti<>0 then
-                            dim encoded as string=http_server_auth_response_get(http_servers(index).request_header_value, "response")
-                            dim nc as string(10)=http_server_auth_response_get(http_servers(index).request_header_value, "nc")
-                            dim cnonce as string(20)=http_server_auth_response_get(http_servers(index).request_header_value, "cnonce")
-                            dim opaque as string(10)=http_server_auth_response_get(http_servers(index).request_header_value, "opaque")
+                            dim encoded as string=http_server_auth_response_get(http_servers(index).request_value_buffer, "response")
+                            dim nc as string(10)=http_server_auth_response_get(http_servers(index).request_value_buffer, "nc")
+                            dim cnonce as string(20)=http_server_auth_response_get(http_servers(index).request_value_buffer, "cnonce")
+                            dim opaque as string(10)=http_server_auth_response_get(http_servers(index).request_value_buffer, "opaque")
 
 							dim username as string(50)="admin"
                             ha1=username+":"+http_server_realm+":"+http_server_password
@@ -418,7 +389,7 @@ sub http_server_proc_sock_data()
                             end if
                         end if
                         
-                        ' dim encoded as string=http_servers(index).request_header_value
+                        ' dim encoded as string=http_servers(index).request_value_buffer
                         ' while instr(1,encoded," ",1)>0
                         '     encoded=right(encoded,len(encoded)-instr(1,encoded," ",1))
                         ' wend
@@ -433,11 +404,11 @@ sub http_server_proc_sock_data()
                         ' end if
                     end if
                     http_servers(index).request_header_name=""
-                    http_servers(index).request_header_value=""
+                    http_servers(index).request_value_buffer=""
                     http_servers(index).request_header_end=""
                 else if http_servers(index).request_header_end="\r\n" 
                     AND http_servers(index).request_header_name="" 
-                    AND http_servers(index).request_header_value="" then
+                    AND http_servers(index).request_value_buffer="" then
                     'end of headers
                     #IF HTTP_SERVER_DEBUG_PRINT
                     sys.debugprint("HTTP>HD: "+http_servers(index).request_path+"\r\n")
@@ -451,13 +422,13 @@ sub http_server_proc_sock_data()
                         http_server_send_response_header(index)
                     end if
                     http_servers(index).request_header_name=""
-                    http_servers(index).request_header_value=""
+                    http_servers(index).request_value_buffer=""
                     http_servers(index).request_header_end=""
                 end if
             case HTTP_SERVER_STATE_RQ_BODY
-                http_servers(index).request_body=http_servers(index).request_body+mid(data,ci,255)
+                http_servers(index).request_value_buffer=http_servers(index).request_value_buffer+mid(data,ci,255)
                 ci=len(data)
-                if len(http_servers(index).request_body)>=http_servers(index).request_length then
+                if len(http_servers(index).request_value_buffer)>=http_servers(index).request_length then
                     http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
                     http_server_send_response_header(index)
                 end if
