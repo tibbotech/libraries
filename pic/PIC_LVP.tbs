@@ -1,5 +1,6 @@
 include "global.tbh"
 
+dim icsp_target as PIC_TYPE = 0
 dim icsp_sda as pl_io_num = PL_IO_NULL
 dim icsp_scl as pl_io_num = PL_IO_NULL
 dim icsp_mclr as pl_io_num = PL_IO_NULL
@@ -47,12 +48,6 @@ type firmware
 	config(PIC_LVP_MAX_CFG_LEN) as word
 end type
 
-
-' Global flag to enable/disable SSI use
-#define T_ERAB_MS		5
-#define T_PINT_MS		6
-#define T_PEXT_MS		3
-#define T_INCADDR_MS	1
 
 function swab(w as word) as word
 	swab = ((w shr 8) and &hFF) or ((w and &hFF) shl 8)
@@ -1340,7 +1335,7 @@ function check_pic(options as byte) as boolean
 #ifdef PIC_LVP_DEBUG_PRINT
 			sys.debugprint(" Detected old " + model + " revision " + str(rev) + "\r\n")
 #endif
-			if (pic and mask) <> PIC_LVP_TARGET_TYPE then
+			if (pic and mask) <> icsp_target then
 #ifdef PIC_LVP_DEBUG_PRINT
 				sys.debugprint(" Wrong PIC!!!\r\n")
 #endif
@@ -1363,7 +1358,7 @@ function check_pic(options as byte) as boolean
 #ifdef PIC_LVP_DEBUG_PRINT
 			sys.debugprint(" Detected new " + model + "\r\n")
 #endif
-			if pic <> PIC_LVP_TARGET_TYPE then
+			if pic <> icsp_target then
 #ifdef PIC_LVP_DEBUG_PRINT
 				sys.debugprint(" Wrong PIC!!!\r\n")
 #endif
@@ -1409,7 +1404,7 @@ function program_firmware(byref fw as firmware) as boolean
 
 	program_firmware = false
 	
-	if pic_id(PIC_LVP_TARGET_TYPE, name, rev, options, mask) <> true then
+	if pic_id(icsp_target, name, rev, options, mask) <> true then
 #ifdef PIC_LVP_DEBUG_PRINT
 		sys.debugprint("Unknown TARGET PIC\r\n")
 #endif
@@ -1533,8 +1528,10 @@ function pic_lvp_upload_firmware(byref fwname as string) as boolean
 	
 end function
 
-sub pic_lvp_start(SCL as byte, SDA as byte, MCLR as byte) 
+sub pic_lvp_start(target as PIC_TYPE, SCL as byte, SDA as byte, MCLR as byte) 
 
+	icsp_target = target
+	
 	icsp_scl  = SCL
 	icsp_sda  = SDA
 	icsp_mclr = MCLR
