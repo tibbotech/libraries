@@ -303,7 +303,7 @@ function json_get_value(byref key as string, byref data as string) as string
     wend
 end function
 
-function escape_string(byref data as string) as string
+function escape_string(data as string) as string
     dim x, tmp_instr as byte
     dim k as byte=1
 	dim i as byte=0
@@ -329,7 +329,7 @@ function escape_string(byref data as string) as string
 	escape_string=data
 end function
 
-function unescape_string(byref data as string) as string
+function unescape_string(data as string) as string
     dim x, tmp_instr, offset as byte
     dim k as byte=1
     dim unescaped_char as string(1)=""
