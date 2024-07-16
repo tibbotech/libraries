@@ -2278,6 +2278,13 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
 			field_value=fstr(tmp_f)
+            dim pos as byte = instr(1,field_value, ".", 1)
+            if pos <> 0  then
+                if instr(1,field_value,"-",1) <> 0 then
+                    pos=pos-1
+                end if
+                field_value=ftostr(tmp_f,FTOSTR_MODE_PLAIN,pos+99)
+            end if
 			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
 				p1=0
 				p2=86400
