@@ -982,6 +982,10 @@ sub callback_http_server_header_received(byref server as http_server_state, byre
 
 end sub
 
+sub callback_http_server_body_received(byref server as http_server_state, byref body as string)
+    '****callback_http_server_body_received****'
+end sub
+
 function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
 
 end function
