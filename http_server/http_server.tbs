@@ -429,11 +429,14 @@ sub http_server_proc_sock_data()
                     http_servers(index).request_header_name=""
                     http_servers(index).request_value_buffer=""
                     http_servers(index).request_header_end=""
+                    http_servers(index).request_read_pos=0
                 end if
             case HTTP_SERVER_STATE_RQ_BODY
-                http_servers(index).request_value_buffer=http_servers(index).request_value_buffer+mid(data,ci,255)
+                http_servers(index).request_value_buffer=http_servers(index).request_value_buffer+mid(data,ci,len(data)-ci+1)
+                http_servers(index).request_read_pos=http_servers(index).request_read_pos+len(data)-ci+1
+                callback_http_server_body_received(http_servers(index),mid(data,ci,len(data)-ci))
                 ci=len(data)
-                if len(http_servers(index).request_value_buffer)>=http_servers(index).request_length then
+                if http_servers(index).request_read_pos>=http_servers(index).request_length then
                     http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
                     http_server_send_response_header(index)
                 end if

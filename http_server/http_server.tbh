@@ -33,6 +33,7 @@ type http_server_state
 	request_header_end as string(4)
 	request_authenticated as boolean
 	request_length as dword
+	request_read_pos as dword
 	resp_buf as string
 	file_size as dword
 	file_pos as dword
@@ -53,6 +54,7 @@ declare sub http_server_response_status(code as word)
 declare sub http_server_response_header(byref header as string(50), byref value as string)
 declare sub http_server_response_header_end()
 declare sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+declare sub callback_http_server_body_received(byref server as http_server_state, byref body as string)
 declare function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
 declare function http_server_decode(byref encoded_string as string) as string
 declare function http_server_find_param(byref http_req_string as string, byref argument as string) as string
