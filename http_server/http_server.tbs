@@ -85,7 +85,6 @@ sub http_server_response_status(code as word)
     header=header + str(code) + " "
     if code=401 then
         message="Unauthorized"
-        sys.debugprint("unauthorized")
     end if
     header=header+message+"\r\n"
     sock.setdata(header)
@@ -161,75 +160,69 @@ sub http_server_send_response_header(index as byte)
             dim opaque as string(1)="a"
             http_server_response_header("WWW-Authenticate","Digest algorithm=MD5,qop=\x22auth\x22,nonce=\x22"+http_server_session_nonce+"\x22,opaque=\x22"+opaque+"\x22")
             http_server_response_header_end()
-            dim end_ts as dword=sys.timercountms+1000
-            while sock.txlen<>0 AND sys.timercountms<end_ts
-                doevents
-            wend
-            http_servers(index).state=HTTP_SERVER_STATE_IDLE
-            sock.close()
+            http_servers(index).resp_buf=""
+            http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+            sock.notifysent(0)
             exit sub
         end if
     end if
     
     dim callback_result as boolean=callback_http_server_endpoint_called(http_servers(index))
     if callback_result<>true then
-    dim content_type as string(30)="text/html"
-    select case extension
-        case "json":
-            content_type="application/json"
-        case "js":
-            romfile.open(http_servers(index).request_file_name+".gz")
-            if romfile.size<>0 then
-                http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
-                content_encoding="Content-Encoding: gzip\r\n"
-            end if
-            content_type="application/javascript"
-        case "css":
-            romfile.open(http_servers(index).request_file_name+".gz")
-            if romfile.size<>0 then
-                http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
-                content_encoding="Content-Encoding: gzip\r\n"
-            end if
-            content_type="text/css"
-        case "html":
-            content_type="text/html"
-        case "png":
-            content_type="image/png"
-        case "jpg", "jpeg":
-            content_type="image/jpeg"
-        case else:
-            content_type=""
-    end select
+        dim content_type as string(30)="text/html"
+        select case extension
+            case "json":
+                content_type="application/json"
+            case "js":
+                romfile.open(http_servers(index).request_file_name+".gz")
+                if romfile.size<>0 then
+                    http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+                    content_encoding="Content-Encoding: gzip\r\n"
+                end if
+                content_type="application/javascript"
+            case "css":
+                romfile.open(http_servers(index).request_file_name+".gz")
+                if romfile.size<>0 then
+                    http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+                    content_encoding="Content-Encoding: gzip"
+                end if
+                content_type="text/css"
+            case "html":
+                content_type="text/html"
+            case "png":
+                content_type="image/png"
+            case "jpg", "jpeg":
+                content_type="image/jpeg"
+            case else:
+                content_type=""
+        end select
 
-    romfile.open(http_servers(index).request_file_name)
-	http_servers(index).file_size=romfile.size
-    if content_type="" OR romfile.size=0 then
-        header="HTTP/1.1 404 Not Found\r\n\r\n"
-    else
+        romfile.open(http_servers(index).request_file_name)
         http_servers(index).file_size=romfile.size
-        http_servers(index).file_pos=0
-		
-		header=header+"Server: Tibbo\r\n"
-		header=header+"Content-Type: "+content_type+"\r\n"
-		header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
-		header=header+content_encoding
-		header=header+"\r\n"
-    end if
+        if content_type="" OR romfile.size=0 then
+            header="HTTP/1.1 404 Not Found\r\n\r\n"
+        else
+            http_servers(index).file_size=romfile.size
+            http_servers(index).file_pos=0
+            
+            header=header+"Server: Tibbo\r\n"
+            header=header+"Content-Type: "+content_type+"\r\n"
+            header=header+"Connection: close\r\n"
+            header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
+            header=header+content_encoding
+            header=header+"\r\n"
+        end if
 
-    sock.notifysent(sock.txbuffsize-len(header))
-    http_servers(index).resp_buf=header
-    http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+        
+        http_servers(index).resp_buf=header
+        http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
 	else
 		http_servers(index).file_size=0
         http_servers(index).file_pos=0
 		http_servers(index).resp_buf=""
 		http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
-        dim end_ts as dword=sys.timercountms+1000
-        while sock.txlen<>0 AND sys.timercountms<end_ts
-            doevents
-        wend
-		http_server_send_response(index)
 	end if
+    sock.notifysent(sock.txbuffsize-len(http_servers(index).resp_buf))
 end sub
 
 sub http_server_send_response(index as byte)
@@ -238,28 +231,9 @@ sub http_server_send_response(index as byte)
     end if
     sock.num=http_servers(index).socket
 
-    romfile.open(http_servers(index).request_file_name)
-    romfile.pointer32=http_servers(index).file_pos
-
-    'blocking version
-    ' while http_servers(index).file_pos<http_servers(index).file_size 
-    '     dim data as string=romfile.getdata(255)
-    '     http_servers(index).file_pos=romfile.pointer32
-    '     while sock.txfree<255
-    '         doevents
-    '     wend
-    '     sock.setdata(data)
-    '     sock.send()
-    ' wend
-    ' http_servers(index).state=HTTP_SERVER_STATE_IDLE
-    ' while sock.txlen<>0
-    '     doevents
-    ' wend
-    ' sock.close()
-
-
-
     if http_servers(index).file_pos<http_servers(index).file_size AND http_servers(index).file_size>0 then
+        romfile.open(http_servers(index).request_file_name)
+        romfile.pointer32=http_servers(index).file_pos
         dim data as string=romfile.getdata(255)
         http_servers(index).file_pos=romfile.pointer32
         http_servers(index).resp_buf=data
@@ -408,20 +382,6 @@ sub http_server_proc_sock_data()
                                 #ENDIF
                             end if
                         end if
-                        
-                        ' dim encoded as string=http_servers(index).request_value_buffer
-                        ' while instr(1,encoded," ",1)>0
-                        '     encoded=right(encoded,len(encoded)-instr(1,encoded," ",1))
-                        ' wend
-                        ' base64_decode(encoded,decoded)
-                        ' if instr(1,decoded,":",1)>0 then
-                        '     dim parts as string(2)
-                        '     dim user as string(50)=left(decoded,instr(1,decoded,":",1)-1)
-                        '     dim password as string(50)=right(decoded,len(decoded)-instr(1,decoded,":",1))
-                        '     if password=http_server_password then
-                        '         http_servers(index).request_authenticated=true
-                        '     end if
-                        ' end if
                     end if
                     http_servers(index).request_header_name=""
                     http_servers(index).request_value_buffer=""
