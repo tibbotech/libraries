@@ -231,7 +231,7 @@ sub http_server_send_response(index as byte)
     end if
     sock.num=http_servers(index).socket
 
-    if http_servers(index).file_pos<http_servers(index).file_size AND http_servers(index).file_size>0 then
+    if http_servers(index).file_pos<=http_servers(index).file_size AND http_servers(index).file_size>0 then
         romfile.open(http_servers(index).request_file_name)
         romfile.pointer32=http_servers(index).file_pos
         dim data as string=romfile.getdata(255)
