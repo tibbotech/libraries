@@ -454,13 +454,13 @@ sub http_server_proc_timer()
     dim prev_sock as byte=sock.num
     for ii=0 to HTTP_SERVER_COUNT-1
         if http_servers(ii).state<>HTTP_SERVER_STATE_IDLE then
-            if http_servers(ii).ts + 5000 < sys.timercountms then
-                sys.debugprint("HTTP>timeout")
-                http_servers(ii).state=HTTP_SERVER_STATE_IDLE
-                sock.num=http_servers(ii).socket
-                sock.close()
-                sock.num=prev_sock
-            end if
+            ' if http_servers(ii).ts + 5000 < sys.timercountms then
+            '     sys.debugprint("HTTP>timeout")
+            '     http_servers(ii).state=HTTP_SERVER_STATE_IDLE
+            '     sock.num=http_servers(ii).socket
+            '     sock.close()
+            '     sock.num=prev_sock
+            ' end if
         end if
     next ii
     
