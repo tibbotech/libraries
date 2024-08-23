@@ -399,11 +399,13 @@ function device_firmware_upload_async(source as PL_FW_UPG_SOURCE, number as byte
 	
 	device_firmware_init(source, number) 'Move parameters below into firmware init
 	#IFDEF FIRMWARE_UPGRADE_FILENAME
+	dim prev_num as byte=fd.filenum
 	dim fd_status as pl_fd_status_codes=fd.delete(FIRMWARE_UPGRADE_FILENAME)
 	fd_status=fd.create(FIRMWARE_UPGRADE_FILENAME)
 	fd.filenum=filenum_open("UPG",FIRMWARE_UPGRADE_FILENAME,fd_status)
 	#ENDIF
  	device_firmware_upload_async=device_firmware_upload_update()
+	fd.filenum=prev_num
 
 end function
 
