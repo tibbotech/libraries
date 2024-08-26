@@ -1,4 +1,3 @@
-
 #ifndef PIC_LVP_MAX_DATA_LEN
 	#define PIC_LVP_MAX_DATA_LEN        8192
 #endif
@@ -21,12 +20,6 @@
 
 #ifndef PIC_LVP_DEBUG_PRINT
 	#define PIC_LVP_DEBUG_PRINT 1
-#endif
-
-'	You must define this define in your code with the type of the PIC processor that needs to be flashed.
-'   See enum PIC_TYPE
-#ifndef PIC_LVP_TARGET_TYPE
-	#define PIC_LVP_TARGET_TYPE 0	' Unknown PIC type
 #endif
 
 ' PIC TYPE
@@ -89,7 +82,6 @@ enum PIC_TYPE
 	PIC_16LF18456	= &h30DA
 end enum
 
-declare sub pic_lvp_start(SCL as byte, SDA as byte, MCLR as byte)
+declare sub pic_lvp_start(target as PIC_TYPE, SCL as byte, SDA as byte, MCLR as byte)
 
 declare function pic_lvp_upload_firmware(byref fwname as string) as boolean
-
