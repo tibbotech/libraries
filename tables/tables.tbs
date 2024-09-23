@@ -759,6 +759,8 @@ no_field_found:
 		
 		tbl_item.clean_start=NO
 		
+		tbl_item.filenum=255
+		
 		if tbl_info_index<TBL_MAX_NUM_TABLES then
 			tbl_info(tbl_info_index)=tbl_item	
 		end if
@@ -920,6 +922,7 @@ fail_to_open:
 	
 	tbl_info_index=f
 	tbl_selected_file_name=file_name
+	tbl_info(tbl_info_index).filenum=i
 	tbl_get_num_records(tbl_selected_all_rc,YES)
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto fd_error
