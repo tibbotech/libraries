@@ -677,7 +677,7 @@ end sub
 function var_temp_raw_update() as word
     
 
-            modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", SER_TBT05_S1_NAME, modbus_RTU)
+            modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", SER_TBT05_S1_NAME, modbus_RTU,1)
 end function
             
 
@@ -977,3 +977,15 @@ end sub
 sub ui_menu_exit()
 
 end sub
+
+sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+
+end sub
+
+sub callback_http_server_body_received(byref server as http_server_state, byref body as string)
+    '****callback_http_server_body_received****'
+end sub
+
+function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
+
+end function

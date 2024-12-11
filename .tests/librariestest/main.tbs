@@ -179,6 +179,8 @@ var_temp_set(temp_raw)
         timer_1s_lf276ggdlg9nar1w1cj_count = 0
     end if
 
+    http_server_proc_timer()
+
 end sub
 
 

@@ -240,13 +240,12 @@ locked=no
 location=project
 
 [file31]
-path=api.html
-type=html
-format=65001
+path=libraries/pic/PIC_LVP.tbs
+type=basic
+format=
 condition=
 locked=no
-location=project
-
+location=
 [file32]
 path=Widgets.js
 type=text
@@ -442,14 +441,6 @@ location=
 [file56]
 path=libraries/pic/PIC_LVP.tbh
 type=header
-format=
-condition=
-locked=no
-location=
-
-[file57]
-path=libraries/pic/PIC_LVP.tbs
-type=basic
 format=
 condition=
 locked=no

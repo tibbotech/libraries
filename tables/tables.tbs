@@ -759,6 +759,8 @@ no_field_found:
 		
 		tbl_item.clean_start=NO
 		
+		tbl_item.filenum=255
+		
 		if tbl_info_index<TBL_MAX_NUM_TABLES then
 			tbl_info(tbl_info_index)=tbl_item	
 		end if
@@ -920,6 +922,7 @@ fail_to_open:
 	
 	tbl_info_index=f
 	tbl_selected_file_name=file_name
+	tbl_info(tbl_info_index).filenum=i
 	tbl_get_num_records(tbl_selected_all_rc,YES)
 	
 	if fd.transactionstart()<>PL_FD_STATUS_OK then goto fd_error
@@ -2278,6 +2281,13 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
 			field_value=fstr(tmp_f)
+            dim pos as byte = instr(1,field_value, ".", 1)
+            if pos <> 0  then
+                if instr(1,field_value,"-",1) <> 0 then
+                    pos=pos-1
+                end if
+                field_value=ftostr(tmp_f,FTOSTR_MODE_PLAIN,pos+99)
+            end if
 			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
 				p1=0
 				p2=86400

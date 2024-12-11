@@ -15,7 +15,7 @@ function math_pow(base as integer, exp as integer) as real
 end function
 
 
-function math_hex_to_float(num as string) as real
+function math_hex_to_float(byref num as string(5)) as real
 	dim tmp as dword = lval("&h" + num)
 	dim sign as byte = (tmp SHR 31)
 	dim mantissa as dword = (tmp AND &h7FFFFF) OR &h800000      ' 11244903
@@ -107,10 +107,10 @@ sub base64_decode(byref input as string, byref result as string)
 	dim v as dword
 	dim out as byte(255)
 	dim in as byte(255)
-	for i = 0 to 255 - 1
+	in = input
+	for i = len(input) to 255 - 1
 		in(i) = 0
 	next i
-	in = input
 	
 	for i = 0 to 255 - 1
 		if in(i) <> 0 then
@@ -213,7 +213,7 @@ function ftofixed(r as real, decimals as byte) as string
 		if instr(1,ftofixed,"-",1) <> 0 then
 			pos=pos-1
 		end if
-		ftofixed=ftostr(r,FTOSTR_MODE_AUTO,pos+decimals-1)
+		ftofixed=ftostr(r,FTOSTR_MODE_PLAIN,pos+decimals-1)
 	end if
 end function
 
@@ -223,7 +223,7 @@ sub time_delay_ms(delay_ms as word)
 	wend
 end sub
 
-function hex_mac(mac as string) as string
+function hex_mac(byref mac as string) as string
 	dim i as integer = 0
 	dim startpos as integer = 1
 	dim endpos as integer = 0
@@ -235,9 +235,9 @@ function hex_mac(mac as string) as string
 		num = val(  mid(mac,startpos,  endpos-startpos) )
 		if num<>0 then
 			if num < 16 then
-				result = result + "0" + hex( num ) + ":"
+				result = result + "0" + right(hex(num),1) + ":"
 			else
-				result = result + right(hex( num ),2) + ":"
+				result = result + right(hex(num),2) + ":"
 			end if
 		else
 			result = result + "00" + ":"
@@ -305,13 +305,12 @@ end function
 
 function escape_string(data as string) as string
     dim x, tmp_instr as byte
-    dim tmp_str as string=""
     dim k as byte=1
 	dim i as byte=0
     escape_string=""
 	
-	dim special_characters as string="\x22\r\n\x5c\t"
-	dim escaped_chars as string="\x22rn\x5ct"
+	dim special_characters as string(10)="\x22\r\n\x5c\t"
+	dim escaped_chars as string(10)="\x22rn\x5ct"
     while k < len(data) + 1
 		for i=0 to len(special_characters)-1
 			dim escape_char as string(1)=mid(special_characters,i+1,1)
@@ -332,9 +331,8 @@ end function
 
 function unescape_string(data as string) as string
     dim x, tmp_instr, offset as byte
-    dim tmp_str as string=""
     dim k as byte=1
-    dim unescaped_char as string=""
+    dim unescaped_char as string(1)=""
     unescape_string=data
 
 	while k < len(unescape_string) - 1
@@ -363,5 +361,27 @@ function unescape_string(data as string) as string
 		
 		k=k+1
     wend
-	
+end function
+
+function str_to_hex(byref hash as string) as string
+	dim i as byte
+	dim j as byte
+    dim result as byte(255)
+	str_to_hex=""
+	for i=0 to len(hash)-1
+		dim part as string(2)=mid(hex(asc(mid(hash,i+1,1))),3,2)
+		if len(part)=1 then
+			part="0" + part
+		end if
+		str_to_hex=str_to_hex+part
+	next i
+    result=str_to_hex
+	j=len(str_to_hex)
+	str_to_hex=""
+    for i=0 to j-1
+        if result(i)<97 AND result(i)>=65 then
+            result(i)=result(i)+32
+        end if
+		str_to_hex=str_to_hex+chr(result(i))
+    next i
 end function

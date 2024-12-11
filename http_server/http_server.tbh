@@ -1,7 +1,61 @@
+#IFNDEF HTTP_SERVER_COUNT
+	#DEFINE HTTP_SERVER_COUNT 3
+#ENDIF
 
-declare http_server_password as string
-declare http_server_session as string
+#IFNDEF HTTP_SERVER_MAX_FILE_NAME_LEN
+	#DEFINE HTTP_SERVER_MAX_FILE_NAME_LEN 50
+#ENDIF
 
+#IFNDEF HTTP_SEVER_RX_BUFF_SIZE
+	#DEFINE HTTP_SEVER_RX_BUFF_SIZE 3
+#ENDIF
+
+enum http_server_op_state
+	HTTP_SERVER_STATE_IDLE
+	HTTP_SERVER_STATE_RQ_METHOD
+	HTTP_SERVER_STATE_RQ_URI
+	HTTP_SERVER_STATE_RQ_PROTOCOL
+	HTTP_SERVER_STATE_RQ_HEADER
+	HTTP_SERVER_STATE_RQ_BODY
+	HTTP_SERVER_STATE_RS_HEADER
+	HTTP_SERVER_STATE_RS_BODY
+end enum
+
+type http_server_state
+	socket as byte
+	state as http_server_op_state
+	request_buf as string
+	request_path as string(128)
+	request_value_buffer as string
+	request_file_name as string(HTTP_SERVER_MAX_FILE_NAME_LEN)
+	request_method as string(6)
+	request_header_name as string(30)
+	request_header_end as string(4)
+	request_authenticated as boolean
+	request_length as dword
+	request_read_pos as dword
+	resp_buf as string
+	file_size as dword
+	file_pos as dword
+	ts as dword
+end type
+
+
+declare http_servers as http_server_state(HTTP_SERVER_COUNT)
+declare http_server_password as string(50)
+declare http_server_session as string(20)
+
+declare sub http_server_start()
+declare sub http_server_proc_sock_data()
+declare sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_sock_state_simple)
+declare sub http_server_proc_timer()
+declare sub http_server_proc_sock_data_sent()
+declare sub http_server_response_status(code as word)
+declare sub http_server_response_header(byref header as string(50), byref value as string)
+declare sub http_server_response_header_end()
+declare sub http_server_proc_timer()
+declare sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+declare sub callback_http_server_body_received(byref server as http_server_state, byref body as string)
+declare function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
+declare function http_server_decode(byref encoded_string as string) as string
 declare function http_server_find_param(byref http_req_string as string, byref argument as string) as string
-declare function http_server_auth() as boolean
-declare function http_server_get_session() as string

@@ -145,6 +145,7 @@ type tbl_type
 	field_num_offset as word
 	num_of_fields as byte
 	clean_start as no_yes
+	filenum as byte
 end type
 
 type struct_tbl_timestamp
