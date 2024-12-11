@@ -1,0 +1,83 @@
+
+' VOLTAGE AND CURRENT INPUT SELECTION MAPPING
+#define VIN1_DIFFERENTIAL 0
+#define VIN2_DIFFERENTIAL 2
+#define VIN1+_SINGLE_ENDED 0
+#define VIN1-_SINGLE_ENDED 1
+#define VIN2+_SINGLE_ENDED 2
+#define VIN2-_SINGLE_ENDED 3
+#define IIN1_SINGLE_ENDED 4
+#define IIN2_SINGLE_ENDED 5
+
+enum TBT61_INIT_RESULT
+	TBT61_INIT_OK,
+	TBT61_INIT_ERROR_SPI_NO_EMPTY_CHANNEL,
+	TBT61_INT_ERROR_NO_TIBBIT_PRESENT,
+	TBT61_INIT_ERROR_NO_VALID_VERSION,
+	TBT61_INIT_ERROR_FAULT_CHECK_POWER
+end enum
+
+enum TBT61_VOLAGE_TYPE_INPUT
+	TBT61_VOLTAGE_TWO_DIFFERENTIAL,
+	TBT61_VOLTAGE_FOUR_SINGLE
+end enum
+
+type FW_Info
+	TibbitType as string(4)
+	SerialNumber(4) as byte
+	TestVersion(2) as byte
+	TestDate(3) as byte
+end type
+
+declare function tbt61_init(signature as string, input_type as TBT61_VOLAGE_TYPE_INPUT, cs as pl_io_num, clk as pl_io_num, mosi as pl_io_num, miso as pl_io_num, scl as pl_io_num, sda as pl_io_num, byref tbt_channel as byte) as TBT61_INIT_RESULT
+'<b>FUNCTION</b><br><br>
+'The function initializes Tibbit #61.<br><br>
+'<b>Inputs:</b><br>
+'&emsp;<font color="maroon"><b>signature</b></font> - Text identifier of the resource owner.<br>
+'&emsp;<font color="maroon"><b>input_type</b></font> - The type of inputs used. The value is a member of the enum type <font color="teal"><b>TBT61_VOLTAGE_TYPE_INPUT</b></font>.<br>
+'&emsp;&emsp;<font color="olive"><b>0-TBT61_VOLTAGE_TWO_DIFFERENTIAL</b></font> - two differential volt inputs.<br>
+'&emsp;&emsp;<font color="olive"><b>1-TBT61_VOLTAGE_FOUR_SINGLE</b></font> - four volt inputs.<br>
+'&emsp;<font color="maroon"><b>cs, clk, mosi, miso,scl, sda</b></font> - are the pin numbers for the corresponding Tibbit control signals according to the Tibbit installation location on the TPS board.<br>
+'<br>
+'<b>Outputs:</b><br>
+'&emsp;The function returns a value of the enum type <font color="teal"><b>TBT61_INIT_RESULT</b></font>.<br>
+'&emsp;&emsp;<font color="olive"><b>0-TBT61_INIT_OK</b></font> - Initialization completed successfully.<br>
+'&emsp;&emsp;<font color="olive"><b>1-TBT61_INIT_ERROR_SPI_NO_EMPTY_CHANNEL</b></font> - There are no SPI channels available for use..<br>
+'&emsp;&emsp;<font color="olive"><b>2-TBT61_INT_ERROR_NO_TIBBIT_PRESENT</b></font> - No Tibbits#61 were found using the pin numbers provided.<br>
+'&emsp;&emsp;<font color="olive"><b>3-TBT61_INIT_ERROR_NO_VALID_VERSION</b></font> - Incorrect version of Tibbit's equipment.<br>
+'&emsp;&emsp;<font color="olive"><b>4-TBT61_INIT_ERROR_FAULT_CHECK_POWER</b></font> - Tibbit#61 internal power supply testing error.<br>
+'&emsp;<font color="maroon"><b>tbt_channel</b></font> - If the function returned result <font color="olive"><b>0-TBT61_INIT_OK</b></font> then this parameter contains the identifier of the current Tibbit.
+'All calls to this Tibbit must be made with the passing of this identifier.
+
+declare sub tbt61_release(tbt_channel as byte)
+'<b>SUBROUTINE</b><br><br>
+'The subroutine releases all allocated resources for this Tibbit#61 instance.<br><br>
+'<b>Inputs:</b><br>
+'&emsp;<font color="maroon"><b>tbt_channel</b></font> - Tibbit#61 instance identifier.
+
+declare sub tbt61_mode(tbt_channel as byte, input_type as TBT61_VOLAGE_TYPE_INPUT)
+'<b>SUBROUTINE</b><br><br>
+'This subroutine changes the type of inputs used.<br><br>
+'<b>Inputs:</b><br>
+'&emsp;<font color="maroon"><b>tbt_channel</b></font> - Tibbit#61 instance identifier.<br>
+'&emsp;<font color="maroon"><b>input_type</b></font> - The type of inputs used. The value is a member of the enum type <font color="teal"><b>TBT61_VOLTAGE_TYPE_INPUT</b></font>.<br>
+'&emsp;&emsp;<font color="olive"><b>0-TBT61_VOLTAGE_TWO_DIFFERENTIAL</b></font> - two differential volt inputs.<br>
+'&emsp;&emsp;<font color="olive"><b>1-TBT61_VOLTAGE_FOUR_SINGLE</b></font> - four volt inputs.
+
+declare function tbt61_read_adc(tbt_channel as byte, channel as byte, byref flags as byte) as real
+'<b>FUNCTION</b><br><br>
+'The function reads the ADC value for the specified channel number. Error flags are also returned.<br><br>
+'<b>Inputs:</b><br>
+'&emsp;<font color="maroon"><b>tbt_channel</b></font> - Tibbit#61 instance identifier.<br>
+'&emsp;<font color="maroon"><b>channel</b></font> - ADC channel number.<br>
+'<b>Outputs:</b><br>
+'&emsp;This function returns the measurement result for the specified channel. The result is in <font color="teal"><b>REAL</b></font> format.<br>
+'&emsp;<font color="maroon"><b>flags</b></font> - Measurement result flags.
+
+declare function tbt61_read_fw_info(tbt_channel as byte) as FW_Info
+'<b>FUNCTION</b><br><br>
+'This function returns the <font color="teal"><b>FW_Info</b></font> structure read from the EEPROM of the specified Tibbit#61.<br><br>
+'<b>Inputs:</b><br>
+'&emsp;<font color="maroon"><b>tbt_channel</b></font> - Tibbit#61 instance identifier.<br>
+'<b>Outputs:</b><br>
+'&emsp;<font color="maroon"><b>info</b></font> - Read <font color="teal"><b>FW_Info</b></font> structure from Tibbit#61.
