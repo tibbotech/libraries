@@ -1,0 +1,1008 @@
+include "global.tbh"
+
+const TBT61_INIT_SIGNATURE = &h4453
+const TBT61_CR_LF = chr(13) + chr(10)
+const TBT61_DEBUG_STAMP = "TBT61> "
+const TBT61_MAX_NUM = 4
+
+#if TBT61_DEBUG_PRINT
+declare sub tbt61_debug_print(print_data as string)
+#endif
+
+#define EEPROM_ADDR_W &ha0
+#define EEPROM_ADDR_R &ha1
+#define EEPROM_SER_W &hb0
+#define EEPROM_SER_R &hb1
+
+#define CMD_WEN 							&b00000000
+#define CMD_READ 							&b01000000
+#define CMD_WRITE 							&b00000000
+#define ADDRESS_STATUS				 		&h00
+#define ADDRESS_ADCMODE 					&h01
+#define ADDRESS_IFMODE 						&h02
+#define ADDRESS_REGCHECK 					&h03
+#define ADDRESS_DATA 						&h04
+#define ADDRESS_GPIOCON 					&h06
+#define ADDRESS_ID 							&h07
+#define ADDRESS_CH0 						&h10
+#define ADDRESS_CH1 						&h11
+#define ADDRESS_CH2 						&h12
+#define ADDRESS_CH3 &h13
+#define ADDRESS_CH4 &h14
+#define ADDRESS_CH5 &h15
+#define ADDRESS_CH6 &h16
+#define ADDRESS_CH7 &h17
+#define ADDRESS_CH8 &h18
+#define ADDRESS_CH9 &h19
+#define ADDRESS_CH10 &h1a
+#define ADDRESS_CH11 &h1b
+#define ADDRESS_CH12 &h1c
+#define ADDRESS_CH13 &h1d
+#define ADDRESS_CH14 &h1e
+#define ADDRESS_CH15 &h1f
+#define ADDRESS_SETUPCON0 &h20
+#define ADDRESS_SETUPCON1 &h21
+#define ADDRESS_SETUPCON2 &h22
+#define ADDRESS_SETUPCON3 &h23
+#define ADDRESS_SETUPCON4 &h24
+#define ADDRESS_SETUPCON5 &h25
+#define ADDRESS_SETUPCON6 &h26
+#define ADDRESS_SETUPCON7 &h27
+#define ADDRESS_FILTCON0 &h28
+#define ADDRESS_FILTCON1 &h29
+#define ADDRESS_FILTCON2 &h2a
+#define ADDRESS_FILTCON3 &h2b
+#define ADDRESS_FILTCON4 &h2c
+#define ADDRESS_FILTCON5 &h2d
+#define ADDRESS_FILTCON6 &h2e
+#define ADDRESS_FILTCON7 &h2f
+#define ADDRESS_OFFSET0 &h30
+#define ADDRESS_OFFSET1 &h31
+#define ADDRESS_OFFSET2 &h32
+#define ADDRESS_OFFSET3 &h33
+#define ADDRESS_OFFSET4 &h34
+#define ADDRESS_OFFSET5 &h35
+#define ADDRESS_OFFSET6 &h36
+#define ADDRESS_OFFSET7 &h37
+#define ADDRESS_GAIN0 &h38
+#define ADDRESS_GAIN1 &h39
+#define ADDRESS_GAIN2 &h3a
+#define ADDRESS_GAIN3 &h3b
+#define ADDRESS_GAIN4 &h3c
+#define ADDRESS_GAIN5 &h3d
+#define ADDRESS_GAIN6 &h3e
+#define ADDRESS_GAIN7 &h3f
+
+' ADC MODE
+#define ADC_MODE_REF_EN &h8000
+#define ADC_MODE_SING_CYC &h2000
+#define ADC_MODE_DELAY_0US &h0000
+#define ADC_MODE_DELAY_32US &h0100
+#define ADC_MODE_DELAY_128US &h0200
+#define ADC_MODE_DELAY_320US &h0300
+#define ADC_MODE_DELAY_800US &h0400
+#define ADC_MODE_DELAY_1600US &h0500
+#define ADC_MODE_DELAY_4MS &h0600
+#define ADC_MODE_DELAY_8MS &h0700
+#define ADC_MODE_CONTINUOUS &h0000
+#define ADC_MODE_SINGLE &h0010
+#define ADC_MODE_STANDBY &h0020
+#define ADC_MODE_POWERDOWN &h0030
+#define ADC_MODE_INTERNAL_OFFSET_CALIBRATION &h0040
+#define ADC_MODE_INTERNAL_GAIN_CALIBRATION &h0050
+#define ADC_MODE_SYSTEM_OFFSET_CALIBRATION &h0060
+#define ADC_MODE_SYSTEM_GAIN_CALIBRATION &h0070
+#define ADC_MODE_INTERNAL_OSC &h0000
+#define ADC_MODE_INTERNAL_OSC_XTAL2OUT &h0004
+#define ADC_MODE_EXTERNAL_XTAL2IN &h0008
+#define ADC_MODE_EXTERNAL_OSC &h000c
+
+' INTERFACE MODE
+#define IF_MODE_ALT_SYNC &h1000
+#define IF_MODE_IOSTRENGTH &h0800
+#define IF_MODE_DOUT_RESET &h0100
+#define IF_MODE_CONTREAD &h0080
+#define IF_MODE_DATA_STAT &h0040
+#define IF_MODE_REG_CHECK &h0020
+#define IF_MODE_CRC_DISABLE &h0000
+#define IF_MODE_CRC_XOR &h0004
+#define IF_MODE_CRC_CRC8 &h0008
+#define IF_MODE_WL16 &h0001
+
+' CHANNEL CONTROL
+#define CHANNEL_ENABLE &h8000
+#define CHANNEL_SETUP0 &h0000
+#define CHANNEL_SETUP1 &h1000
+#define CHANNEL_SETUP2 &h2000
+#define CHANNEL_SETUP3 &h3000
+#define CHANNEL_SETUP4 &h4000
+#define CHANNEL_SETUP5 &h5000
+#define CHANNEL_SETUP6 &h6000
+#define CHANNEL_SETUP7 &h7000
+#define CHANNEL_INPUT_VIN0_VIN1 &h0001
+#define CHANNEL_INPUT_VIN0_VINCOM &h0010
+#define CHANNEL_INPUT_VIN1_VIN0 &h0020
+#define CHANNEL_INPUT_VIN1_VINCOM &h0030
+#define CHANNEL_INPUT_VIN2_VIN3 &h0043
+#define CHANNEL_INPUT_VIN2_VINCOM &h0050
+#define CHANNEL_INPUT_VIN3_VIN2 &h0062
+#define CHANNEL_INPUT_VIN3_VINCOM &h0070
+#define CHANNEL_INPUT_VIN4_VIN5 &h0085
+#define CHANNEL_INPUT_VIN4_VINCOM &h0090
+#define CHANNEL_INPUT_VIN5_VIN4 &h00a4
+#define CHANNEL_INPUT_VIN5_VINCOM &h00b0
+#define CHANNEL_INPUT_VIN6_VIN7 &h00c7
+#define CHANNEL_INPUT_VIN6_VINCOM &h00d0
+#define CHANNEL_INPUT_VIN7_VIN6 &h00e6
+#define CHANNEL_INPUT_VIN7_VINCOM &h00f0
+#define CHANNEL_INPUT_IIN3P_IIN3N &h018b
+#define CHANNEL_INPUT_IIN2P_IIN2N &h01aa
+#define CHANNEL_INPUT_IIN1P_IIN1N &h01c9
+#define CHANNEL_INPUT_IIN0P_IIN0N &h01e8
+#define CHANNEL_INPUT_TEMPSENSOR &h0232
+#define CHANNEL_INPUT_REFERENCE &h02b6
+
+' SETUP CONTROL
+#define SETUP_UNIPOLAR &h0000
+#define SETUP_BIPOLAR &h1000
+#define SETUP_REFBUFP_DISABLE &h0000
+#define SETUP_REFBUFP_ENABLE &h0800
+#define SETUP_REFBUFN_DISABLE &h0000
+#define SETUP_REFBUFN_ENABLE &h0400
+#define SETUP_INPBUF_DISABLE &h0000
+#define SETUP_INPBUF_ENABLE &h0300
+#define SETUP_REF_SEL_EXTERNAL_REF &h0000
+#define SETUP_REF_SEL_INTERNAL_2V5 &h0020
+#define SETUP_REF_SEL_AVDD &h0030
+
+' FILTER CONTROL
+#define SINC3_MAP &h8000
+#define ENHFILTEN &h0800
+#define ENHFILT_27SPS &h0200
+#define ENHFILT_25SPS &h0300
+#define ENHFILT_20SPS &h0500
+#define ENHFILT_17SPS &h0600
+#define ORDER_SINC5 &h0000
+#define ORDER_SINC3 &h0060
+#define ODR_31250SPS &h0000
+#define ODR_15625SPS &h0005
+#define ODR_10417SPS &h0007
+#define ODR_5208SPS &h0008
+#define ODR_2597SPS &h0009
+#define ODR_1007SPS &h000a
+#define ODR_503SPS &h000b
+#define ODR_381SPS &H000c
+#define ODR_200SPS &h000d
+#define ODR_100SPS &h000e
+#define ODR_59SPS &h000f
+#define ODR_49SPS &h0010
+#define ODR_20SPS &h0011
+#define ODR_16SPS &h0012
+#define ODR_10SPS &h0013
+#define ODR_5SPS &h0014
+#define ODR_2_5SPS &h0015
+#define ODR_1_25SPS &h0016
+
+declare function tbt61_get_status(tbt_channel as byte) as byte
+declare sub tbt61_send_command(tbt_channel as byte, command as byte)
+declare sub tbt61_set_adc_mode(tbt_channel as byte, mode as word)
+declare sub tbt61_set_interface_mode(tbt_channel as byte, mode as word)
+declare sub tbt61_set_channel(tbt_channel as byte, channel as byte, channel_control as word)
+declare sub tbt61_set_filter(tbt_channel as byte, channel as byte, filter_control as word)
+declare sub tbt16_set_setup(tbt_channel as byte, num as byte, control as word)
+declare sub tbt61_reset(tbt_channel as byte)
+declare function tbt61_get_reg8(tbt_channel as byte, num as byte) as byte
+declare function tbt61_get_reg16(tbt_channel as byte, num as byte) as word
+declare function tbt61_get_reg24(tbt_channel as byte, num as byte) as dword
+declare sub tbt61_set_calibration_offset(tbt_channel as byte, value as dword, channel as byte)
+declare sub tbt61_set_calibration_gain(tbt_channel as byte, value as dword, channel as byte)
+
+dim tbt61_init_flag as word
+dim tbt61_num_used as byte
+
+type tbt61
+	use as boolean
+	ssi_num as byte
+	i2c_num as byte
+	input_type as TBT61_VOLAGE_TYPE_INPUT
+	cs as pl_io_num
+	clk as pl_io_num
+	mosi as pl_io_num
+	miso as pl_io_num
+	scl as byte
+	sda as byte
+	
+	calibr_offset(6) as dword
+	calibr_gain(6) as dword
+	offset_coeff(6) as long
+	gain_coeff(6) as real
+	calibr_applied as boolean
+	
+end type
+
+dim calibr_check_sum as dword
+
+dim tibbitsPlace(TBT61_MAX_NUM) as tbt61
+
+sub tbt61_set_hw(tbt_channel as byte)
+	
+	io.num = tibbitsPlace(tbt_channel).cs
+	io.enabled=YES
+	
+	io.num = tibbitsPlace(tbt_channel).clk
+	io.enabled=YES
+	
+	io.num = tibbitsPlace(tbt_channel).mosi
+	io.enabled=YES
+	
+	io.num = tibbitsPlace(tbt_channel).miso
+	io.enabled=NO
+
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.enabled = NO
+	ssi.zmode = PL_SSI_ZMODE_ALWAYS_ENABLED
+	ssi.mode = PL_SSI_MODE_3
+	ssi.direction = PL_SSI_DIRECTION_LEFT
+	ssi.clkmap = tibbitsPlace(tbt_channel).clk
+	ssi.dimap = tibbitsPlace(tbt_channel).miso
+	ssi.domap = tibbitsPlace(tbt_channel).mosi
+	ssi.baudrate = 14
+	ssi.enabled = YES
+	
+	io.num = tibbitsPlace(tbt_channel).cs
+	io.enabled = YES
+	io.state = HIGH
+	
+end sub
+
+function tbt61_get_calibr(tbt_channel as byte) as boolean
+
+	dim i as byte
+	dim cs as dword
+	dim op as dword
+	
+	tbt61_get_calibr = false
+
+	si2c_get(tibbitsPlace(tbt_channel).i2c_num)
+	
+	cs = 0
+	for i = 0 to 5
+		si2c_start()
+		si2c_write(EEPROM_ADDR_W)
+		si2c_write(i * 8)
+		si2c_start()
+		si2c_write(EEPROM_ADDR_R)
+		
+		op = si2c_read(true)
+		op = (op * 256) + si2c_read(true)
+		op = (op * 256) + si2c_read(true)
+		op = (op * 256) + si2c_read(true)
+		tibbitsPlace(tbt_channel).calibr_offset(i) = op
+		op = si2c_read(true)
+		op = (op * 256) + si2c_read(true)
+		op = (op * 256) + si2c_read(true)
+		op = (op * 256) + si2c_read(false)
+		tibbitsPlace(tbt_channel).calibr_gain(i) = op
+		cs = cs + tibbitsPlace(tbt_channel).calibr_offset(i) + tibbitsPlace(tbt_channel).calibr_gain(i)
+
+		si2c_stop()
+	next i
+
+	si2c_start()
+	si2c_write(EEPROM_ADDR_W)
+	si2c_write(6 * 8)
+	si2c_start()
+	si2c_write(EEPROM_ADDR_R)
+	
+	op = si2c_read(true)
+	op = (op * 256) + si2c_read(true)
+	op = (op * 256) + si2c_read(true)
+	op = (op * 256) + si2c_read(false)
+	calibr_check_sum = op
+	
+	si2c_stop()
+
+	if calibr_check_sum = cs then
+		tbt61_get_calibr = true
+		tibbitsPlace(tbt_channel).calibr_applied = true
+	else
+		for i = 0 to 5
+			tibbitsPlace(tbt_channel).calibr_offset(i) = &h00800000
+			tibbitsPlace(tbt_channel).calibr_gain(i) = &h005810d0
+		next i
+		tibbitsPlace(tbt_channel).calibr_applied = false
+	end if
+
+end function
+
+function tbt61_check_library(tbt_channel as byte) as boolean
+	
+	if tbt61_init_flag <> TBT61_INIT_SIGNATURE then
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("The lib is not initialized, call tbt61_init() first")
+	#endif
+		tbt61_check_library = false
+		exit function
+	end if
+	
+	if tbt_channel >= TBT61_MAX_NUM then
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("Channel not use")
+	#endif
+		tbt61_check_library = false
+		exit function
+	end if
+
+	if tibbitsPlace(tbt_channel).use = NO then
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("Channel not use")
+	#endif
+		tbt61_check_library = false
+		exit function
+	end if
+	
+	tbt61_check_library = true
+
+end function
+
+sub tbt61_set_channels(tbt_channel as byte)
+
+	tbt61_set_filter(tbt_channel, 0, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 1, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 2, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 3, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 4, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 5, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 6, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	tbt61_set_filter(tbt_channel, 7, ENHFILTEN or ENHFILT_17SPS or ORDER_SINC5 or ODR_1_25SPS)
+	if tibbitsPlace(tbt_channel).input_type = TBT61_VOLTAGE_TWO_DIFFERENTIAL then
+		tbt61_set_channel(tbt_channel, 0, CHANNEL_ENABLE or CHANNEL_SETUP4 or CHANNEL_INPUT_VIN0_VIN1)
+		tbt61_set_channel(tbt_channel, 1, CHANNEL_ENABLE or CHANNEL_SETUP4 or CHANNEL_INPUT_VIN0_VIN1)
+		tbt61_set_channel(tbt_channel, 2, CHANNEL_ENABLE or CHANNEL_SETUP5 or CHANNEL_INPUT_VIN2_VIN3)
+		tbt61_set_channel(tbt_channel, 3, CHANNEL_ENABLE or CHANNEL_SETUP5 or CHANNEL_INPUT_VIN2_VIN3)
+	else
+		tbt61_set_channel(tbt_channel, 0, CHANNEL_ENABLE or CHANNEL_SETUP0 or CHANNEL_INPUT_VIN0_VINCOM)
+		tbt61_set_channel(tbt_channel, 1, CHANNEL_ENABLE or CHANNEL_SETUP1 or CHANNEL_INPUT_VIN1_VINCOM)
+		tbt61_set_channel(tbt_channel, 2, CHANNEL_ENABLE or CHANNEL_SETUP2 or CHANNEL_INPUT_VIN2_VINCOM)
+		tbt61_set_channel(tbt_channel, 3, CHANNEL_ENABLE or CHANNEL_SETUP3 or CHANNEL_INPUT_VIN3_VINCOM)
+	end if
+	tbt61_set_channel(tbt_channel, 4, CHANNEL_ENABLE or CHANNEL_SETUP7 or CHANNEL_INPUT_IIN0P_IIN0N)
+	tbt61_set_channel(tbt_channel, 5, CHANNEL_ENABLE or CHANNEL_SETUP7 or CHANNEL_INPUT_IIN1P_IIN1N)
+	
+	tbt61_set_channel(tbt_channel, 6, CHANNEL_ENABLE or CHANNEL_SETUP6 or CHANNEL_INPUT_VIN6_VINCOM)
+	tbt61_set_channel(tbt_channel, 7, CHANNEL_ENABLE or CHANNEL_SETUP6 or CHANNEL_INPUT_VIN7_VINCOM)
+	
+end sub
+
+sub tbt61_calibr_append(tbt_channel as byte)
+
+	dim i as byte
+	dim res as float
+	dim off as long
+	
+	' Load calibration values into ADC
+	for i = 0 to 5
+		tbt61_set_calibration_offset(tbt_channel, tibbitsPlace(tbt_channel).calibr_offset(i), i)
+		tbt61_set_calibration_gain(tbt_channel, tibbitsPlace(tbt_channel).calibr_gain(i), i)
+		
+		' Calc calibration coefficient
+		off = tibbitsPlace(tbt_channel).calibr_offset(i)
+		tibbitsPlace(tbt_channel).offset_coeff(i) = (off - 8388608) * 2.5 
+		if i < 4 then
+			res = 5242880
+			res = res / tibbitsPlace(tbt_channel).calibr_gain(i)
+			tibbitsPlace(tbt_channel).gain_coeff(i) = res
+		else
+			res = 10485760
+			res = res / tibbitsPlace(tbt_channel).calibr_gain(i)
+			tibbitsPlace(tbt_channel).gain_coeff(i) = res
+		end if
+	next i 
+	
+end sub
+
+sub tbt61_set_mode(tbt_channel as byte)
+	
+	tbt61_set_adc_mode(tbt_channel, ADC_MODE_REF_EN or ADC_MODE_DELAY_320US or ADC_MODE_CONTINUOUS or ADC_MODE_INTERNAL_OSC)
+	tbt61_set_interface_mode(tbt_channel, IF_MODE_DATA_STAT or IF_MODE_DOUT_RESET or IF_MODE_CRC_DISABLE)
+	
+	'Set SETUP configuration
+	' Set SETUP for Voltage inputs
+	tbt16_set_setup(tbt_channel, 0, SETUP_UNIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 1, SETUP_UNIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 2, SETUP_UNIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 3, SETUP_UNIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 4, SETUP_BIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 5, SETUP_BIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	tbt16_set_setup(tbt_channel, 6, SETUP_UNIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_ENABLE or SETUP_REF_SEL_INTERNAL_2V5)
+
+	' Set SETUP for Current inputs
+	tbt16_set_setup(tbt_channel, 7, SETUP_BIPOLAR or SETUP_REFBUFP_DISABLE or SETUP_REFBUFN_DISABLE or SETUP_INPBUF_DISABLE or SETUP_REF_SEL_INTERNAL_2V5)
+	
+	' Setup channels
+	tbt61_set_channels(tbt_channel)
+
+end sub
+
+sub tbt61_mode(tbt_channel as byte, input_type as TBT61_VOLAGE_TYPE_INPUT)
+
+	tibbitsPlace(tbt_channel).input_type = input_type
+	
+	' Set normal mode
+	tbt61_set_mode(tbt_channel)
+	
+end sub
+
+function tbt61_init(signature as string, input_type as TBT61_VOLAGE_TYPE_INPUT, cs as pl_io_num, clk as pl_io_num, mosi as pl_io_num, miso as pl_io_num, scl as pl_io_num, sda as pl_io_num, byref tbt_channel as byte) as TBT61_INIT_RESULT
+
+	dim i as byte
+	dim volt as real
+	dim flags as byte
+	dim calibr_ready as boolean
+	
+	if (tbt61_init_flag <> TBT61_INIT_SIGNATURE) then
+		for i = 0 to TBT61_MAX_NUM - 1
+			tibbitsPlace(i).use = false
+			tibbitsPlace(i).ssi_num = 255
+			tibbitsPlace(i).i2c_num = 255
+			tibbitsPlace(i).input_type = TBT61_VOLTAGE_TWO_DIFFERENTIAL
+			tibbitsPlace(i).cs = 0
+			tibbitsPlace(i).clk = 0
+			tibbitsPlace(i).mosi = 0
+			tibbitsPlace(i).miso = 0
+		next i
+		tbt61_init_flag = TBT61_INIT_SIGNATURE
+		tbt61_num_used = 0
+	end if
+	
+	if tbt61_num_used >= TBT61_MAX_NUM then
+		tbt61_init = TBT61_INIT_ERROR_SPI_NO_EMPTY_CHANNEL
+		exit function
+	end if
+	
+	tbt61_init = TBT61_INIT_OK
+
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("Init start...")
+	#endif
+
+	i = 0
+	do until tibbitsPlace(i).use = false
+		i = i + 1
+	loop
+	
+	tibbitsPlace(i).use = true
+	tibbitsPlace(i).input_type = input_type
+	tibbitsPlace(i).cs = cs
+	tibbitsPlace(i).clk = clk
+	tibbitsPlace(i).mosi = mosi
+	tibbitsPlace(i).miso = miso
+	tibbitsPlace(i).scl = scl
+	tibbitsPlace(i).sda = sda
+	
+	tbt_channel = i
+	tbt61_num_used = tbt61_num_used + 1
+
+	' HW init
+	tibbitsPlace(tbt_channel).ssi_num = ssi_get(signature)
+	if tibbitsPlace(tbt_channel).ssi_num = 255 then
+		tibbitsPlace(tbt_channel).ssi_num = 255
+		tibbitsPlace(tbt_channel).use = false
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("SSI channel not available!")
+		tbt61_init = TBT61_INIT_ERROR_SPI_NO_EMPTY_CHANNEL
+		exit function
+	#endif
+	else 
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("SSI channel: " + str(tibbitsPlace(tbt_channel).ssi_num))
+	#endif
+	end if
+	
+	tibbitsPlace(tbt_channel).i2c_num = si2c_register(signature, sda, scl, NO)
+	
+	if tbt61_get_calibr(tbt_channel) then
+		calibr_ready = true
+	else
+		calibr_ready = false
+	end if
+	
+	tbt61_set_hw(tbt_channel)
+	
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("HW reset...")
+	#endif
+
+	' Chip reset
+	tbt61_reset(tbt_channel)
+	
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("HW check ID...")
+	#endif
+
+	' SW test
+	' ID read
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or ADDRESS_ID)
+	
+	' Read data
+	dim id as word
+	id = ssi.value(0, 16)
+
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+	if id and &hfff0 <> &h30d0 then
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("Unknown device!")
+	#endif
+		ssi_release(tibbitsPlace(tbt_channel).ssi_num)
+		tibbitsPlace(tbt_channel).ssi_num = 255
+		tibbitsPlace(tbt_channel).use = false
+		tbt61_num_used = tbt61_num_used - 1
+		
+		if id = &hffff then
+			tbt61_init = TBT61_INT_ERROR_NO_TIBBIT_PRESENT
+		else
+			tbt61_init = TBT61_INIT_ERROR_NO_VALID_VERSION
+		end if
+		exit function
+	end if
+
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("FW info read...")
+	#endif
+
+	' Read FW Info
+	dim info as FW_Info
+	info = tbt61_read_fw_info(tbt_channel)
+	
+	#if TBT61_DEBUG_PRINT = 1
+		if info.TibbitType <> chr(255) + chr(255) + chr(255) + chr(255) then
+			tbt61_debug_print("HW type: " + info.TibbitType)
+			tbt61_debug_print("HW serial: " + str(info.SerialNumber(0)) + str(info.SerialNumber(1)) + str(info.SerialNumber(2)) + str(info.SerialNumber(3)))
+			tbt61_debug_print("HW version: " + str(info.TestVersion(0)) + "." + str(info.TestVersion(1)))
+			tbt61_debug_print("HW date: " + str(info.TestDate(0)) + "." + str(info.TestDate(1)) + "." + str(info.TestDate(2)))
+		else
+			tbt61_debug_print("FW info not present!")
+		end if
+	#endif
+	
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("HW setup...")
+	#endif
+
+	'Set SETUP configuration
+	tbt61_set_mode(tbt_channel)
+
+	if calibr_ready = true then
+		tbt61_calibr_append(tbt_channel)
+	end if
+
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("HW internal voltage check...")
+	#endif
+
+	' Check internal voltages
+	if info.TibbitType = "61-1" then
+		volt = tbt61_read_adc(tbt_channel, 6, flags)
+		#if TBT61_DEBUG_PRINT = 1
+			tbt61_debug_print("High voltage: " + ftostr(volt * 10, FTOSTR_MODE_PLAIN, 3))
+		#endif
+		if volt < 2.0 or volt > 2.8 or flags <> &h00 then
+			' 2.4 voltage fault
+		#if TBT61_DEBUG_PRINT = 1
+			tbt61_debug_print("24V check fault!")
+		#endif
+			ssi_release(tibbitsPlace(tbt_channel).ssi_num)
+			tibbitsPlace(tbt_channel).ssi_num = 255
+			tibbitsPlace(tbt_channel).use = false
+			tbt61_num_used = tbt61_num_used - 1
+			tbt61_init = TBT61_INIT_ERROR_FAULT_CHECK_POWER
+			exit function
+		else
+			#if TBT61_DEBUG_PRINT = 1
+				tbt61_debug_print("24V check passed")
+			#endif
+		end if
+	end if
+	
+	volt = tbt61_read_adc(tbt_channel, 7, flags)
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("VDD voltage: " + ftostr(volt, FTOSTR_MODE_PLAIN, 3))
+	#endif
+	if volt < 4.5 or volt > 5.65 or flags <> &h00 then
+		' 5.0 voltage fault
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("5.0V check fault!")
+	#endif
+		ssi_release(tibbitsPlace(tbt_channel).ssi_num)
+		tibbitsPlace(tbt_channel).ssi_num = 255
+		tibbitsPlace(tbt_channel).use = false
+		tbt61_num_used = tbt61_num_used - 1
+		tbt61_init = TBT61_INIT_ERROR_FAULT_CHECK_POWER
+		exit function
+	else
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("5.0V check passed")
+	#endif
+	end if
+
+	#if TBT61_DEBUG_PRINT = 1
+		tbt61_debug_print("Init complete!")
+	#endif
+
+	tbt61_init = TBT61_INIT_OK
+	
+end function
+
+sub tbt61_release(tbt_channel as byte)
+
+	if tbt_channel < TBT61_MAX_NUM then
+	
+		if tibbitsPlace(tbt_channel).ssi_num <> 255 then
+			ssi_release(tibbitsPlace(tbt_channel).ssi_num)
+		end if
+		tibbitsPlace(tbt_channel).use = false
+		tibbitsPlace(tbt_channel).ssi_num = 255
+		tibbitsPlace(tbt_channel).input_type = TBT61_VOLTAGE_TWO_DIFFERENTIAL
+		tibbitsPlace(tbt_channel).cs = 0
+		tibbitsPlace(tbt_channel).clk = 0
+		tibbitsPlace(tbt_channel).mosi = 0
+		tibbitsPlace(tbt_channel).miso = 0
+		
+		tbt61_num_used = tbt61_num_used - 1
+	end if
+
+end sub
+
+sub tbt16_set_setup(tbt_channel as byte, num as byte, control as word)
+	
+	if num < 8 then
+	
+		io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+		
+		' Send cmd
+		tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_SETUPCON0 + num)
+		
+		' Write mode
+		ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+		ssi.value(control, 16)
+		
+		io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+	
+	end if
+
+end sub
+
+sub tbt61_set_channel(tbt_channel as byte, channel as byte, channel_control as word)
+	
+	if channel < 16 then
+	
+		io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+		
+		' Send cmd
+		tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_CH0 + channel)
+		
+		' Write mode
+		ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+		ssi.value(channel_control, 16)
+		
+		io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+	
+	end if
+
+end sub
+
+sub tbt61_set_filter(tbt_channel as byte, channel as byte, filter_control as word)
+	
+	if channel < 16 then
+	
+		io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+		
+		' Send cmd
+		tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_FILTCON0 + channel)
+		
+		' Write mode
+		ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+		ssi.value(filter_control, 16)
+		
+		io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+	
+	end if
+
+end sub
+
+sub tbt61_set_adc_mode(tbt_channel as byte, mode as word)
+
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_ADCMODE)
+	
+	' Write mode
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(mode, 16)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+end sub
+
+
+sub tbt61_set_interface_mode(tbt_channel as byte, mode as word)
+
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_IFMODE)
+	
+	' Write mode
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(mode, 16)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+	
+end sub
+
+sub tbt61_set_calibration_offset(tbt_channel as byte, value as dword, channel as byte)
+
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_OFFSET0 + channel)
+	
+	' Write mode
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(value shr 8, 16)
+	ssi.value(value, 8)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+	
+end sub
+
+sub tbt61_set_calibration_gain(tbt_channel as byte, value as dword, channel as byte)
+
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_WRITE or ADDRESS_GAIN0 + channel)
+	
+	' Write mode
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(value shr 8, 16)
+	ssi.value(value, 8)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+	
+end sub
+
+function tbt61_get_reg8(tbt_channel as byte, num as byte) as byte
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or num)
+	
+	' Read data
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	tbt61_get_reg8 = ssi.value(&hff, 8)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+end function
+
+function tbt61_get_reg16(tbt_channel as byte, num as byte) as word
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or num)
+	
+	' Read data
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	tbt61_get_reg16 = ssi.value(&hffff, 16)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+end function
+
+function tbt61_get_reg24(tbt_channel as byte, num as byte) as dword
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or num)
+	
+	' Read data
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	tbt61_get_reg24 = (ssi.value(&hffff, 16) shl 8) + ssi.value(&hff, 8)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+end function
+
+function tbt61_get_status(tbt_channel as byte) as byte
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	' Send cmd
+	tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or ADDRESS_STATUS)
+	
+	' Read data
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	tbt61_get_status = ssi.value(&hff, 8)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+end function
+
+function tbt61_read_adc(tbt_channel as byte, channel as byte, byref flags as byte) as real
+	
+	dim i as word
+	dim j as byte
+	dim lo, hi as word
+	dim res as real
+	dim coeff as byte
+	
+	if tbt_channel >= TBT61_MAX_NUM  or tbt_channel >= tbt61_num_used then
+		tbt61_read_adc = -100
+		flags = &h01
+	end if 
+	
+	if channel >= 8 then
+		tbt61_read_adc = -100
+		flags = &h02
+	end if
+	
+	if tibbitsPlace(tbt_channel).calibr_applied = true then
+		if tibbitsPlace(tbt_channel).input_type = TBT61_VOLTAGE_TWO_DIFFERENTIAL then
+			if channel = 0 or channel = 1 then
+				coeff = 4
+			end if
+			if channel = 2 or channel = 3 then
+				coeff = 5
+			end if
+		else
+			coeff = channel
+		end if
+	end if
+	
+	j = 0
+	
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	
+	do
+		i = 0
+		io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+		do	' wait /RDY
+			i = i + 1
+			if i > 10000 then
+				tbt61_read_adc = -100
+				flags = &h04
+				exit function
+			end if
+		loop while io.lineget(tibbitsPlace(tbt_channel).miso) = HIGH
+		io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+
+		io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+		
+		' Send cmd
+		tbt61_send_command(tbt_channel, CMD_WEN or CMD_READ or ADDRESS_DATA)
+		
+		' Read data
+		hi = ssi.value(&hffff, 16)
+		lo = ssi.value(&hffff, 16)
+		
+		j = j + 1
+		
+		io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+		
+	loop while ((lo and &h0007) <> channel) and j < 200
+	
+	if j >= 200 then
+		tbt61_read_adc = -100	' timeout
+		flags = &h04
+	else
+		res = ((hi shl 16) + lo) shr 8
+		
+		if tibbitsPlace(tbt_channel).input_type = TBT61_VOLTAGE_TWO_DIFFERENTIAL then
+			' DIFF MODE
+			if channel >= 0 and channel <= 3 then 'Vin bipolar
+				if tibbitsPlace(tbt_channel).calibr_applied = true then
+					tbt61_read_adc = ((res - 8388608) * tibbitsPlace(tbt_channel).gain_coeff(coeff) + tibbitsPlace(tbt_channel).offset_coeff(coeff)) / 629145.6
+				else
+					tbt61_read_adc = ((((res / 10) * 298) / 10) - 24998051) / 1000000
+				end if
+			end if
+			flags = lo and &h0040
+		else
+			' SINGLE MODE
+			if channel >= 0 and channel <= 3 then 'Vin unipolar
+				if tibbitsPlace(tbt_channel).calibr_applied = true then
+					tbt61_read_adc = (res * tibbitsPlace(tbt_channel).gain_coeff(coeff) + tibbitsPlace(tbt_channel).offset_coeff(coeff)) / 629145.6
+				else
+					tbt61_read_adc = ((res * 149) / 100) / 1000000
+				end if
+			end if
+			flags = lo and &h0040
+		end if
+
+		if channel = 4 or channel = 5 then	'Iin bipolar
+			tbt61_read_adc = (((res - 8388608) * 5) / 83886) / 10
+			if tbt61_read_adc < 4 or tbt61_read_adc > 20 then
+				flags = (lo and &h0040) or &h20
+			else
+				flags = lo and &h0040
+			end if
+		end if
+		
+		if channel = 6 or channel = 7 then 'Vin unipolar
+			tbt61_read_adc = ((res * 149) / 100) / 1000000
+		end if
+
+	end if
+	
+end function
+
+sub tbt61_send_command(tbt_channel as byte, command as byte)
+	
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(command, 8)
+	
+end sub
+
+sub tbt61_reset(tbt_channel as byte)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, LOW)
+	
+	ssi.channel = tibbitsPlace(tbt_channel).ssi_num
+	ssi.value(&hffff, 16)
+	ssi.value(&hffff, 16)
+	ssi.value(&hffff, 16)
+	ssi.value(&hffff, 16)
+	
+	io.lineset(tibbitsPlace(tbt_channel).cs, HIGH)
+	
+	sys.delayms(5)
+	
+end sub
+
+function tbt61_read_fw_info(tbt_channel as byte) as FW_Info
+	
+	si2c_get(tibbitsPlace(tbt_channel).i2c_num)
+	
+	si2c_start()
+	si2c_write(EEPROM_ADDR_W)
+	si2c_write(&h60)
+	si2c_start()
+	si2c_write(EEPROM_ADDR_R)
+		
+	tbt61_read_fw_info.TibbitType = ""
+	tbt61_read_fw_info.TibbitType = tbt61_read_fw_info.TibbitType + chr(si2c_read(true))
+	tbt61_read_fw_info.TibbitType = tbt61_read_fw_info.TibbitType + chr(si2c_read(true))
+	tbt61_read_fw_info.TibbitType = tbt61_read_fw_info.TibbitType + chr(si2c_read(true))
+	tbt61_read_fw_info.TibbitType = tbt61_read_fw_info.TibbitType + chr(si2c_read(true))
+	tbt61_read_fw_info.SerialNumber(0) = si2c_read(true)
+	tbt61_read_fw_info.SerialNumber(1) = si2c_read(true)
+	tbt61_read_fw_info.SerialNumber(2) = si2c_read(true)
+	tbt61_read_fw_info.SerialNumber(3) = si2c_read(true)
+	tbt61_read_fw_info.TestVersion(0) = si2c_read(true)
+	tbt61_read_fw_info.TestVersion(1) = si2c_read(true)
+	tbt61_read_fw_info.TestDate(0) = si2c_read(true)
+	tbt61_read_fw_info.TestDate(1) = si2c_read(true)
+	tbt61_read_fw_info.TestDate(2) = si2c_read(false)
+
+	si2c_stop()
+
+end function
+
+#if TBT61_DEBUG_PRINT
+sub tbt61_debug_print(print_data as string)
+	sys.debugprint(TBT61_DEBUG_STAMP + print_data + tbt61_CR_LF)
+end sub
+#endif
+
