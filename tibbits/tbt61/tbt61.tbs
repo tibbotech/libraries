@@ -566,6 +566,12 @@ function tbt61_init(signature as string, input_type as TBT61_VOLAGE_TYPE_INPUT, 
 			tbt61_debug_print("HW date: " + str(info.TestDate(0)) + "." + str(info.TestDate(1)) + "." + str(info.TestDate(2)))
 		else
 			tbt61_debug_print("FW info not present!")
+			ssi_release(tibbitsPlace(tbt_channel).ssi_num)
+			tibbitsPlace(tbt_channel).ssi_num = 255
+			tibbitsPlace(tbt_channel).use = false
+			tbt61_num_used = tbt61_num_used - 1
+			tbt61_init = TBT61_INIT_ERROR_EEPROM
+			exit function
 		end if
 	#endif
 	
