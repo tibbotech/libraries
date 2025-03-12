@@ -14,7 +14,8 @@ enum TBT61_INIT_RESULT
 	TBT61_INIT_ERROR_SPI_NO_EMPTY_CHANNEL,
 	TBT61_INT_ERROR_NO_TIBBIT_PRESENT,
 	TBT61_INIT_ERROR_NO_VALID_VERSION,
-	TBT61_INIT_ERROR_FAULT_CHECK_POWER
+	TBT61_INIT_ERROR_FAULT_CHECK_POWER,
+	TBT61_INIT_ERROR_EEPROM
 end enum
 
 enum TBT61_VOLAGE_TYPE_INPUT
@@ -46,6 +47,7 @@ declare function tbt61_init(signature as string, input_type as TBT61_VOLAGE_TYPE
 '&emsp;&emsp;<font color="olive"><b>2-TBT61_INT_ERROR_NO_TIBBIT_PRESENT</b></font> - No Tibbits#61 were found using the pin numbers provided.<br>
 '&emsp;&emsp;<font color="olive"><b>3-TBT61_INIT_ERROR_NO_VALID_VERSION</b></font> - Incorrect version of Tibbit's equipment.<br>
 '&emsp;&emsp;<font color="olive"><b>4-TBT61_INIT_ERROR_FAULT_CHECK_POWER</b></font> - Tibbit#61 internal power supply testing error.<br>
+'&emsp;&emsp;<font color="olive"><b>4-TBT61_INIT_ERROR_EEPROM</b></font> - Error reading data from internal EEPROM using the pin numbers provided.<br>
 '&emsp;<font color="maroon"><b>tbt_channel</b></font> - If the function returned result <font color="olive"><b>0-TBT61_INIT_OK</b></font> then this parameter contains the identifier of the current Tibbit.
 'All calls to this Tibbit must be made with the passing of this identifier.
 
