@@ -638,7 +638,8 @@ function tbt62_ow_get_temp_separate(byref temperature as real, sensorID as strin
 		raw = asc(mid(sensdata, 1, 1)) + asc(mid(sensdata, 2, 1)) * 256
 		if raw and &h800 then
 			' Minus
-			temp = - ((not raw) + 1) * 100 / 16
+			raw = not raw
+			temp = - (raw + 1) * 100 / 16
 		else
 			' Plus
 			temp = raw * 100 / 16
