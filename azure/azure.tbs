@@ -193,6 +193,7 @@ public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
 						rid=right(topic, len(topic)-pos1-4)
 						azure_rid=lval(rid)
 					end if
+					callback_azure_property_desired(item_name,value)
 					'Double confirm setting is set correctly here
 					if stg_sg(item_name,0,value,EN_STG_SET)=EN_STG_STATUS_OK then
 						value="{\x22"+item_name+"\x22:"+value+"}"
