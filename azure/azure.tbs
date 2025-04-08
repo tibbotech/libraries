@@ -183,8 +183,7 @@ public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
 					pos3=len(s)+1
 				end if
 				value=mid(s,pos2+1,pos3-pos2-1)
-				dim prev_value as string=stg_get(item_name,0)
-				if value<>prev_value then
+				if item_name<>"$version" then
 					#if AZURE_DEBUG_PRINT
 						azure_debugprint("Remote value of \x22"+item_name+"\x22 was "+prev_value+" changed to: "+value)
 					#endif							
@@ -193,13 +192,12 @@ public sub azure_proc_mqtt_msg(byref topic as string,byref data as string)
 						rid=right(topic, len(topic)-pos1-4)
 						azure_rid=lval(rid)
 					end if
-					callback_azure_property_desired(item_name,value)
-					'Double confirm setting is set correctly here
-					if stg_sg(item_name,0,value,EN_STG_SET)=EN_STG_STATUS_OK then
-						value="{\x22"+item_name+"\x22:"+value+"}"
-						azure_rid=azure_rid+1
-						mqtt_publish(AZURE_TOPIC_PROPERTY_REPORTED+"?$rid="+str(azure_rid),value,QOS_AT_MOST_ONCE,false)
+					'if is string with quotes, remove them
+					if left(value,1)="\x22" and right(value,1)="\x22" then
+						value=mid(value,2,len(value)-2)
 					end if
+					callback_azure_property_desired(item_name,value)
+					azure_rid=azure_rid+1
 				end if
 				pos1=pos3+1
 			end if
