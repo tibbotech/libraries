@@ -309,13 +309,6 @@ dim cell__at_cmd_storArray_numof_cmds as word
 function cell__start(byref pin as string(CELL__16b_LEN), byref apn as string, 
 						byref username as string, byref password as string) as en_cell__status_phases
 
-	if cell__init_flag=CELL_INIT_SIGNATURE then
-		#if CELL__DEBUG_PRINT=1
-			cell__debugprint("library already initialized.")
-		#endif
-		exit function
-	end if
-
 	cell__init_flag=CELL_INIT_SIGNATURE
 
 	'Assign values
@@ -970,6 +963,14 @@ end sub
 sub cell__init(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cell__op_at_phases, 
 				next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 					next_parse_phase as en_cell__op_parse_phases)
+
+	if cell__init_flag=CELL_INIT_SIGNATURE then
+		#if CELL__DEBUG_PRINT=1
+			cell__debugprint("library already initialized.")
+		#endif
+		exit sub
+	end if
+
 	'Initialization
     #if CELL__DEBUGPRINT_UDP_ISENABLED
         cell__init_debugprint_udp(CELL__UDP_TARGET_PRIMARY_IP, CELL__UDP_TARGET_SECOND_IP, CELL__UDP_TARGET_PORT)
@@ -1018,6 +1019,7 @@ sub cell__deinit(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_c
 				next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 					next_parse_phase as en_cell__op_parse_phases)
 	
+	cell__init_flag = 0
 			
 	#if CELL__AT_USERMODE_ISENABLED
 		cell__sms_msg_inputmode_isOn = false
