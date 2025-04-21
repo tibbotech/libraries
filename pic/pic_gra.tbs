@@ -346,7 +346,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 			end select
 		end if
 
-	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 		if pic_func(num)=PIC_FUNC_UART then
 			si2c_get(channel)
 			'Disable uart before we change to another function
@@ -400,7 +400,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 				pic_reg_write(PIC_TRISC,chr(value))
 
 			case PIC_PIN1:
-			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 				'set RC3 as output high
 				'set RC4 as input
 				s=pic_reg_read(PIC_LATC,1)
@@ -458,7 +458,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 				pic_reg_write(PIC_ANSELC,chr(value))
 
 			case PIC_PIN4:
-				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 					#if PIC_DEBUG_PRINT=1
 						PIC_debug_print("Leave,Tibbits do not support this pin")
 					#endif
@@ -478,7 +478,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 				pic_reg_write(PIC_ANSELA,chr(value))
 
 			case PIC_PIN5:
-				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 					#if PIC_DEBUG_PRINT=1
 						PIC_debug_print("Leave,Tibbits do not support this pin")
 					#endif
@@ -521,7 +521,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 				pic_reg_write(PIC_TRISC,chr(value))
 
 			case PIC_PIN1:
-			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 				'set RC3, RC4 as input  and analog
 				s=pic_reg_read(PIC_TRISC,1)
 				value=asc(s) or &h18
@@ -564,7 +564,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 
 			case PIC_PIN4:
 				'set RA1 as input and analog
-				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 					#if PIC_DEBUG_PRINT=1
 						PIC_debug_print("Leave,Tibbits do not support this pin")
 					#endif
@@ -580,7 +580,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 
 			case PIC_PIN5:
 				'set RA0 as input and analog
-				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+				#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 					#if PIC_DEBUG_PRINT=1
 						PIC_debug_print("Leave,Tibbits do not support this pin")
 					#endif
@@ -632,7 +632,7 @@ sub pic_config(num as pic_pin_enum, f as pic_func_enum, int_pin as byte, channel
 			#endif
 
 			case PIC_PIN1:
-			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+			#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 				'RC3 configured as an output
 				'RC4 configured as input
 				s=pic_reg_read(PIC_TRISC,1)
@@ -769,7 +769,7 @@ sub pic_adc_config( p as pic_adc_ref_positive_voltage,n as pic_adc_ref_negative_
 		value=value and &hFC
 		value=value or &h02
 		pic_adc_pref=PIC_PREF_SOURCE_PIN_4
-	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 		#if PIC_DEBUG_PRINT=1
 			 PIC_debug_print("Leave,Tibbits do not support this methods")
 		#endif
@@ -814,7 +814,7 @@ sub pic_adc_config( p as pic_adc_ref_positive_voltage,n as pic_adc_ref_negative_
 		end if
 		value=value or &h04
 		pic_adc_nref=PIC_NREF_SOURCE_PIN_5
-	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+	#elif PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 		#if PIC_DEBUG_PRINT=1
 			 PIC_debug_print("Leave,Tibbit do not support this methods")
 		#endif
@@ -918,7 +918,7 @@ function pic_adc_get(ch as pic_adc_enum, channel as byte)as word
 		end if
 
 	case PIC_ADC4:
-	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 		#if PIC_DEBUG_PRINT=1
 			 PIC_debug_print("Leave,Tibbits do not support this methods")
 		#endif
@@ -935,7 +935,7 @@ function pic_adc_get(ch as pic_adc_enum, channel as byte)as word
 		end if
 
 	case PIC_ADC5
-	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+	#if PLATFORM_ID=TPP3W or PLATFORM_ID=TPP2W or PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2 or PLATFORM_ID=TPP3WG3 or PLATFORM_ID=TPP2WG3
 		#if PIC_DEBUG_PRINT=1
 			 PIC_debug_print("Leave,Tibbit do not support this methods")
 		#endif

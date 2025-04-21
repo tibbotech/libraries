@@ -1336,7 +1336,7 @@ function snmp_operate_objectID(byref data as string, pos as byte, lengthPacket a
 			
 		case SNMP_OBJECT_SYSUPTIME:	' .1.3.6.1.2.1.1.3.0 UpTime System
 			snmp_operate_objectID = true
-			#if PLATFORM_ID=TPP3WG2 or PLATFORM_ID=TPP2WG2
+			#if PLATFORM_TYPE_32
 				snmp_send_responce(SNMP_TIMETICKS, snmp_integer_to_bin(sys.timercountms / 10), SNMP_OBJECT_SYSUPTIME)
 			#else
 				snmp_send_responce(SNMP_TIMETICKS, snmp_integer_to_bin(sys.timercount * 500), SNMP_OBJECT_SYSUPTIME)

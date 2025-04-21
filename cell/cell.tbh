@@ -149,7 +149,7 @@
 
 'SHDN IO-number selection which is based on the PLATFORM_ID (***Jim will include this in CODY, thus this part can be removed later on)
 #ifndef CELL__SHDN_LINENUM
-	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2
+	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2 or PLATFORM_ID = TPP2WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__SHDN_LINENUM PL_IO_NUM_11_TX1
 		#elif CELL__DATA_SER_PORT = 1
@@ -159,7 +159,7 @@
 		#elif CELL__DATA_SER_PORT = 3
 			'this choice is not available
 		#endif
-	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2
+	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2 or PLATFORM_ID = TPP3WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__SHDN_LINENUM PL_IO_NUM_32
 		#elif CELL__DATA_SER_PORT = 1
@@ -178,7 +178,7 @@
 
 'PWRKEY IO-number selection which is based on the PLATFORM_ID (***Jim will include this in CODY, thus this part can be removed later on)
 #ifndef CELL__PWRKEY_LINENUM
-	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2
+	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2 or PLATFORM_ID = TPP2WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__PWRKEY_LINENUM PL_IO_NUM_10_RX1
 		#elif CELL__DATA_SER_PORT = 1
@@ -188,7 +188,7 @@
 		#elif CELL__DATA_SER_PORT = 3
 			'this choice is not available
 		#endif
-	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2
+	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2 or PLATFORM_ID = TPP3WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__PWRKEY_LINENUM PL_IO_NUM_33
 		#elif CELL__DATA_SER_PORT = 1
@@ -207,7 +207,7 @@
 
 'RESET IO-number selection which is based on the PLATFORM_ID (***Jim will include this in CODY, thus this part can be removed later on)
 #ifndef CELL__RESET_LINENUM
-	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2
+	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2 or PLATFORM_ID = TPP2WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__RESET_LINENUM PL_IO_NUM_1
 		#elif CELL__DATA_SER_PORT = 1
@@ -217,7 +217,7 @@
 		#elif CELL__DATA_SER_PORT = 3
 			'this choice is not available
 		#endif
-	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2
+	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2 or PLATFORM_ID = TPP3WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__RESET_LINENUM PL_IO_NUM_4
 		#elif CELL__DATA_SER_PORT = 1
@@ -237,7 +237,7 @@
 'STATUS IO-number selection which is based on the PLATFORM_ID (***Jim will include this in CODY, thus this part can be removed later on)
 'NOTE: for PLATFORM_ID = NB1010,NB1010W,NB1010N I do NOT know the IO number yet
 #ifndef CELL__STATUS_LINENUM
-	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2
+	#if PLATFORM_ID = TPP2W or PLATFORM_ID = TPP2N or PLATFORM_ID = TPP2WG2 or PLATFORM_ID = TPP2WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__STATUS_LINENUM PL_IO_NUM_17_INT1
 		#elif CELL__DATA_SER_PORT = 1
@@ -247,7 +247,7 @@
 		#elif CELL__DATA_SER_PORT = 3
 			'this choice is not available
 		#endif
-	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2
+	#elif PLATFORM_ID = TPP3W  or PLATFORM_ID = TPP3N or PLATFORM_ID = TPP3WG2 or PLATFORM_ID = TPP3WG3
 		#if CELL__DATA_SER_PORT = 0
 			#define CELL__STATUS_LINENUM PL_IO_NUM_20_INT4
 		#elif CELL__DATA_SER_PORT = 1
