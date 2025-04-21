@@ -1,0 +1,991 @@
+include "global.tbh"
+
+
+dim lcd_logs(29) as string(64)
+dim lcd_log_index as byte=0
+
+dim mqtt_connect_lost as no_yes=NO
+
+
+
+
+sub lcd_log(text as string)
+    dim i as byte
+    if lcd_log_index < 29 - 1 then
+        lcd_log_index = lcd_log_index + 1
+    else 
+        for i=0 to 29 - 2
+            lcd_logs(i) = lcd_logs(i + 1)
+        next i
+    end if
+    lcd_logs(lcd_log_index) = left(text,53)
+    romfile.open(LOG_FONT_FILE)
+    lcd.setfont(romfile.offset)
+    lcd.lock()
+    lcd.forecolor=&h0
+    lcd.fill(0,0,lcd.width,lcd.height)
+    lcd.forecolor=&hffff
+    for i=0 to 29 - 1
+        lcd.print(lcd_logs(i),0,i * 8)
+    next i
+    lcd.unlock()
+end sub
+
+function datetime_timestamp_mins(timestamp as dword) as dword
+    dim days as word = 0
+    dim mins as word = 0
+    dim secs as byte = 0
+    dim mins_offset as word=0
+    datetime_from_timestamp(timestamp, days, mins, secs)
+    td_get_tzone_offset(APP_TIMEZONE,mins_offset)
+    datetime_timestamp_mins=mins+mins_offset
+end function
+
+function datetime_mins_to_timestamp(mins as word) as dword
+    dim datetime_days,datetime_minutes as word
+    dim datetime_secs as byte
+    dim timestamp as dword=datetime_current_timestamp()
+    datetime_from_timestamp(timestamp,datetime_days,datetime_minutes,datetime_secs)
+    datetime_minutes=mins
+    td_local_to_gmt(datetime_days,datetime_minutes,APP_TIMEZONE,PL_OFF)
+    datetime_mins_to_timestamp=datetime_to_timestamp(datetime_days,datetime_minutes,0)
+end function
+
+
+sub callback_stg_error(byref stg_name_or_num as string,index as byte,status as en_stg_status_codes)
+    
+end sub
+        
+
+sub callback_stg_pre_get(byref stg_name_or_num as string,index as byte,byref stg_value as string)
+    
+end sub
+        
+
+sub callback_stg_post_set(byref stg_name_or_num as string, index as byte,byref stg_value as string)
+    
+
+if stg_name_or_num="WIFAP" then
+    WIFAP=stg_value
+    
+    
+end if
+
+if stg_name_or_num="WSEC" then
+    WSEC=stg_value
+    
+    
+end if
+
+if stg_name_or_num="WIFPW" then
+    WIFPW=stg_value
+    
+    
+end if
+
+if stg_name_or_num="MQTTI" then
+    MQTTI=stg_value
+    
+    
+end if
+
+if stg_name_or_num="MQTTU" then
+    MQTTU=stg_value
+    
+    
+end if
+
+if stg_name_or_num="MQTTP" then
+    MQTTP=stg_value
+    
+    
+end if
+
+if stg_name_or_num="MQTTH" then
+    MQTTH=stg_value
+    
+    
+end if
+end sub
+        
+
+function callback_stg_vm_read(address as word) as byte
+    
+end function
+        
+
+sub callback_stg_vm_write(data_to_write as byte, address as word)
+    
+end sub
+
+sub callback_dhcp_ok(renew as no_yes, interface as pl_sock_interfaces, byref ip as string, byref gateway_ip as string, byref netmask as string, lease_time as dword)
+    
+
+    if interface=PL_SOCK_INTERFACE_NET then
+        if renew=YES and net.ip<>ip then
+            'this is a lease renewal and the DHCP server has issues new IP
+            'it is better to reboot than deal with the implications of the changed IP
+            sys.reboot
+        end if
+
+        #if DEV_DEBUG_PRINT
+            dev_debugprint("Ethernet DHCP OK ("+ip+")")
+        #endif
+
+        if net.ip<>ip then
+            sock.inconenabledmaster=NO
+            close_interface_sockets(PL_SOCK_INTERFACE_NET)
+            net.ip=ip
+            if gateway_ip<>"" then net.gatewayip=gateway_ip
+            if netmask<>"" then net.netmask=netmask
+            sock.inconenabledmaster=YES
+        end if
+        
+        interface_set(PL_SOCK_INTERFACE_NET,YES)
+    end if
+            
+
+    if interface=PL_SOCK_INTERFACE_WLN then
+        if renew=YES and wln.ip<>ip then
+            'this is a lease renewal and the DHCP server has issues new IP
+            'it is better to reboot than deal with the implications of the changed IP
+            sys.reboot
+        end if
+        
+        #if DEV_DEBUG_PRINT
+            dev_debugprint("Wi-Fi DHCP OK ("+ip+")")
+        #endif
+        
+        if wln.ip<>ip then
+            sock.inconenabledmaster=NO
+            close_interface_sockets(PL_SOCK_INTERFACE_WLN)
+            wln.ip=ip
+            if gateway_ip<>"" then wln.gatewayip=gateway_ip
+            if netmask<>"" then wln.netmask=netmask
+            sock.inconenabledmaster=YES
+            
+            sys.debugprint("WiFi> ip is " + wln.ip + "\r\n")
+        end if
+        interface_set(PL_SOCK_INTERFACE_WLN,YES)
+        
+    end if
+                
+end sub
+        
+
+sub callback_dhcp_failure(interface as pl_sock_interfaces,failure_code as en_dhcp_status_codes)
+    
+end sub
+        
+
+sub callback_dhcp_pre_clear_ip(interface as pl_sock_interfaces)
+    
+end sub
+        
+
+sub callback_dhcp_pre_buffrq(required_buff_pages as byte)
+    
+end sub
+        
+
+sub callback_dhcp_buff_released()
+    
+end sub
+        
+
+sub interface_set(interface as pl_sock_interfaces, state as no_yes)
+    dim best_interface as pl_sock_interfaces=PL_SOCK_INTERFACE_NET
+    if state = YES then
+        interface_ready(interface) = YES
+    else
+        interface_ready(interface) = no
+    end if
+    if interface_ready(PL_SOCK_INTERFACE_NET) = YES then
+        best_interface = PL_SOCK_INTERFACE_NET
+    else
+        #IF WLN_AVAILABLE
+            if interface_ready(PL_SOCK_INTERFACE_WLN) = YES then
+                best_interface = PL_SOCK_INTERFACE_WLN
+            end if
+        #ENDIF
+        #IF CELLULAR_AVAILABLE
+            if interface_ready(PL_SOCK_INTERFACE_PPP) = YES then
+                best_interface = PL_SOCK_INTERFACE_PPP
+            end if
+        #ENDIF
+    end if
+    
+    change_current_interface(best_interface)
+end sub
+
+
+sub close_interface_sockets(interface as pl_sock_interfaces)
+    dim f,sock_num_bup as byte
+    dim i as word
+
+    sock_num_bup=sock.num
+
+    for f=0 to sock.numofsock-1
+        sock.num=f
+        if sock.targetinterface=interface then
+            sock.close()
+            sock.discard()
+        end if
+    next f
+
+    i=sys.timercount
+
+    wait_close_interface_sockets:
+    for f=0 to sock.numofsock-1
+        sock.num=f
+        if sock.targetinterface=interface and sock.statesimple<>PL_SSTS_CLOSED and sys.timercount-i<5 and sys.timercount>=i then
+            goto wait_close_interface_sockets
+        end if
+    next f
+
+    sock.num=sock_num_bup
+
+end sub
+ 
+
+sub change_current_interface(new_interface as pl_sock_interfaces)
+    if current_interface<>new_interface then
+        
+
+mqtt_stop()
+        
+        sock.inconenabledmaster=NO
+        close_interface_sockets(current_interface)
+
+        current_interface=new_interface        
+        
+        select case current_interface
+            case PL_SOCK_INTERFACE_NET: sys.debugprint("Set current interface to Ethernet\r\n") 
+        
+            case PL_SOCK_INTERFACE_WLN: sys.debugprint("Set current interface to Wi-Fi\r\n")
+        
+            case PL_SOCK_INTERFACE_PPP: sys.debugprint("Set current interface to GPRS\r\n")
+        end select
+        sock.inconenabledmaster=YES
+        if new_interface <> PL_SOCK_INTERFACE_NULL then
+            
+
+    sntp_start(current_interface,SNTP_SERVER, 0, SNTP_socket)
+
+mqtt_start(current_interface,MQTT_SERVER_HOST,MQTT_DESTINATION_PORT,mqtt_username,mqtt_password,mqtt_clientid,MQTT_TLS)
+        end if
+    end if
+end sub
+
+#if SIGNAL_STRENGTH_INDICATION
+sub signal_strength_set(strength as byte)
+'Bits 0-5 of strength argument correspond to LEDs
+    
+    dim f,x as byte
+    dim s as string(8)
+    
+    s=mid(bin(strength),3,8)
+    s=strgen(8-len(s),"0")+s
+    
+    'make 5 clocks
+    io.num=PL_IO_NUM_47
+    for f=0 to 4
+        x=1-val(mid(s,f+4,1))
+        io.lineset(PL_IO_NUM_48,x)
+        io.state=LOW
+        io.state=HIGH
+    next f
+end sub
+#endif
+
+sub callback_dns_failure(status as en_dns_status_codes)
+    
+end sub
+        
+
+sub callback_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+    
+
+    http_dns_answer_acquired(return_type, return_string)
+
+    mqtt_dns_answer_acquired(return_type, return_string)
+    'if return_type=EN_DNS_RET_IP then
+    '    sys.debugprint("DNS:" + ddstr(return_string) + "\r\n")
+    'end if
+end sub
+        
+
+sub callback_dns_ok()
+    
+end sub
+        
+
+sub callback_dns_pre_buffrq(num_of_pages_required as byte)
+    
+end sub
+        
+
+sub callback_dns_buff_released()
+    
+end sub
+        
+
+function modbus_callback_ReadCoilStatus(address as word) as boolean
+modbus_callback_ReadCoilStatus=false
+select case address
+
+
+    case ioline_addr:
+        modbus_callback_ReadCoilStatus=ioline
+        
+case else:
+end select
+end function
+    
+
+function modbus_callback_ReadInputStatus(address as word) as boolean
+modbus_callback_ReadInputStatus=false
+select case address
+
+case else:
+end select
+end function
+    
+
+function modbus_callback_WriteSingleCoil(address as word, value as low_high) as byte
+modbus_callback_WriteSingleCoil=0
+select case address
+
+
+    case ioline_addr:
+        modbus_callback_WriteSingleCoil=ioline
+        var_ioline_set(value)
+        
+case else
+modbus_callback_WriteSingleCoil=2
+end select
+end function
+    
+
+function modbus_callback_ReadHoldingRegister(address as word) as word
+modbus_callback_ReadHoldingRegister=0
+select case address
+
+
+    case temp_addr:
+        modbus_callback_ReadHoldingRegister=temp
+        
+case else:
+end select
+end function
+    
+
+function modbus_callback_ReadInputRegister(address as word) as word
+modbus_callback_ReadInputRegister=0
+select case address
+
+case else:
+end select
+end function
+    
+
+function modbus_callback_set_holding_register(address as word, data as word) as boolean
+modbus_callback_set_holding_register = true
+select case address
+
+
+    case temp_addr:
+        var_temp_set(data)
+        modbus_callback_set_holding_register=true
+        
+case else
+modbus_callback_set_holding_register = false
+end select
+end function
+    
+
+sub callback_modbus_slave_reply(byref request_item as modbus_request_item, byref reply as string)
+dim bytes as byte(255) = reply
+
+
+    if request_item.device_id=MODDevice1_DEVICE_ID 
+        AND request_item.protocol=modbus_RTU
+        AND request_item.interface_number=SER_TBT05_S1_NAME then
+        
+
+        if request_item.start_register=300 then
+            var_temp_raw_set(modbus_read_word(bytes,0))
+        end if
+    end if
+        
+end sub
+
+sub callback_modbus_slave_reply_timeout(byref request_item as modbus_request_item)
+
+end sub
+
+sub on_firmware_update_start(byref current_fw_upg_state as pl_upg_state_t) 
+    
+end sub
+
+sub on_firmware_update_data_received(byref current_fw_upg_state as pl_upg_state_t) 
+    
+end sub
+
+sub on_firmware_update_percent_change(byref current_fw_upg_state as pl_upg_state_t) 
+    
+    sys.debugprint(str(current_fw_upg_state.fw_percent)+"%\r\n")
+end sub
+
+sub on_firmware_update_file_complete(byref current_fw_upg_state as pl_upg_state_t)
+    
+end sub
+
+sub on_firmware_update_complete(byref current_fw_upg_state as pl_upg_state_t)
+    
+    sys.debugprint("All files have been downloaded.\r\n")
+        
+    dim i as integer
+    dim module_type as pl_wln_module_types
+
+        
+    if current_fw_upg_state.fw_fail_reason <> PL_FW_FAIL_NONE then
+        sys.debugprint("There was a failure return this to the browser.\r\n")
+    end if
+
+    sys.debugprint("All files have been downloaded.\r\n")
+
+    if current_fw_upg_state.state <> PL_FW_UPG_COMPLETE then
+        exit sub
+    end if
+
+    pat.play("B~", PL_PAT_CANINT)
+
+    'i = get_firmware_index(WA2000_MON)
+    'if i >= 0 then
+    '   upgrade_WA2000_firmware(WA2000_MON, i)
+    'end if
+
+    i = get_firmware_index(WA2000_APP)
+
+    i =  get_firmware_index(UNCOMPRESSED_TIOS_APP)  
+    if i >= 0  then 
+    fd.copyfirmware(current_fw_upg_state.fw_lengths(i)/256+1)
+    end if
+
+    i=  get_firmware_index(COMPRESSED_TIOS_APP) 
+    if i >= 0  then 
+        fd.copyfirmwarelzo(YES)
+    end if
+
+    i =  get_firmware_index(UNCOMPRESSED_TIOS)  
+    if i >= 0  then 
+        fd.copyfirmware(current_fw_upg_state.fw_lengths(i)/256+1)
+    end if
+
+    i =  get_firmware_index(TIOS_MON)  
+    if i >= 0  then 
+        'fd.copymonitor()
+    end if
+
+    sys.reboot()
+end sub
+
+
+sub callback_stgcmd_buzz_command()
+    
+end sub
+        
+
+sub callback_http_reponse_code_arrival(http_response as string)
+    
+end sub
+
+
+sub callback_http_request_failed(error_message as string)
+    
+end sub
+
+
+sub callback_http_header_arrival(header_type as string, header_value as string)
+    
+end sub
+
+
+sub callback_http_headers_complete()
+    
+end sub
+
+
+sub callback_http_content_arrival(data as string)
+    
+
+    if http_request_item.url = "http://tibbo.com" then
+        
+
+    sys.debugprint(data)
+    
+    end if
+end sub
+
+
+sub callback_http_post_data_sent_ok()
+    
+end sub
+
+
+sub callback_http_send_post_data(remaining_content_length as dword)
+    
+end sub
+
+
+sub callback_http_send_headers()
+    
+
+    if http_request_item.url = "http://tibbo.com" then
+        
+    end if
+end sub
+
+
+sub callback_http_request_complete()
+    
+end sub
+
+
+sub callback_http_response_code_arrival(http_response as string)
+    
+end sub
+
+
+function callback_http_open_romfile() as dword
+    callback_http_open_romfile=0
+    
+end function
+
+
+sub callback_sntp_failure(sntp_status as en_sntp_status_codes)
+    
+end sub
+        
+
+sub callback_sntp_ok(byref w_days as word,byref w_mins as word,byref b_seconds as byte)
+    td_gmt_to_local(w_days,w_mins,APP_TIMEZONE,PL_OFF)
+    rtc.setdata(w_days,w_mins,b_seconds)
+    
+end sub
+        
+
+sub callback_sntp_pre_buffrq(required_buff_pages as byte)
+    
+end sub
+        
+
+function var_var1_update() as float
+    
+end function
+            
+
+sub var_var1_set(value as float)
+    
+    dim value_old as float = var1
+    
+    
+    
+    var1=value
+    if value_old <> var1 then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> var1 changed from " + fstr(value_old) + " to " +  fstr(var1) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_WIFAP_update() as string
+    
+end function
+            
+
+sub var_WIFAP_set(byref value as string)
+    stg_set("WIFAP", 0, value)
+end sub
+            
+
+function var_WSEC_update() as string
+    
+end function
+            
+
+sub var_WSEC_set(byref value as string)
+    stg_set("WSEC", 0, value)
+end sub
+            
+
+function var_WIFPW_update() as string
+    
+end function
+            
+
+sub var_WIFPW_set(byref value as string)
+    stg_set("WIFPW", 0, value)
+end sub
+            
+
+function var_MQTTI_update() as string
+    
+end function
+            
+
+sub var_MQTTI_set(byref value as string)
+    stg_set("MQTTI", 0, value)
+end sub
+            
+
+function var_MQTTU_update() as string
+    
+end function
+            
+
+sub var_MQTTU_set(byref value as string)
+    stg_set("MQTTU", 0, value)
+end sub
+            
+
+function var_MQTTP_update() as string
+    
+end function
+            
+
+sub var_MQTTP_set(byref value as string)
+    stg_set("MQTTP", 0, value)
+end sub
+            
+
+function var_MQTTH_update() as string
+    
+end function
+            
+
+sub var_MQTTH_set(byref value as string)
+    stg_set("MQTTH", 0, value)
+end sub
+            
+
+function var_temp_raw_update() as word
+    
+
+            modbus_master_request(1, ReadHoldingRegisters, 300, 1, "", SER_TBT05_S1_NAME, modbus_RTU,1)
+end function
+            
+
+sub var_temp_raw_set(value as word)
+    
+    dim value_old as word = temp_raw
+    
+    
+    
+    temp_raw=value
+    if value_old <> temp_raw then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> temp_raw changed from " + str(value_old) + " to " +  str(temp_raw) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_temp_update() as word
+    
+end function
+            
+
+sub var_temp_set(value as word)
+    
+    dim value_old as word = temp
+    
+    
+    
+    temp=value
+    if value_old <> temp then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> temp changed from " + str(value_old) + " to " +  str(temp) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+function var_ioline_update() as word
+    
+end function
+            
+
+sub var_ioline_set(value as word)
+    
+    dim value_old as word = ioline
+    
+    
+    
+    ioline=value
+    if value_old <> ioline then
+        
+        #if VARIABLES_DEBUG_PRINT
+            sys.debugprint("VAR> ioline changed from " + str(value_old) + " to " +  str(ioline) + "\r\n")
+        #endif
+    end if
+    
+        
+end sub
+            
+
+sub callback_tbl_error(status as en_tbl_status_codes)
+    
+end sub
+        
+
+function callback_tbl_fail_to_open(byref filename as string, status as pl_fd_status_codes, filenum as byte) as no_yes
+    
+end function
+        
+
+sub callback_tbl_field_error(byref file_name as string,byref field_name as string,tbl_result as en_tbl_status_codes)
+    
+end sub
+        
+
+sub callback_tbl_modified(byref file_name as string, modified_operation as en_tbl_modified_operation)
+    
+end sub
+        
+
+const MAX_NUM_ROWS = 1000
+
+function tbl_sort_compare(byref a as string, byref b as string, field_type as en_tbl_field_types) as short
+    dim a1 as dword=0
+    dim b1 as dword=0
+    dim w1,w2,w3 as word
+    dim d as dword
+    select case field_type
+        case EN_TBL_FIELD_BYTE:
+            a1=asc(a)
+            b1=asc(b)
+        case EN_TBL_FIELD_WORD:
+            a1=asc(left(a,1))*256+asc(mid(a,2,1))
+            b1=asc(left(b,1))*256+asc(mid(b,2,1))
+        case EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
+            w2=asc(left(a,1))*256+asc(mid(a,2,1))
+            w3=asc(mid(a,3,1))*256+asc(mid(a,4,1))
+            a1=w2*65536+w3
+            w2=asc(left(b,1))*256+asc(mid(b,2,1))
+            w3=asc(mid(b,3,1))*256+asc(mid(b,4,1))
+            b1=w2*65536+w3
+        end select
+    select case field_type
+        case EN_TBL_FIELD_BYTE,EN_TBL_FIELD_WORD,EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
+            if a1>b1 then
+                tbl_sort_compare=1
+            else if a1=b1 then
+                tbl_sort_compare=0
+            else
+                tbl_sort_compare=-1
+            end if
+        case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
+            dim a1 as float=0
+            dim b1 as float=0
+            strtobin(a1,a,4)
+            strtobin(b1,b,4)
+            if a1>b1 then
+                tbl_sort_compare=1
+            else if a1=b1 then
+                tbl_sort_compare=0
+            else
+                tbl_sort_compare=-1
+            end if
+        case else:
+            tbl_sort_compare=0
+    end select
+end function
+
+function tbl_record_find_sorted(
+    record_type as en_tbl_record_states,                        'If the search includes the records that are marked as deleted.
+    byref search_data as string,                                'Searching criteria data.
+    byref field_name as string,                                 'Searching criteria name.
+    byref rec_num as word,                                      'Starting record number, also returns the first found record number
+    wraparound as boolean,                                      'Wrap around
+    find_method as pl_fd_find_modes) as en_tbl_status_codes     'find method (equal, greater, lesser, etc.)
+
+    dim num_records as word=0
+    dim count as word = 0
+    dim w1,w2,w3,w4 as word
+    tbl_get_num_records(num_records, no)
+    if num_records=0 then
+        rec_num=0
+        exit function
+    end if
+
+    dim search_val as string = ""
+    dim tmp_rec as word=0
+    dim index as integer = -1
+    'sort
+    dim values(MAX_NUM_ROWS) as string(4)
+    dim indices(MAX_NUM_ROWS) as word
+    dim i as integer
+    dim key as string(4)
+    dim key2 as word
+    dim j as integer
+    count = num_records
+    i=1
+    count=0
+
+    dim field_type as en_tbl_field_types=EN_TBL_FIELD_FLOAT
+    dim field_index as string=0
+    dim field_metadata as tbl_field_type
+    dim num_of_fld as byte = tbl_get_num_fields(tbl_get_file_name())
+    for j = 0 to num_of_fld-1
+        tbl_get_field_info(tbl_get_file_name(),j,field_metadata)
+        if field_metadata.field_name=field_name then
+            field_type=field_metadata.field_type
+            select case field_type
+                case EN_TBL_FIELD_BYTE:
+                    search_val=chr(val(search_data))
+                case EN_TBL_FIELD_WORD:
+                    w1=val(search_data)/256
+                    w2=val(search_data) mod 256
+                    search_val=chr(w1)+chr(w2)
+                case EN_TBL_FIELD_TIMESTAMP,EN_TBL_FIELD_DWORD:
+                    w2=lval(search_data)/65536
+                    w3=lval(search_data) mod 65536
+                    search_val=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
+                case EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT:
+                    dim tmp_f as float=strtof(search_data)
+                    bintostr(search_val,tmp_f,4)
+            end select
+    end if
+    next j
+
+    while count < num_records
+        if tbl_is_record_deleted(i)=NO then
+            tbl_record_sg(i,EN_TBL_GET)
+            indices(count)=i
+            tbl_field_sg_raw(field_name,values(count))
+            count=count+1
+        end if
+        i=i+1
+    wend
+    for i=1 to num_records-1
+        key=values(i)
+        key2=indices(i)
+        j = i - 1
+        dim result as short=tbl_sort_compare(values(j),key,field_type)
+        while (j >= 0 AND result=1)
+            values(j + 1) = values(j)
+            indices(j + 1) = indices(j)
+            j = j - 1
+        wend
+        values(j + 1) = key
+        indices(j + 1) = key2
+    next i
+    'find in array
+    
+    index=-1
+    count=0
+    dim start_i, end_i, iteration_step as integer
+    start_i=0
+    end_i=num_records
+    iteration_step=1
+    if find_method=PL_FD_FIND_LESSER OR find_method=PL_FD_FIND_LESSER_EQUAL then
+        start_i=num_records-1
+        end_i=-1
+        iteration_step=-1
+    end if
+    i=start_i
+    while i <> end_i
+        dim sort_result as short=tbl_sort_compare(values(i),search_val,field_type)
+        dim found_index as integer=-1
+        select case find_method
+        case PL_FD_FIND_GREATER_EQUAL:
+            if sort_result=1 OR sort_result=0 then
+                found_index=i
+            end if
+        case PL_FD_FIND_GREATER
+            if sort_result=1 then
+                found_index=i
+            end if
+        case PL_FD_FIND_LESSER:
+            if sort_result=-1 then
+                found_index=i
+            end if
+        case PL_FD_FIND_LESSER_EQUAL:
+            if sort_result=-1 OR sort_result=0 then
+                found_index=i
+            end if
+        end select
+        if found_index<>-1 then
+            count=count+1
+            if count=rec_num then
+                index=found_index
+                exit while
+            end if
+        end if
+        i=i+iteration_step
+    wend
+    'if found, return index
+    if index <> -1 then
+        rec_num=indices(index)
+    else
+    'if not found and wrap around, return first sorted item
+        if wraparound then
+            select case find_method
+            case PL_FD_FIND_GREATER_EQUAL,PL_FD_FIND_GREATER:
+                rec_num=indices(0)
+            case PL_FD_FIND_LESSER,PL_FD_FIND_LESSER_EQUAL:
+                rec_num=indices(num_records-1)
+            end select
+        else
+            rec_num=0
+        end if
+    end if
+end function
+
+sub callback_mqtt_connect_ok()
+    pat.play("G~",PL_PAT_CANINT)
+    
+end sub
+        
+
+sub callback_mqtt_connect_lost()
+    
+    mqtt_connect_lost=YES
+end sub
+        
+       
+sub callback_mqtt_notif(byref topic as string,byref data as string,remaining_bytes as dword)
+    
+end sub
+
+sub callback_mqtt_sub_ok()
+    
+end sub
+        
+sub ui_menu_exit()
+
+end sub
+
+sub callback_http_server_header_received(byref server as http_server_state, byref header as string, byref value as string)
+
+end sub
+
+sub callback_http_server_body_received(byref server as http_server_state, byref body as string)
+    '****callback_http_server_body_received****'
+end sub
+
+function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
+
+end function
