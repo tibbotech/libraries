@@ -375,10 +375,6 @@ function cell__stop(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as e
 						next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 							next_parse_phase as en_cell__op_parse_phases) as en_cell__status_phases
 
-	if cell__init_flag<>CELL_INIT_SIGNATURE then
-		exit function
-	end if
-	cell__init_flag=0
 	'PRINT
 	cell__debugprint_status(CELL__STOP_INITIATED, CELL__EMPTYSTRING)
 
@@ -392,10 +388,7 @@ function cell__stop(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as e
 	'Reset boolean
 	cell__modem_restart_isTrigg = false
 	cell__attempt_to_free_buffpages_via_modem_reset = false
-	
-	'Initialize Modem	
-	cell__init(PHASE_PWR_IDLE, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
-	
+		
 	'De-initalize Modem
 	cell__deinit(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, next_parse_phase)
 	
@@ -445,12 +438,12 @@ function cell__buffersize_isSufficient() as boolean
 end function
 
 function cell__calc_timediff_16b(tstart as word, tend as word) as word
-    const WORD_SIZE_MAX = &hffff '16-bits: (2^16)-1 = 65535
+    const DWORD_SIZE_MAX = &hFFFFFFFF
 
     if tend >= tstart then
         cell__calc_timediff_16b = tend - tstart
 	else	'tend < tstart
-        cell__calc_timediff_16b = tend + (WORD_SIZE_MAX - tstart)
+        cell__calc_timediff_16b = tend + (DWORD_SIZE_MAX - tstart)
     end if
 end function
 
@@ -659,7 +652,11 @@ end sub
 				body = "POWER SWITCH... RELEASED"
             case PHASE_PWR_POWERING_ON:
 				body = "MODEM POWERING ON... PLEASE WAIT"
+				dim status_line as low_high = io.lineget(PL_IO_NUM_23_INT7)
+				sys.debugprint("STATUS LINE: " + str(status_line))
             case PHASE_PWR_MODEM_ON:
+				dim status_line as low_high = io.lineget(PL_IO_NUM_23_INT7)
+				sys.debugprint("STATUS LINE: " + str(status_line))
 				body = "MODEM IS [ON]"
             case PHASE_PWR_POWERING_OFF:
 				body = "MODEM POWERING OFF... PLEASE WAIT"
@@ -960,17 +957,15 @@ sub cell__graceful_shutdown()
 	cell__at_usermode_cmd_input(CELL__AT_GSHD)
 end sub
 
+sub cell__lib_deinit() 
+	cell__stop( PHASE_PWR_IDLE, PHASE_AT_IDLE, PHASE_PPP_IDLE, PHASE_GPS_IDLE, PHASE_PARSE_IDLE)
+	cell__modem_init_startup = true
+	cell__init_flag = 0
+end sub
+
 sub cell__init(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_cell__op_at_phases, 
 				next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 					next_parse_phase as en_cell__op_parse_phases)
-
-	if cell__init_flag=CELL_INIT_SIGNATURE then
-		#if CELL__DEBUG_PRINT=1
-			cell__debugprint("library already initialized.")
-		#endif
-		exit sub
-	end if
-
 	'Initialization
     #if CELL__DEBUGPRINT_UDP_ISENABLED
         cell__init_debugprint_udp(CELL__UDP_TARGET_PRIMARY_IP, CELL__UDP_TARGET_SECOND_IP, CELL__UDP_TARGET_PORT)
@@ -1019,7 +1014,6 @@ sub cell__deinit(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en_c
 				next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 					next_parse_phase as en_cell__op_parse_phases)
 	
-	cell__init_flag = 0
 			
 	#if CELL__AT_USERMODE_ISENABLED
 		cell__sms_msg_inputmode_isOn = false
@@ -1419,7 +1413,7 @@ sub cell__reset_on(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en
 						
     CELL__SET_RESET_ON	'set the RESET line to Active
 
-	cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
+	cell__starttime = sys.timercountms	'***IMPORTANT: update start-timecounter
 			
 	
 	'Update startstate
@@ -1439,7 +1433,7 @@ sub cell__reset_wait(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as 
 						next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 							next_parse_phase as en_cell__op_parse_phases)
 
-    cell__newtime = sys.timercount	'update new timercounter
+    cell__newtime = sys.timercountms	'update new timercounter
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 	
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the modem to turn OFF
@@ -1502,7 +1496,7 @@ sub cell__shdn_off(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as en
 						
     CELL__SET_SHDN_OFF	'set SHDN to Inactive
 
-	cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
+	cell__starttime = sys.timercountms	'***IMPORTANT: update start-timecounter
 			
     
 	#if CELL__DEBUGPRINT_PWR_ISENABLED
@@ -1518,7 +1512,7 @@ sub cell__shdn_wait(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as e
 						next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 							next_parse_phase as en_cell__op_parse_phases)
 						
-    cell__newtime = sys.timercount	'update new timercounter
+    cell__newtime = sys.timercountms	'update new timercounter
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the modem to turn OFF
@@ -1580,7 +1574,7 @@ sub cell__pwrkey_on(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as e
 
     CELL__SET_PWRKEY_ON	'set PWRKEY to Active (which means press the power button)
 
-	cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
+	cell__starttime = sys.timercountms	'***IMPORTANT: update start-timecounter
 	
 	#if CELL__DEBUGPRINT_PWR_ISENABLED
         cell__debugprint_pwr_phase(PHASE_PWR_PWRKEY_ON, CELL__EMPTYSTRING)	'PRINT
@@ -1595,7 +1589,7 @@ sub cell__pwrkey_off(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as 
 						next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 							next_parse_phase as en_cell__op_parse_phases)
 
-    cell__newtime = sys.timercount	'update new timercounter
+    cell__newtime = sys.timercountms	'update new timercounter
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
 	'Now wait for at least 2 seconds before continue. This timeout is necessary to allow the modem to turn OFF
@@ -1677,7 +1671,7 @@ sub cell__powering_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase
 							next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 								next_parse_phase as en_cell__op_parse_phases)
 
-	cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
+	cell__starttime = sys.timercountms	'***IMPORTANT: update start-timecounter
 
 	if (cell__modem_restart_isTrigg = true) then	'modem restart was requested
 		#if CELL__DEBUGPRINT_PWR_ISENABLED
@@ -1705,7 +1699,7 @@ sub cell__powering_onoff_wait(next_pwr_on_phase as en_cell__op_pwr_phases, next_
 								next_at_phase as en_cell__op_at_phases, next_ppp_phase as en_cell__op_ppp_phases, 
 									next_gps_phase as en_cell__op_gps_phases, next_parse_phase as en_cell__op_parse_phases)
 								
-	cell__newtime = sys.timercount	'update new timercounter
+	cell__newtime = sys.timercountms	'update new timercounter
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the modem to turn ON/OFF
@@ -1714,7 +1708,7 @@ sub cell__powering_onoff_wait(next_pwr_on_phase as en_cell__op_pwr_phases, next_
 		if cell__newstate <> cell__startstate then	'check periodically whether the modem state has changed
 			if CELL__MODEM_STATUS = cell__status_setto_on then	'Modem has turned ON
 				'***IMPORTANT: update start-timecounter
-				cell__starttime = sys.timercount
+				cell__starttime = sys.timercountms
 							
 				'Set next phase to transit to (e.g. PHASE_PWR_SERPORT_CHK_RDY_STATE)
 				cell__update_op_next_phases(next_pwr_on_phase, next_at_phase, next_ppp_phase, next_gps_phase, next_parse_phase)
@@ -1736,7 +1730,7 @@ sub cell__check_rdy_state(next_pwr_phase as en_cell__op_pwr_phases, next_at_phas
 							next_ppp_phase as en_cell__op_ppp_phases, next_gps_phase as en_cell__op_gps_phases,
 								next_parse_phase as en_cell__op_parse_phases)
 
-    cell__newtime = sys.timercount	'update new timercounter
+    cell__newtime = sys.timercountms	'update new timercounter
     cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
     if cell__elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for the Serial-port to become RDY
@@ -1775,7 +1769,7 @@ sub cell__modem_onoff(next_pwr_phase as en_cell__op_pwr_phases, next_at_phase as
 		'REMARK: this is important because it will be used later on 
 		cell__startstate = io.lineget(CELL__STATUS_LINENUM)
 
-		cell__starttime = sys.timercount	'***IMPORTANT: update start-timecounter
+		cell__starttime = sys.timercountms	'***IMPORTANT: update start-timecounter
 
 		cell__init_param_var_bool()	'initialize parameters, variables and booleans
 
@@ -1893,7 +1887,7 @@ sub cell__at_cmd_exec(byref atcmd as string,
 			end if
 
 			'Wait for a specified amount of time `at_cgreg_timeout_500ms_max` before continuing...
-			cell__cgreg_newtime  = sys.timercount	'update new timercounter
+			cell__cgreg_newtime  = sys.timercountms	'update new timercounter
 			cell__cgreg_elapsedtime = cell__calc_timediff_16b(cell__cgreg_starttime , cell__cgreg_newtime)	'calculate the elapsed time
 
 			'Wait for a specified amount of time `CELL__AT_CGREG_TIMEOUT_MAX` before continuing...
@@ -1921,9 +1915,9 @@ sub cell__at_cmd_exec(byref atcmd as string,
 	end if
 
 	'***IMPORTANT: update start-timecounter
-	cell__starttime = sys.timercount
-	cell__isretry_starttime = sys.timercount
-	cell__on_ser_data_starttime = sys.timercount
+	cell__starttime = sys.timercountms
+	cell__isretry_starttime = sys.timercountms
+	cell__on_ser_data_starttime = sys.timercountms
 	
 	'Reset variable
     cell__reply = CELL__EMPTYSTRING
@@ -2127,7 +2121,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 			'3. IPCP NEGO
 			'4. PING
 			'5. PPP CONNECTION
-			if NOT CELL__AT_REPLIED_WITH_CGREG_0_1 then	'match was NOT found
+			if NOT CELL__AT_REPLIED_WITH_CGREG_ANY then	'match was NOT found
 				'Retry executing & parsing AT+CGREG? for a specified number of times...
 				'... by running `cell__at_parse_message_retry`
 				cell__at_parse_message_retry(next_pwr_phase, next_at_phase, next_ppp_phase, next_gps_phase, PHASE_PARSE_IDLE)
@@ -2298,7 +2292,7 @@ sub cell__at_parse_message(next_pwr_phase as en_cell__op_pwr_phases, next_at_pha
 		EXIT SUB
 		
 	else	'NO MATCH was found
-		cell__newtime = sys.timercount	'update new timercounter
+		cell__newtime = sys.timercountms	'update new timercounter
 		cell__elapsedtime = cell__calc_timediff_16b(cell__starttime, cell__newtime)	'calculate the elapsed time
 
 		if cell__elapsedtime > CELL__AT_RETRY_TIMEOUT_MAX then	'maximum timeout has been EXCEEDED
@@ -2506,7 +2500,7 @@ sub cell__at_parse_message_retry(next_pwr_phase as en_cell__op_pwr_phases, next_
 	
     if cell__at_retry_param <= cell__at_retry_parse_max then	'max. number of (PARSE) retries not exceeded yet
 		'***IMPORTANT: update start-timecounter
-        cell__starttime = sys.timercount
+        cell__starttime = sys.timercountms
 
 		if ( CELL__AT_CMD_CONTAINS_CGREG OR CELL__AT_CMD_CONTAINS_TRIPLEPLUS OR CELL__AT_CMD_CONTAINS_ATO ) then
 			GOTO EXEC_AND_RETRY_HANDLER
@@ -2563,7 +2557,7 @@ EXEC_AND_RETRY_HANDLER:
 				'MANDATORY: Set next phase to transit...
 				'***IMPORTANT: make sure to set `cell__op_parse_phase` to `PHASE_PARSE_IDLE`
 				'***IMPORTANT: update start-timecounter
-				cell__cgreg_starttime = sys.timercount
+				cell__cgreg_starttime = sys.timercountms
 
 				#if CELL__AT_USERMODE_ISENABLED
 					'Set next-phase to `PHASE_AT_USERMODE_RETRY`
@@ -3369,10 +3363,10 @@ NEXT_FOR_HANDLER:
         end if
 		
 		'***IMPORTANT: update start-timecounter
-        cell__ppp_starttime = sys.timercount
+        cell__ppp_starttime = sys.timercountms
     end function
     sub cell__ppp_parse_message__retry()
-        cell__ppp_newtime = sys.timercount	'update new timercounter
+        cell__ppp_newtime = sys.timercountms	'update new timercounter
         cell__ppp_elapsedtime = cell__calc_timediff_16b(cell__ppp_starttime, cell__ppp_newtime)	'calculate the elapsed time
 
         if cell__ppp_elapsedtime <= CELL__STATUS_TIMEOUT_MAX then	'maximum timeout for completing the parsing process of a received message
@@ -4599,7 +4593,7 @@ end sub
 sub cell__isretry_inprogr_in_idlemode()
 	'Calculate the elapsed time
 	'REMARK: in this case `cell__starttime`, which was initiated in subroutine `cell__at_cmd_exec`, is used.
-	cell__isretry_newtime  = sys.timercount	'update new timercounter
+	cell__isretry_newtime  = sys.timercountms	'update new timercounter
 	cell__isretry_elapsedtime = cell__calc_timediff_16b(cell__isretry_starttime , cell__isretry_newtime)	'calculate the elapsed time
 	
 	'At this stage ALL Phases are set to IDLE.
@@ -4608,7 +4602,7 @@ sub cell__isretry_inprogr_in_idlemode()
 	if (cell__isretry_elapsedtime > CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_TIMEOUT_MIN) then	'wait for at least a specified number of seconds
 		if ( cell__retry_in_progress() = true ) then	'at least one retry-process is in progress
 			if (cell__isretry_inprogr_in_idlemode_retry_param < CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_MAX) then
-				cell__isretry_starttime  = sys.timercount	'reset start timecounter
+				cell__isretry_starttime  = sys.timercountms	'reset start timecounter
 			
 				cell__isretry_inprogr_in_idlemode_retry_param = cell__isretry_inprogr_in_idlemode_retry_param + 1
 				
@@ -4694,7 +4688,7 @@ end function
 sub cell__on_ser_data_arriv_not_trigg()
 	'Calculate the elapsed time
 	'REMARK: in this case `cell__starttime`, which was initiated in subroutine `cell__at_cmd_exec`, is used
-	cell__on_ser_data_newtime  = sys.timercount	'update new timercounter
+	cell__on_ser_data_newtime  = sys.timercountms	'update new timercounter
 	cell__on_ser_data_elapsedtime = cell__calc_timediff_16b(cell__on_ser_data_starttime , cell__on_ser_data_newtime)	'calculate the elapsed time
 	
 	'cell__op_parse_phase is set to a PARSE-mode (e.g. PHASE_PARSE_AT_MESSAGE)
@@ -4702,7 +4696,7 @@ sub cell__on_ser_data_arriv_not_trigg()
 	'Wait for a minimum of time and restart modem
 	if (cell__on_ser_data_elapsedtime > CELL__ON_SER_DATA_ARRIV_NOT_TRIGG_RETRY_TIMOUT_MIN) then	'wait for at least a specified number of seconds
 		if (cell__on_ser_data_arriv_not_trigg_retry_param < CELL__ON_SER_DATA_ARRIV_NOT_TRIGG_RETRY_MAX) then
-			cell__on_ser_data_starttime  = sys.timercount	'reset start timecounter
+			cell__on_ser_data_starttime  = sys.timercountms	'reset start timecounter
 		
 			cell__on_ser_data_arriv_not_trigg_retry_param = cell__on_ser_data_arriv_not_trigg_retry_param + 1
 			

@@ -348,13 +348,13 @@ const CELL__SMS_RETRY_MAX = 30
 'const CELL__UNIT_500MS = 0.5	'unit in seconds
 const CELL__UNIT_VOLT = "V"
 
-const CELL__PWRKEY_TIMEOUT_MIN = (2*2)	'(default: 2*2) minimum timeout before changing PWRKEY to Inactive (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
-const CELL__STATUS_TIMEOUT_MAX = (2*22)	'(default: 2*22) maximum timeout for STATUS to change to INACTIVE (<span style="color: gray;">= 2*25 [500msec] = 50 [500msec] = 25 [sec]</span>)
-const CELL__AT_RETRY_TIMEOUT_MAX = (2*2)	'(default: 2*2) maximum timeout to RECEIVE reply from executed AT-commands (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
-const CELL__SIM70xx_AT_CGREG_TIMEOUT_MIN = (2*5)
-const CELL__AT_CGREG_TIMEOUT_MIN = (2*2)	'(default: 2*2) minimum timeout before changing PWRKEY to Inactive (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
-const CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_TIMEOUT_MIN = (2*1)
-const CELL__ON_SER_DATA_ARRIV_NOT_TRIGG_RETRY_TIMOUT_MIN = (2*1)
+const CELL__PWRKEY_TIMEOUT_MIN = (2000)	'(default: 2*2) minimum timeout before changing PWRKEY to Inactive (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
+const CELL__STATUS_TIMEOUT_MAX = (25000)	'(default: 2*22) maximum timeout for STATUS to change to INACTIVE (<span style="color: gray;">= 2*25 [500msec] = 50 [500msec] = 25 [sec]</span>)
+const CELL__AT_RETRY_TIMEOUT_MAX = (2000)	'(default: 2*2) maximum timeout to RECEIVE reply from executed AT-commands (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
+const CELL__SIM70xx_AT_CGREG_TIMEOUT_MIN = (5000)
+const CELL__AT_CGREG_TIMEOUT_MIN = (2000)	'(default: 2*2) minimum timeout before changing PWRKEY to Inactive (<span style="color: gray;">= 2*2 [500msec] = 4 [500msec] = 2 [sec]</span>)
+const CELL__ISRETRY_INPROGR_IN_IDLEMODE_RETRY_TIMEOUT_MIN = (1000)
+const CELL__ON_SER_DATA_ARRIV_NOT_TRIGG_RETRY_TIMOUT_MIN = (1000)
 
 #if CELL__PPP_MODE_ISENABLED
 	const CELL__PPP_RETRY_MAX = 10
@@ -528,7 +528,7 @@ const CELL__AT_CGDATA = CELL__AT_PLUS + "CGDATA" + "=" + CELL__AT_CGDATA_INPUT
 	'
 	'	Magic-Number: 	
 	'			Randomly generated number used to identify one end of a point-to-point connection. 
-	'			Each side negotiates its magic number, taking note of each other’s magic number. 
+	'			Each side negotiates its magic number, taking note of each other's magic number. 
 	'			If both sides discover that the magic numbers they are negotiating are the same, 
 	'			each side attempts to change its magic number. If they are not successful, 
 	'			and the magic numbers remain the same, the session terminates because of the 
