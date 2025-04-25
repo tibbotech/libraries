@@ -134,6 +134,12 @@ public function sntp_start(interface as pl_sock_interfaces,byref server_ip as st
 		end if
 	#endif
 
+	#if CELLULAR_AVAILABLE
+		if interface=PL_SOCK_INTERFACE_PPP then
+			goto sntp_start_continue
+		end if
+	#endif
+
 	#if SNTP_DEBUG_PRINT
 		sntp_debug_print_status(SNTP_STATUS_INVALID_INTERFACE)
 		sntp_debugprint("---FAILURE---")

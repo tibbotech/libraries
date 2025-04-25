@@ -652,11 +652,7 @@ end sub
 				body = "POWER SWITCH... RELEASED"
             case PHASE_PWR_POWERING_ON:
 				body = "MODEM POWERING ON... PLEASE WAIT"
-				dim status_line as low_high = io.lineget(PL_IO_NUM_23_INT7)
-				sys.debugprint("STATUS LINE: " + str(status_line))
             case PHASE_PWR_MODEM_ON:
-				dim status_line as low_high = io.lineget(PL_IO_NUM_23_INT7)
-				sys.debugprint("STATUS LINE: " + str(status_line))
 				body = "MODEM IS [ON]"
             case PHASE_PWR_POWERING_OFF:
 				body = "MODEM POWERING OFF... PLEASE WAIT"
