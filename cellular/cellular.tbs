@@ -543,6 +543,16 @@ sub cell_proc_state()
                 cell_send_at_command(cell_current_command)
             else
                 sys.debugprint("Cell module AT command successful\r\n")
+                cell_next_state(CELL_STATE_SET_CMEE)
+            end if
+        end if
+    case CELL_STATE_SET_CMEE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CMEE=1")
+        else
+            if instr(1,cell_current_response,"OK",1) = 0 then
+                cell_send_at_command(cell_current_command)
+            else
                 cell_next_state(CELL_STATE_SET_BAUD)
             end if
         end if
@@ -554,15 +564,73 @@ sub cell_proc_state()
             
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SET_ECHO)
+                cell_next_state(CELL_STATE_ACTIVATE_MODEM)
             end if
         end if
-    case CELL_STATE_SET_ECHO:
+    case CELL_STATE_ACTIVATE_MODEM:
         if sys.timercountms > cell_timeout then
-            cell_send_at_command("AT&E" + str(CELL_ECHO_MODE))
+            cell_send_at_command("CFUN=1")
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_GET_PIN)
+            end if
+        end if
+    case CELL_STATE_GET_PIN:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPIN?")
+        else
+            if instr(1,cell_current_response,"READY",1) > 0 then
+                'no pin required
+                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+            else if instr(1,cell_current_response,"SIM PIN",1) > 0 then
+                'pin required
+                cell_next_state(CELL_STATE_SET_PIN)
+            else
+                'unknown response
+                cell_timeout = sys.timercountms + 1000
+                cell_next_state(CELL_STATE_GET_PIN)
+            end if
+        end if
+    case CELL_STATE_SET_PIN:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPIN=\x22" + cell_pin + "\x22")
+        else
+            if instr(1,cell_current_response,"OK",1) > 0 then
+                cell_timeout = sys.timercountms + 2000
+                cell_state = CELL_STATE_GET_PIN
+            else
+                sys.debugprint("cell> PIN set failed, not retrying")
+                cell_next_state(CELL_STATE_IDLE)
+            end if
+        end if
+    case CELL_STATE_GET_SUBSCRIBER_ID:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CIMI")
+        else
+            cell_next_state(CELL_STATE_SET_CONNECT_RESULT_INFO)
+        end if
+    case CELL_STATE_SET_CONNECT_RESULT_INFO:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("ATX1")
+        else
+            if cell_current_response <> "OK" then
+                ' cell_send_at_command(cell_current_command)
+                'dont retry
+                cell_next_state(CELL_STATE_SET_CONNECT_RESULT_FORMAT)
+            else
+                cell_next_state(CELL_STATE_SET_CONNECT_RESULT_FORMAT)
+            end if
+        end if
+    case CELL_STATE_SET_CONNECT_RESULT_FORMAT:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("AT&E1")
+        else
+            if cell_current_response <> "OK" then
+                'cell_send_at_command(cell_current_command)
+                'dont retry
+                cell_next_state(CELL_STATE_SET_ECHO_MODE)
             else
                 cell_next_state(CELL_STATE_SET_ECHO_MODE)
             end if
@@ -584,34 +652,22 @@ sub cell_proc_state()
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_GET_PIN)
+                cell_next_state(CELL_STATE_GET_INFO)
             end if
         end if
-    case CELL_STATE_GET_PIN:
-        if sys.timercountms > cell_timeout then
-            cell_send_at_command("CPIN?")
+    case CELL_STATE_GET_INFO:
+         if sys.timercountms > cell_timeout then
+            cell_send_at_command("ATI")
         else
-            if instr(1,cell_current_response,"READY",1) > 0 then
-                'no pin required
-                cell_next_state(CELL_STATE_GET_CMEE)
+            if instr(1,cell_current_response,"OK",1) = 0 then
+                cell_send_at_command(cell_current_command)
             else
-                'pin required
-                cell_next_state(CELL_STATE_SET_PIN)
+                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
             end if
         end if
-    case CELL_STATE_SET_PIN:
+    case CELL_STATE_GET_PREFERRED_OPERATORS:
         if sys.timercountms > cell_timeout then
-            cell_send_at_command("CPIN=" + cell_pin)
-        else
-            if instr(1,cell_current_response,"OK",1) > 0 then
-                cell_next_state(CELL_STATE_GET_CMEE)
-            else
-                cell_next_state(CELL_STATE_ERROR)
-            end if
-        end if
-    case CELL_STATE_GET_CMEE:
-        if sys.timercountms > cell_timeout then
-            cell_send_at_command("CMEE=2")
+            cell_send_at_command("CPOL?")
         else
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
@@ -631,13 +687,25 @@ sub cell_proc_state()
         end if
     case CELL_STATE_SET_PREFERRED_MODE:
         if sys.timercountms > cell_timeout then
-            cell_send_at_command("CNMP=38")
+            cell_send_at_command("CNMP=" + str(CELL_MODE_LTE))
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
                 cell_next_state(CELL_STATE_SET_CREG)
             end if
+        end if
+    case CELL_STATE_GET_PREFERRED_BAND:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CNBP?")
+        else
+            cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+        end if
+    case CELL_STATE_SET_GPRS:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGREG=1")
+        else
+            cell_next_state(CELL_STATE_SET_CREG)
         end if
     case CELL_STATE_SET_CREG:
         if sys.timercountms > cell_timeout then
@@ -646,29 +714,49 @@ sub cell_proc_state()
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
             else
-                cell_retry_countdown = 20
-                cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
-                cell_timeout = sys.timercountms + 1000
+                cell_retry_countdown = 40
+                cell_next_state(CELL_STATE_SET_APN)
             end if
         end if
-    
+    case CELL_STATE_GET_OPERATOR_WAIT:
+        if sys.timercountms > cell_timeout then
+            cell_next_state(CELL_STATE_GET_OPERATOR)
+        else
+            cell_timeout = sys.timercountms + 1000
+        end if
     case CELL_STATE_GET_OPERATOR:
         if sys.timercountms > cell_timeout then
             cell_send_at_command("COPS?")
         else
-            pos_start = instr(1, cell_current_response, "+COPS: 0,0,\x22", 1)
-            if pos_start > 0 then
-                pos_start = pos_start + 12 ' Skip the prefix
-                pos_end = instr(pos_start, cell_current_response, "\x22", 1)
-                if pos_end > 0 then
-                    cell_operator = mid(cell_current_response, pos_start, pos_end - pos_start)
-                    sys.debugprint("Cell operator: " + cell_operator + "\r\n")
-                    cell_next_state(CELL_STATE_SET_APN)
-                else
-                    cell_send_at_command(cell_current_command)
-                end if
+            if instr(1,cell_current_response,"+COPS: 0\x0d",1) = 1 then
+                cell_timeout = sys.timercountms + 1000
+                cell_next_state(CELL_STATE_GET_OPERATOR_WAIT)
             else
+                cell_next_state(CELL_STATE_CHECK_CGATT)
+            end if
+            ' pos_start = instr(1, cell_current_response, "+COPS: 0,0,\x22", 1)
+            ' if pos_start > 0 then
+            '     pos_start = pos_start + 12 ' Skip the prefix
+            '     pos_end = instr(pos_start, cell_current_response, "\x22", 1)
+            '     if pos_end > 0 then
+            '         cell_operator = mid(cell_current_response, pos_start, pos_end - pos_start)
+            '         sys.debugprint("Cell operator: " + cell_operator + "\r\n")
+            '         cell_next_state(CELL_STATE_SET_APN)
+            '     else
+            '         cell_send_at_command(cell_current_command)
+            '     end if
+            ' else
+            '     cell_send_at_command(cell_current_command)
+            ' end if
+        end if
+    case CELL_STATE_SET_OPERATOR:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("COPS=0")
+        else
+            if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SET_APN)
             end if
         end if
     case CELL_STATE_SET_APN:
@@ -678,7 +766,8 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_ACTIVATE_PDP)
+                cell_retry_countdown = 40
+                cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
             end if
         end if
     case CELL_STATE_ACTIVATE_PDP:
@@ -701,7 +790,8 @@ sub cell_proc_state()
                 cell_retry_countdown = 10
                 cell_next_state(CELL_STATE_GET_IP)
             else
-                cell_send_at_command(cell_current_command)
+                cell_timeout = sys.timercountms + 1000
+                cell_state = CELL_STATE_CHECK_CGATT
             end if
         end if
     case CELL_STATE_GET_IP:
@@ -716,8 +806,8 @@ sub cell_proc_state()
                 if pos_end > 0 then
                     cell_ip_address = mid(cell_current_response, pos_start, pos_end - pos_start)
                     sys.debugprint("Cell IP address: " + cell_ip_address + "\r\n")
-                    cell_retry_countdown = 10
-                    cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+                    cell_retry_countdown = 20
+                    cell_next_state(CELL_STATE_COMMAND_MODE)
                 else
                     cell_send_at_command(cell_current_command)
                 end if
@@ -725,19 +815,23 @@ sub cell_proc_state()
         end if
     case CELL_STATE_CHECK_CREG_WAIT:
         'check again after 1000ms
-        cell_timeout = sys.timercountms + 10
-        cell_state = CELL_STATE_CHECK_CREG
+        cell_timeout = sys.timercountms + 1000
+        cell_state = CELL_STATE_GET_SIGNAL_QUALITY
+    case CELL_STATE_GET_SIGNAL_QUALITY:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CSQ")
+        else
+            cell_next_state(CELL_STATE_CHECK_CREG)
+        end if
     case CELL_STATE_CHECK_CREG:
         if sys.timercountms > cell_timeout then
             cell_send_at_command("CREG?")
         else
              ' Check for network registration
-            dim creg_reg_1 as boolean
-            dim creg_reg_5 as boolean
-            creg_reg_1 = instr(1, cell_current_response, "+CREG: 1,1", 1) > 0
-            creg_reg_5 = instr(1, cell_current_response, "+CREG: 1,5", 1) > 0
+            dim creg_reg_1 as boolean = instr(1, cell_current_response, "+CREG: 1,1", 1) > 0
+            dim creg_reg_5 as boolean = instr(1, cell_current_response, "+CREG: 1,5", 1) > 0
             if creg_reg_1 or creg_reg_5 then
-                cell_next_state(CELL_STATE_COMMAND_MODE)
+                cell_next_state(CELL_STATE_GET_OPERATOR)
             else
                 cell_timeout = sys.timercountms + 1000
                 cell_state = CELL_STATE_CHECK_CREG_WAIT
