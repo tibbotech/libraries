@@ -1,0 +1,176 @@
+' Cellular Modem Library
+
+#ifndef CELL_IO_SHUTDOWN
+    #error "CELL_IO_SHUTDOWN is not defined"
+#endif
+#ifndef CELL_IO_PWR
+    #error "CELL_IO_PWR is not defined"
+#endif
+#ifndef CELL_IO_RESET
+    #error "CELL_IO_RESET is not defined"
+#endif
+#ifndef CELL_IO_STATUS
+    #error "CELL_IO_STATUS is not defined"
+#endif
+#ifndef CELL_SER_PORT
+    #error "CELL_SER_PORT is not defined"
+#endif
+#ifndef CELL_COMMAND_QUEUE_SIZE
+    #define CELL_COMMAND_QUEUE_SIZE 10
+#endif
+#ifndef CELL_ECHO_MODE
+    #define CELL_ECHO_MODE 1
+#endif
+
+
+#define CELL_CMD_AT_CMGS_SENDSMS "CMGS"
+
+enum en_cell_states
+    CELL_STATE_IDLE,
+    CELL_STATE_POWER1,
+    CELL_STATE_POWER2,
+    CELL_STATE_POWER3,
+    CELL_STATE_INIT,
+    CELL_STATE_AT_TRY,
+
+    CELL_STATE_GPS_ON,
+    CELL_STATE_GPS_CHECK,
+    
+    CELL_STATE_SET_ECHO,
+    CELL_STATE_SET_BAUD,
+    CELL_STATE_GET_MODEL,
+    CELL_STATE_GET_PIN,
+    CELL_STATE_SET_PIN,
+    CELL_STATE_GET_CMEE,
+    CELL_STATE_SET_PREFERRED_MODE,
+    CELL_STATE_SET_ECHO_MODE,
+    CELL_STATE_SET_FLOW_CONTROL,
+    CELL_STATE_SET_CME,
+    CELL_STATE_SET_CREG,
+    CELL_STATE_CHECK_CREG_WAIT,
+    CELL_STATE_CHECK_CREG,
+    CELL_STATE_GET_OPERATOR,
+    CELL_STATE_SET_APN,
+    CELL_STATE_ACTIVATE_PDP,
+    CELL_STATE_GET_IP,
+    CELL_STATE_CHECK_CGATT,
+    CELL_STATE_DATA_MODE_CHECK,
+
+'command mode states
+    CELL_STATE_SEND_SMS_START,
+    CELL_STATE_SEND_SMS_CSMP,
+    CELL_STATE_SEND_SMS_CSCS,
+    CELL_STATE_SEND_SMS_SEND,
+    CELL_STATE_SEND_SMS_SEND_BODY,
+    CELL_STATE_SEND_SMS_TEXT_WAIT,
+    CELL_STATE_COMMAND_MODE,
+    CELL_STATE_COMMAND_MODE_WAIT,
+
+'ppp mode states
+    CELL_STATE_PPP_START,
+    CELL_STATE_PPP_LCP,
+    CELL_STATE_PPP_PAP,
+    CELL_STATE_PPP_IPCP,
+    CELL_STATE_PPP_CONNECTED,
+    CELL_STATE_PING,
+    CELL_STATE_PING_WAIT,
+    CELL_STATE_PPP_IDLE,
+    CELL_STATE_READY,
+    CELL_STATE_ERROR
+
+'reboot states
+    CELL_STATE_REBOOT_PWR1,
+    CELL_STATE_REBOOT_PWR2
+    
+end enum
+
+' GPS data status enum
+enum en_cell_gps_status
+    GPS_STATUS_OFF,
+    GPS_STATUS_SEARCHING,
+    GPS_STATUS_FIXED,
+    GPS_STATUS_ERROR
+end enum
+
+' GPS data structure
+type cell_gps_data_struct
+    status as en_cell_gps_status
+    fix_timestamp as dword
+    latitude as float
+    longitude as float
+    altitude as float
+    speed as float
+    course as float
+    satellites as byte
+    hdop as float
+    valid as boolean
+end type
+
+enum en_cell__op_ppp_sender_codes
+    PPP_SENDER_CONFACK = 2,
+    PPP_SENDER_CONFNAK = 3,
+    PPP_SENDER_CONFREJ = 4,
+    PPP_SENDER_DISREQ = 11
+end enum
+
+enum en_cell__op_ppp_peer_codes
+    PPP_PEER_CONFREQ = 1,
+    PPP_PEER_CONFACK = 2,
+    PPP_PEER_CONFNAK = 3,
+    PPP_PEER_CONFREJ = 4,
+    PPP_PEER_DISREQ = 11
+end enum
+
+' ppp frame struct
+type cell_ppp_message_struct
+    protocol as word
+    code as byte
+    id as byte
+    sender_data as string
+    peer_data as string
+end type
+
+type cell_command_queue_struct
+    command_type as string(10)
+    command_data as string
+end type
+
+const CELL_PPP_PROTOCOL_IP = &h0021	'Internet Protocol
+const CELL_PPP_PROTOCOL_IPCP = &h8021	'Internet Protocol Control Protocol
+const CELL_PPP_PROTOCOL_LCP = &hC021	'Link Control Protocol
+const CELL_PPP_PROTOCOL_PAP=&hC023	'Password Authentication Protocol
+const CELL_PPP_PROTOCOL_CHAP=&hC223	'Challenge Handshake Authentication Protocol
+
+const CELL__PPP_LCP_OPTION_MRU_STR = chr(&h01) + chr(&h04) + chr(&h08) + chr(&h00)
+const CELL__PPP_LCP_OPTION_ACCM_STR = chr(&h02) + chr(&h06) + chr(&h0) + chr(&h0) + chr(&h0) + chr(&h0)
+const CELL__PPP_LCP_OPTION_PAP_STR = chr(&h03) + chr(&h04) + chr(&hc0) + chr(&h23)	'Authentication Protocol (<span style="color: gray;">0x0304 C023</span>) (<span style="color: gray;">note: 0xC023=PAP</span>)
+const CELL__PPP_LCP_OPTION_QP_STR = chr(&h04) + chr(&h04) + chr(&hc0) + chr(&h25)	'Quality Control (<span style="color: gray;">0x0404 C025</span>)
+const CELL__PPP_LCP_OPTION_MAGIC_DUMMY_STR = chr(&h05) + chr(&h06) + chr(&hff) + chr(&hff) + chr(&hff) + chr(&hff)	'Magic-Number which is used as dummy input arg
+const CELL__PPP_LCP_OPTION_PFC_STR = chr(&h07) + chr(&h02)	'Protocol Field Compression (<span style="color: gray;">0x7002</span>)
+const CELL__PPP_LCP_OPTION_ACFC_STR = chr(&h08) + chr(&h02)	'ADDRESS AND CONTROL FIELD COMPRESSION (<span style="color: gray;">0x0802</span>)
+const CELL__PPP_LCP_CONFREQ_DATA_STR = CELL__PPP_LCP_OPTION_MRU_STR + CELL__PPP_LCP_OPTION_ACCM_STR + CELL__PPP_LCP_OPTION_PAP_STR + CELL__PPP_LCP_OPTION_QP_STR
+
+
+declare cell_state as en_cell_states
+
+declare sub cell_proc_timer()
+declare sub cell_init(byref apn as string, byref username as string, byref password as string, byref pin as string)
+declare sub cell_start()
+declare sub cell_stop()
+declare sub cell_proc_data()
+declare sub cell_send_sms(phone_number as string, message as string)
+
+declare sub callback_ppp_disconnected()
+declare sub callback_ppp_connected()
+declare sub callback_gps_data_updated()
+
+declare function cell_get_ip_address() as string
+declare function cell_get_operator() as string
+declare function ppp_create_frame(protocol as word, code as byte, id as byte, data as string) as string
+
+' GPS functions
+declare function cell_gps_get_data() as cell_gps_data_struct
+declare function cell_gps_is_fixed() as boolean
+declare sub cell_gps_enable()
+declare sub cell_gps_disable()
+declare function cell_gps_nmea_to_decimal(nmea_coord as string, direction as string) as float

@@ -1,0 +1,1747 @@
+include "global.tbh"
+
+
+
+
+dim cell_timeout as dword=0
+dim cell_retry_countdown as byte=0
+dim polarity as boolean
+dim polarity_on as low_high = HIGH
+dim polarity_off as low_high = LOW
+dim cell_state as en_cell_states
+dim cell_buf as string
+dim cell_current_response as string
+dim cell_ip_address as string = ""
+dim cell_operator as string = ""
+dim cell_apn as string = "internet.iot"
+dim cell_modem_model as string = ""
+dim cell_current_command as string(30)=""
+dim cell_username as string(50) = ""
+dim cell_password as string(50) = ""
+dim cell_pin as string(10) = ""
+dim cell_ppp_current_id as byte = 0
+dim cell_ppp_enabled as boolean = true
+dim cell_pdp_context as byte = 1
+
+' GPS variables
+dim cell_gps_data as cell_gps_data_struct
+dim cell_gps_update_interval as dword = 5000 ' 5 seconds
+dim cell_gps_last_updated as dword = 0
+dim cell_gps_enabled as boolean = false
+
+' Command queue variables
+dim cell_command_queue(CELL_COMMAND_QUEUE_SIZE) as cell_command_queue_struct
+dim cell_command_queue_head as byte = 0
+dim cell_command_queue_tail as byte = 0
+dim cell_command_queue_count as byte = 0
+
+declare sub cell_proc_state()
+declare sub cell_send_at_command(command as string)
+declare sub cell_ppp_init()
+declare sub cell_ppp_send(frame as string)
+declare sub process_ppp_frame(frame as string)
+declare sub cell_next_state(state as en_cell_states)
+declare sub cell_ppp_deinit()
+declare sub cell_enter_command_mode()
+declare function compute_fcs(byref ppp_packet_format as string(128)) as word
+declare function cell_command_queue_is_empty() as boolean
+declare function cell_command_queue_is_full() as boolean
+declare sub cell_command_queue_push(command_type as string, command_data as string)
+declare function cell_command_queue_pop() as cell_command_queue_struct
+declare sub cell_command_queue_init()
+
+' GPS Functions Implementation
+function cell_gps_get_data() as cell_gps_data_struct
+    cell_gps_get_data = cell_gps_data
+end function
+
+function cell_gps_is_fixed() as boolean
+    cell_gps_is_fixed = (cell_gps_data.status = GPS_STATUS_FIXED)
+end function
+
+sub cell_gps_enable()
+    if cell_gps_enabled = false then
+        cell_gps_enabled = true
+        if cell_state = CELL_STATE_COMMAND_MODE or cell_state = CELL_STATE_PPP_IDLE then
+            cell_enter_command_mode()
+            
+            ' Step 1: Disable GPS first (if it was running)
+            cell_send_at_command("CGPS=0")
+            cell_timeout = sys.timercountms + 1000
+            
+            ' Next steps handled in GPS_ENABLE state
+            cell_next_state(CELL_STATE_GPS_ON)
+        end if
+    end if
+end sub
+
+sub cell_gps_disable()
+    if cell_gps_enabled = true then
+        cell_gps_enabled = false
+        if cell_state = CELL_STATE_COMMAND_MODE or cell_state = CELL_STATE_PPP_IDLE then
+            cell_enter_command_mode()
+            cell_send_at_command("CGPS=0")
+            
+            ' Reset GPS data status
+            cell_gps_data.status = GPS_STATUS_OFF
+            cell_gps_data.valid = FALSE
+        end if
+    end if
+end sub
+
+function cell_gps_nmea_to_decimal(nmea_coord as string, direction as string) as float
+    ' Convert NMEA format (ddmm.mmmm) to decimal degrees
+    ' For example: "4916.45" becomes 49.2742 (49 degrees, 16.45 minutes)
+    dim degrees, minutes, result as float
+    dim deg_part as string
+    
+    if len(nmea_coord) < 3 then
+        cell_gps_nmea_to_decimal = 0
+        exit function
+    end if
+    
+    ' Extract degrees (first 2 chars for latitude, first 3 for longitude)
+    if len(nmea_coord) >= 5 and val(nmea_coord) >= 10000 then
+        ' This is longitude (format: dddmm.mmmm)
+        deg_part = left(nmea_coord, 3)
+        minutes = val(mid(nmea_coord, 4, 10)) / 60
+    else
+        ' This is latitude (format: ddmm.mmmm)
+        deg_part = left(nmea_coord, 2)
+        minutes = val(mid(nmea_coord, 3, 10)) / 60
+    end if
+    
+    degrees = val(deg_part)
+    result = degrees + minutes
+    
+    ' Apply sign based on direction
+    ' For latitude: N is positive, S is negative
+    ' For longitude: E is positive, W is negative
+    if direction = "S" or direction = "W" then
+        result = -result
+    end if
+    
+    cell_gps_nmea_to_decimal = result
+end function
+
+sub cell_parse_gps_data(response as string)
+    ' Parse +CGPSINFO response
+    ' Format: +CGPSINFO: [lat],[N/S],[long],[E/W],[date],[UTC time],[alt],[speed],[course]
+    ' Example: +CGPSINFO: 4916.4500,N,12311.1200,W,291219,235959.000,68.0,0.0,0.0
+    
+    dim pos_start, pos_end as byte
+    dim temp_lat, temp_long, temp_alt, temp_speed, temp_course as string
+    dim temp_ns, temp_ew, temp_date, temp_time as string
+    dim is_valid as boolean = false
+    
+    ' Check if we have valid GPS data
+    if instr(1, response, "+CGPSINFO:", 1) > 0 then
+        pos_start = instr(1, response, "+CGPSINFO:", 1) + 10
+        
+        ' Check if we have a fix (non-empty coordinates)
+        if mid(response, pos_start, 1) <> "," then
+            ' We have valid data
+            is_valid = true
+            cell_gps_data.status = GPS_STATUS_FIXED
+            cell_gps_data.fix_timestamp = sys.timercountms
+            
+            ' Extract latitude
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_lat = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract N/S
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_ns = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract longitude
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_long = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract E/W
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_ew = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract date
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_date = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract time
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_time = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract altitude
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_alt = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract speed
+            pos_end = instr(pos_start, response, ",", 1)
+            temp_speed = mid(response, pos_start, pos_end - pos_start)
+            pos_start = pos_end + 1
+            
+            ' Extract course
+            pos_end = instr(pos_start, response, "\r", 1)
+            if pos_end = 0 then pos_end = len(response) + 1
+            temp_course = mid(response, pos_start, pos_end - pos_start)
+            
+            ' Convert and store values
+            cell_gps_data.latitude = cell_gps_nmea_to_decimal(temp_lat, temp_ns)
+            cell_gps_data.longitude = cell_gps_nmea_to_decimal(temp_long, temp_ew)
+            cell_gps_data.altitude = val(temp_alt)
+            cell_gps_data.speed = val(temp_speed)
+            cell_gps_data.course = val(temp_course)
+            
+            ' Mark as valid
+            cell_gps_data.valid = TRUE
+            
+            ' Call callback function to notify data update
+            callback_gps_data_updated()
+        else
+            ' No fix yet
+            cell_gps_data.status = GPS_STATUS_SEARCHING
+            cell_gps_data.valid = FALSE
+        end if
+    else if instr(1, response, "+GPGSV:", 1) > 0 then
+        ' GSV sentence contains satellites in view info
+        ' Format: +GPGSV: [total msgs],[msg num],[sats in view],... satellite details
+        ' Example: +GPGSV:3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00
+        pos_start = instr(1, response, "+GPGSV:", 1) + 7
+        
+        ' Skip to third field - sats in view
+        pos_start = instr(pos_start, response, ",", 1) + 1
+        pos_start = instr(pos_start, response, ",", 1) + 1
+        
+        ' Extract satellites in view
+        pos_end = instr(pos_start, response, ",", 1)
+        if pos_end > 0 then
+            cell_gps_data.satellites = val(mid(response, pos_start, pos_end - pos_start))
+        end if
+    else if instr(1, response, "+GPGSA:", 1) > 0 then
+        ' GSA sentence contains DOP (dilution of precision) and active satellites
+        ' Format: +GPGSA: [mode1],[mode2],[sat1],...,[sat12],[PDOP],[HDOP],[VDOP]
+        ' Example: +GPGSA:A,3,19,28,14,18,27,22,31,39,,,,,1.7,1.0,1.3
+        pos_start = instr(1, response, "+GPGSA:", 1) + 7
+        
+        ' Skip to 15th field (HDOP)
+        for pos_end = 1 to 14
+            pos_start = instr(pos_start, response, ",", 1) + 1
+            if pos_start <= 1 then exit sub ' Not enough fields
+        next pos_end
+        
+        ' Extract HDOP
+        pos_end = instr(pos_start, response, ",", 1)
+        if pos_end > 0 then
+            cell_gps_data.hdop = val(mid(response, pos_start, pos_end - pos_start))
+        end if
+    else
+        ' If the response doesn't contain any GPS data we recognize,
+        ' and we don't have a fix yet, set status to searching
+        if cell_gps_data.status <> GPS_STATUS_FIXED then
+            cell_gps_data.status = GPS_STATUS_SEARCHING
+            cell_gps_data.valid = FALSE
+        end if
+    end if
+end sub
+
+sub cell_init(byref apn as string, byref username as string, byref password as string, byref pin as string)
+    io.num=CELL_IO_SHUTDOWN
+    io.enabled=YES
+
+    io.num=CELL_IO_PWR
+    io.enabled=YES
+
+    io.num=CELL_IO_RESET
+    io.enabled=YES
+
+    io.num=CELL_IO_STATUS
+    io.enabled=NO
+
+    cell_apn = apn
+    cell_username = username
+    cell_password = password
+    cell_pin = pin
+
+    polarity = YES
+    if io.lineget(CELL_IO_STATUS) = HIGH then
+        polarity = NO
+        polarity_on = LOW
+        polarity_off = HIGH
+    end if
+
+    ' Configure serial port
+    ser.num = CELL_SER_PORT
+    ser.enabled = NO
+    ser.interchardelay = 10
+    ser.rxbuffrq(4)
+    ser.txbuffrq(4)
+    sys.buffalloc()
+    ser.rxclear()
+    ser.txclear()
+    ser.baudrate = PL_SER_BAUD_115200
+    ser.flowcontrol = PL_SER_FC_DISABLED
+    ser.rtsmap = CELL_SER_PORT
+    ser.ctsmap = CELL_SER_PORT
+    ser.enabled = YES
+
+    ' Initialize cell state and command queue
+    cell_state = CELL_STATE_IDLE
+    cell_command_queue_init()
+
+    ' Initialize GPIO lines
+    io.lineset(CELL_IO_PWR,polarity_off)
+    io.lineset(CELL_IO_RESET,polarity_off)
+
+    ' Initialize PPP
+    ppp.buffrq(4)	'set ppp buffer-size
+    sys.buffalloc()	'very important: allocate the ppp buffer-size
+    
+    ' Initialize GPS data structure
+    cell_gps_data.status = GPS_STATUS_OFF
+    cell_gps_data.valid = FALSE
+    cell_gps_data.latitude = 0
+    cell_gps_data.longitude = 0
+    cell_gps_data.altitude = 0
+    cell_gps_data.speed = 0
+    cell_gps_data.course = 0
+    cell_gps_data.satellites = 0
+    cell_gps_data.hdop = 0
+    cell_gps_data.fix_timestamp = 0
+    cell_gps_enabled = false
+    cell_gps_last_updated = 0
+    
+    sys.debugprint("cell>module initialized\r\n")
+
+    'TODO: remove later
+    cell_username = "myusername@realm"
+    cell_password = ""
+end sub
+
+sub cell_start()
+    cell_retry_countdown = 0
+    cell_state = CELL_STATE_POWER1
+    cell_timeout = sys.timercountms + 1000
+    cell_buf = ""
+end sub
+
+sub cell_stop()
+    cell_state = CELL_STATE_IDLE
+    cell_ppp_deinit()
+    callback_ppp_disconnected()
+    cell_buf = ""
+    cell_current_response = ""
+    cell_current_command = ""
+    cell_timeout = 0
+end sub
+
+sub cell_send_at_command(command as string)
+    dim cmd as string
+    if command = "" then
+        cmd = "AT\r\n"
+    else if instr(1,command,"AT",1) = 1 then
+        cmd = command + "\r\n"
+    else
+        cmd = "AT+" + command + "\r\n"
+    end if
+    cell_buf = ""
+    cell_current_response = ""
+    ser.setdata(cmd)
+    ser.send()
+    sys.debugprint("cell>send: " + cmd)
+    cell_timeout = sys.timercountms + 1000
+    cell_current_command = command
+end sub
+
+sub cell_send_at_command_with_timeout(command as string, timeout as dword)
+    cell_send_at_command(command)
+    cell_timeout = sys.timercountms + timeout
+end sub
+
+sub cell_enter_command_mode()
+    if cell_state >= CELL_STATE_COMMAND_MODE_WAIT then
+        'disconnect ppp and switch to command mode
+        cell_ppp_deinit()
+        callback_ppp_disconnected()
+    
+        cell_buf = ""
+        cell_current_response = ""
+        cell_retry_countdown = 10
+        cell_next_state(CELL_STATE_COMMAND_MODE_WAIT)
+    end if
+end sub
+
+sub cell_print_hex(byref data as string)
+    if len(data) = 0 then
+        exit sub
+    end if
+    dim output as string = ""
+    dim i, b as byte
+	dim tmp as string(4)=""
+    dim start as byte = 1
+    dim max_len as byte = 60
+    for i = 1 to len(data) - 1
+        b = asc(mid(data, i, 1))
+		tmp = hex(b)
+		tmp=mid(tmp,3,2)
+        if b < 16 then
+            tmp = "0" + tmp
+        end if
+        output = output + tmp + " "
+        if len(output) > max_len then
+            output = output + " | " + mid(data,start,i-start)
+            sys.debugprint(output)
+            output = ""
+            start = i
+        end if
+    next i
+    if len(output) > 0 then
+        ' fill to 60 characters
+        for i = len(output)  - 1 to max_len + 1
+            output = output + " "
+        next i
+        output = output + " | " + mid(data,start,len(data)-start+1)
+        sys.debugprint(output)
+    end if
+end sub
+
+sub cell_ppp_send(frame as string)
+    dim i, b as byte
+    dim escaped_frame, final_frame as string
+    
+    ' Send the frame through the serial port
+    cell_current_response=""
+    ser.setdata(frame)
+    ser.send()
+    
+    sys.debugprint("cell>Sent PPP frame: ")
+    cell_print_hex(frame)
+end sub
+
+sub cell_proc_timer()
+    if cell_timeout > 0 AND sys.timercountms > cell_timeout then
+        cell_timeout = 0
+        cell_proc_state()
+    end if
+    
+    ' Check if it's time to update GPS data while in idle state
+    if cell_gps_enabled = true AND (cell_state = CELL_STATE_COMMAND_MODE OR cell_state = CELL_STATE_PPP_IDLE) then
+        if (sys.timercountms - cell_gps_last_updated) > cell_gps_update_interval then
+            cell_gps_last_updated = sys.timercountms
+            cell_send_at_command("CGPSINFO")
+        end if
+    end if
+end sub
+
+' Empty callback function - should be implemented by the application
+sub callback_gps_data_updated()
+    ' Example implementation - log GPS data when it's valid
+    if cell_gps_data.valid = TRUE then
+        sys.debugprint("GPS update: Lat=" + fstr(cell_gps_data.latitude) + 
+                       ", Lon=" + fstr(cell_gps_data.longitude) + 
+                       ", Alt=" + fstr(cell_gps_data.altitude) + 
+                       ", Speed=" + fstr(cell_gps_data.speed) + 
+                       ", Course=" + fstr(cell_gps_data.course) + "\r\n")
+                       
+        ' Update global app variables if they exist
+        #ifdef APP_LATITUDE
+        APP_LATITUDE = cell_gps_data.latitude
+        APP_LONGITUDE = cell_gps_data.longitude
+        #endif
+    end if
+end sub
+
+sub cell_proc_state()
+    dim pos_start as byte
+    dim pos_end as byte
+
+    select case cell_state
+    case CELL_STATE_IDLE:
+        ' do nothing
+    case CELL_STATE_POWER1:
+        io.lineset(CELL_IO_SHUTDOWN,polarity_on)
+        io.lineset(CELL_IO_RESET,polarity_off)
+        io.lineset(CELL_IO_PWR,polarity_on)
+        cell_timeout = sys.timercountms + 500
+        cell_state = CELL_STATE_POWER2
+    case CELL_STATE_POWER2:
+        io.lineset(CELL_IO_PWR,polarity_off)
+        cell_timeout = sys.timercountms + 1000
+        cell_state = CELL_STATE_POWER3
+        cell_retry_countdown = 25
+    case CELL_STATE_POWER3:
+        if io.lineget(CELL_IO_STATUS) = LOW then
+            cell_timeout = sys.timercountms + 1000
+        else
+            cell_state = CELL_STATE_INIT
+            cell_timeout = sys.timercountms + 1000
+        end if
+    case CELL_STATE_INIT:
+        sys.debugprint("Cell module initialized\r\n")
+        cell_next_state(CELL_STATE_AT_TRY)
+    case CELL_STATE_GPS_ON:
+        if sys.timercountms > cell_timeout then
+            cell_gps_enabled = true
+            cell_send_at_command("AT+CGPS=0")
+        else if cell_current_response = "OK" or cell_current_command = "AT+CGPS=0" then
+            ' Set GPS antenna (1=internal, 2=external)
+            cell_send_at_command("AT+CGPSXDS=1")
+        else if cell_current_response = "OK" and cell_current_command = "AT+CGPSXDS=1" then
+            ' Set NMEA sentence output configuration
+            ' Enable: GGA, RMC, GSV, GSA, VTG (most common NMEA sentences)
+            cell_send_at_command("AT+CGPSNMEA=31")
+        else if cell_current_response = "OK" and cell_current_command = "AT+CGPSNMEA=31" then
+            ' Now enable GPS after configuration is set
+            cell_send_at_command("AT+CGPS=1")
+        else if cell_current_response = "OK" and cell_current_command = "AT+CGPS=1" then
+            ' Set auto polling of GPS information
+            cell_send_at_command("AT+CGPSINFO=5")
+            cell_retry_countdown = 60
+            cell_next_state(CELL_STATE_GPS_CHECK)
+        else
+            cell_send_at_command(cell_current_command)
+        end if
+    case CELL_STATE_GPS_CHECK:
+        if sys.timercountms > cell_timeout then
+            ' Time to check GPS status
+            cell_send_at_command("CGPSINFO")
+            cell_timeout = sys.timercountms + cell_gps_update_interval
+        else
+            ' Process GPS information if available
+            if instr(1, cell_current_response, "+CGPSINFO:", 1) > 0 then
+                ' Parse GPS data from response
+                cell_parse_gps_data(cell_current_response)
+                
+                ' Check if we have a fix
+                if cell_gps_is_fixed() then
+                    ' We have a GPS fix, continue with network setup
+                    sys.debugprint("GPS fix acquired: Lat=" + fstr(cell_gps_data.latitude) + ", Lon=" + fstr(cell_gps_data.longitude) + "\r\n")
+                    cell_next_state(CELL_STATE_AT_TRY)
+                else
+                    ' Wait for next poll
+                    cell_timeout = sys.timercountms + cell_gps_update_interval
+                    
+                    ' If retry count is depleted, continue without GPS
+                    if cell_retry_countdown <= 1 then
+                        sys.debugprint("GPS fix not acquired, continuing without GPS\r\n")
+                        cell_next_state(CELL_STATE_AT_TRY)
+                    else
+                        cell_retry_countdown = cell_retry_countdown - 1
+                    end if
+                end if
+            end if
+        end if
+    case CELL_STATE_AT_TRY:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                sys.debugprint("Cell module AT command successful\r\n")
+                cell_next_state(CELL_STATE_SET_BAUD)
+            end if
+        end if
+    case CELL_STATE_SET_BAUD:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("IPR=115200")
+        else
+            if cell_current_response <> "OK" then
+            
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SET_ECHO)
+            end if
+        end if
+    case CELL_STATE_SET_ECHO:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("AT&E" + str(CELL_ECHO_MODE))
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SET_ECHO_MODE)
+            end if
+        end if
+    case CELL_STATE_SET_ECHO_MODE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("ATE" + str(CELL_ECHO_MODE))
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_GET_MODEL)
+            end if
+        end if
+    case CELL_STATE_GET_MODEL:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGMM")
+        else
+            if instr(1,cell_current_response,"OK",1) = 0 then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_GET_PIN)
+            end if
+        end if
+    case CELL_STATE_GET_PIN:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPIN?")
+        else
+            if instr(1,cell_current_response,"READY",1) > 0 then
+                'no pin required
+                cell_next_state(CELL_STATE_GET_CMEE)
+            else
+                'pin required
+                cell_next_state(CELL_STATE_SET_PIN)
+            end if
+        end if
+    case CELL_STATE_SET_PIN:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPIN=" + cell_pin)
+        else
+            if instr(1,cell_current_response,"OK",1) > 0 then
+                cell_next_state(CELL_STATE_GET_CMEE)
+            else
+                cell_next_state(CELL_STATE_ERROR)
+            end if
+        end if
+    case CELL_STATE_GET_CMEE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CMEE=2")
+        else
+            if instr(1,cell_current_response,"OK",1) = 0 then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+            end if
+        end if
+    case CELL_STATE_SET_FLOW_CONTROL:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("AT&C1")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else 
+                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+            end if
+        end if
+    case CELL_STATE_SET_PREFERRED_MODE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CNMP=38")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SET_CREG)
+            end if
+        end if
+    case CELL_STATE_SET_CREG:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CREG=1")
+        else
+            if instr(1,cell_current_response,"OK",1) = 0 then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_retry_countdown = 20
+                cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+                cell_timeout = sys.timercountms + 1000
+            end if
+        end if
+    
+    case CELL_STATE_GET_OPERATOR:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("COPS?")
+        else
+            pos_start = instr(1, cell_current_response, "+COPS: 0,0,\x22", 1)
+            if pos_start > 0 then
+                pos_start = pos_start + 12 ' Skip the prefix
+                pos_end = instr(pos_start, cell_current_response, "\x22", 1)
+                if pos_end > 0 then
+                    cell_operator = mid(cell_current_response, pos_start, pos_end - pos_start)
+                    sys.debugprint("Cell operator: " + cell_operator + "\r\n")
+                    cell_next_state(CELL_STATE_SET_APN)
+                else
+                    cell_send_at_command(cell_current_command)
+                end if
+            else
+                cell_send_at_command(cell_current_command)
+            end if
+        end if
+    case CELL_STATE_SET_APN:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGDCONT=1,\x22IP\x22,\x22"+cell_apn+"\x22")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_ACTIVATE_PDP)
+            end if
+        end if
+    case CELL_STATE_ACTIVATE_PDP:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command_with_timeout("CGACT=1,1", 5000)
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_CHECK_CGATT)
+            end if
+        end if
+    
+    case CELL_STATE_CHECK_CGATT:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGATT?")
+        else
+            ' Verify we're attached to GPRS
+            if instr(1, cell_current_response, "+CGATT: 1", 1) > 0 then
+                cell_retry_countdown = 10
+                cell_next_state(CELL_STATE_GET_IP)
+            else
+                cell_send_at_command(cell_current_command)
+            end if
+        end if
+    case CELL_STATE_GET_IP:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGPADDR=1")
+        else
+            ' Extract IP address from response
+            pos_start = instr(1, cell_current_response, "+CGPADDR: 1,", 1)
+            if pos_start > 0 then
+                pos_start = pos_start + 12 ' Skip the prefix
+                pos_end = instr(pos_start, cell_current_response, "\x0d", 1)
+                if pos_end > 0 then
+                    cell_ip_address = mid(cell_current_response, pos_start, pos_end - pos_start)
+                    sys.debugprint("Cell IP address: " + cell_ip_address + "\r\n")
+                    cell_retry_countdown = 10
+                    cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+                else
+                    cell_send_at_command(cell_current_command)
+                end if
+            end if
+        end if
+    case CELL_STATE_CHECK_CREG_WAIT:
+        'check again after 1000ms
+        cell_timeout = sys.timercountms + 10
+        cell_state = CELL_STATE_CHECK_CREG
+    case CELL_STATE_CHECK_CREG:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CREG?")
+        else
+             ' Check for network registration
+            dim creg_reg_1 as boolean
+            dim creg_reg_5 as boolean
+            creg_reg_1 = instr(1, cell_current_response, "+CREG: 1,1", 1) > 0
+            creg_reg_5 = instr(1, cell_current_response, "+CREG: 1,5", 1) > 0
+            if creg_reg_1 or creg_reg_5 then
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            else
+                cell_timeout = sys.timercountms + 1000
+                cell_state = CELL_STATE_CHECK_CREG_WAIT
+            end if
+        end if
+    case CELL_STATE_COMMAND_MODE_WAIT:
+        if sys.timercountms > cell_timeout then
+            cell_current_command = "+++"
+            ser.setdata("+++")
+            ser.send()
+            sys.debugprint("cell>Enter command mode, sending +++")
+            cell_timeout = sys.timercountms + 2000
+        else
+            if cell_current_response = "OK" then
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        end if
+    case CELL_STATE_COMMAND_MODE:
+        if cell_command_queue_is_empty() then
+            if cell_ppp_enabled = true then
+                cell_next_state(CELL_STATE_DATA_MODE_CHECK)
+            end if
+        else
+            ' go through command queue
+            dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
+            select case command.command_type
+                case CELL_CMD_AT_CMGS_SENDSMS:
+                    cell_next_state(CELL_STATE_SEND_SMS_START)
+                case else:
+                    'unknown command
+                    ' cell_next_state(CELL_STATE_PPP_START)
+            end select
+            
+        end if
+    case CELL_STATE_DATA_MODE_CHECK:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("ATO")
+        else
+            if instr(1, cell_current_response, "CONNECT", 1) = 0 then
+                cell_next_state(CELL_STATE_PPP_START)
+            else
+                cell_next_state(CELL_STATE_PPP_LCP)
+            end if
+        end if
+    case CELL_STATE_SEND_SMS_START:
+        if sys.timercountms > cell_timeout then
+            'set sms to text mode
+            cell_send_at_command("CMGF=1")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SEND_SMS_CSMP)
+            end if
+        end if
+    case CELL_STATE_SEND_SMS_CSMP:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CSMP=17,167,2,0")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SEND_SMS_CSCS)
+            end if
+        end if
+    case CELL_STATE_SEND_SMS_CSCS:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CSCS=\x22GSM\x22")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SEND_SMS_SEND)
+            end if
+        end if
+    case CELL_STATE_SEND_SMS_SEND:
+        if sys.timercountms > cell_timeout then
+            'get command from queue
+            dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
+            if command.command_type = CELL_CMD_AT_CMGS_SENDSMS then
+                'get first part
+                pos_start = instr(1, command.command_data, "\r\n", 1)
+                dim tmp as string = left(command.command_data, pos_start - 1)
+                cell_timeout = sys.timercountms + 5000
+                cell_send_at_command(command.command_type + tmp)
+            else
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        else
+            if instr(1, cell_current_response, "AT+CMGS=", 1) > 0 then
+                cell_next_state(CELL_STATE_SEND_SMS_SEND_BODY)
+            else
+                cell_send_at_command(cell_current_command)
+            end if
+       end if
+    case CELL_STATE_SEND_SMS_SEND_BODY:
+        dim command as cell_command_queue_struct
+        command = cell_command_queue_pop()
+        'get second part
+        pos_start = instr(1, command.command_data, "\r\n", 1)
+        dim tmp as string = mid(command.command_data, pos_start+2,255)
+        cell_current_response = ""
+        cell_current_command = tmp
+        ser.setdata(tmp)
+        ser.send()
+        cell_timeout = sys.timercountms + 5000
+        cell_state = CELL_STATE_SEND_SMS_TEXT_WAIT
+    case CELL_STATE_SEND_SMS_TEXT_WAIT:
+        if sys.timercountms > cell_timeout OR instr(1, cell_current_response, "OK", 1) > 0 then
+            cell_next_state(CELL_STATE_COMMAND_MODE)
+        end if
+    case CELL_STATE_PPP_START:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command_with_timeout("CGDATA=\x22PPP\x22," + str(cell_pdp_context), 5000)
+        else
+            if instr(1, cell_current_response, "CONNECT", 1) = 1 then
+                
+                sys.debugprint("Starting PPP negotiation\r\n")
+                cell_next_state(CELL_STATE_PPP_LCP)
+                
+            else if instr(1, cell_current_response, "ERROR", 1) = 1 then
+                cell_next_state(CELL_STATE_REBOOT_PWR1)
+            else
+                cell_send_at_command_with_timeout(cell_current_command, 5000)
+            end if
+        end if
+    case CELL_STATE_PPP_LCP:
+        if sys.timercountms > cell_timeout then
+            cell_ppp_init()
+                
+            ' Send LCP configuration request
+            cell_state = CELL_STATE_PPP_LCP
+            dim lcp_confreq as string
+            
+            ' Build LCP Configuration Request with proper options
+            dim lcp_data as string = ""
+            
+            ' Option 1: Maximum Receive Unit (MRU)
+            ' Format: type(1) + length(4) + value(2 bytes for MRU)
+            ' Setting MRU to 1500 bytes (standard Ethernet)
+            lcp_data = lcp_data + chr(1) + chr(4) + chr(5) + chr(220)
+
+            'prefer PAP
+            lcp_data = lcp_data + chr(3) + chr(4) + chr(&hc0) + chr(&h23)
+            
+            ' Option 5: Magic Number (used for loop detection)
+            ' Format: type(5) + length(6) + value(4 bytes)
+            ' Using a simple value for now
+            dim magic_number as dword = &h12345678
+            lcp_data = lcp_data + chr(5) + chr(6) + 
+                chr((magic_number SHR 24) AND &hFF) + 
+                chr((magic_number SHR 16) AND &hFF) + 
+                chr((magic_number SHR 8) AND &hFF) + 
+                chr(magic_number AND &hFF)
+            cell_ppp_current_id = 0
+            ' lcp_confreq = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
+            lcp_confreq = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, CELL__PPP_LCP_CONFREQ_DATA_STR)
+            cell_ppp_current_id = cell_ppp_current_id + 1
+
+            cell_ppp_send(lcp_confreq)
+            cell_timeout = sys.timercountms + 5000
+        end if
+
+    case CELL_STATE_PPP_PAP:
+        if sys.timercountms > cell_timeout then
+            ' Send PAP authentication if required
+            dim pap_data as string
+            ' Format: length_of_username + username + length_of_password + password
+            pap_data = chr(len(cell_username)) + cell_username + chr(len(cell_password)) + cell_password
+            sys.debugprint("cell>pap: " + str(cell_ppp_current_id) + "\r\n")
+            dim pap_frame as string
+            pap_frame = ppp_create_frame(CELL_PPP_PROTOCOL_PAP, PPP_PEER_CONFREQ, cell_ppp_current_id, pap_data)
+            cell_ppp_current_id = cell_ppp_current_id + 1
+            cell_ppp_send(pap_frame)
+            cell_timeout = sys.timercountms + 5000
+        end if
+        
+    case CELL_STATE_PPP_IPCP:
+        ' IPCP negotiation - request an IP address
+        dim ipcp_data as string
+        ' IP address option (code 3) with length 6, requesting 0.0.0.0 (will be filled by network)
+        ipcp_data = chr(2) + chr(6) + chr(0) + chr(0) + chr(0) + chr(0)
+        ipcp_data = ipcp_data + chr(3) + chr(6) + chr(0) + chr(0) + chr(0) + chr(0)
+        
+        sys.debugprint("cell>ipcp: " + ipcp_data + "\r\n")
+        dim ipcp_frame as string
+        ipcp_frame = ppp_create_frame(CELL_PPP_PROTOCOL_IPCP, PPP_PEER_CONFREQ, cell_ppp_current_id, ipcp_data)
+        cell_ppp_current_id = cell_ppp_current_id + 1
+        cell_ppp_send(ipcp_frame)
+        cell_timeout = sys.timercountms + 5000
+    case CELL_STATE_PING:
+        if sys.timercountms > cell_timeout then
+            dim ping_frame as string
+            dim ping_data as string
+            ' icmp echo request
+            ' ping_data = chr(&h08) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00) + chr(&h00)
+            ' ping_frame = ppp_create_frame(CELL_PPP_PROTOCOL_IP, 0, 0, ping_data)
+            ' cell_ppp_send(ping_frame)
+            ' cell_send_at_command("CDNSGIP="+"google.com")
+        else
+            ' cell_next_state(CELL_STATE_PPP_CONNECTED)
+            cell_state = CELL_STATE_AT_TRY
+        end if
+    case CELL_STATE_PPP_CONNECTED:
+        ' Verify PPP connection by checking if we have a valid IP address
+        if cell_ip_address <> "" then
+            sys.debugprint("PPP connection established with IP: " + cell_ip_address + "\r\n")
+            ser.num = CELL_SER_PORT
+            ser.rxclear()
+            ser.txclear()
+            ppp.portnum = CELL_SER_PORT	'assign a PPP-portnumber (which is equal to the serial-port number used for AT-commands)
+            ppp.ip = cell_ip_address	'set a valid remote ip-address (retrieved during the IPCP-negotiation)
+            ppp.enabled = YES	'enable PPP (required to establish the connection)
+            cell_state = CELL_STATE_PPP_IDLE
+            cell_timeout = 0
+            sys.debugprint("Cell module ready with PPP connection\r\n")
+            callback_ppp_connected()
+        else
+            if sys.timercountms > cell_timeout then
+                if cell_retry_countdown = 0 then
+                    cell_next_state(CELL_STATE_ERROR)
+                    sys.debugprint("Failed to get IP address\r\n")
+                else
+                    ' Go back to IPCP negotiation
+                    cell_state = CELL_STATE_PPP_IPCP
+                    cell_timeout = sys.timercountms + 5000
+                end if
+            end if
+        end if
+    case CELL_STATE_PPP_IDLE:
+        ' Module is ready for communication
+
+    case CELL_STATE_REBOOT_PWR1:
+        io.lineset(CELL_IO_RESET, polarity_on)
+        cell_timeout = sys.timercountms + 1200
+        cell_retry_countdown = 0
+        cell_next_state(CELL_STATE_REBOOT_PWR2)
+    case CELL_STATE_REBOOT_PWR2:
+        io.lineset(CELL_IO_RESET, polarity_off)
+        cell_retry_countdown = 25
+        cell_next_state(CELL_STATE_POWER3)
+    case CELL_STATE_ERROR:
+        sys.debugprint("Cell module error\r\n")
+        cell_timeout = sys.timercountms + 5000
+        cell_state = CELL_STATE_AT_TRY
+    case else:
+        'do nothing
+    end select
+
+    if cell_retry_countdown > 0 then
+        sys.debugprint("cell>retry: " + str(cell_retry_countdown) + "\r\n")
+        cell_retry_countdown = cell_retry_countdown - 1
+        if cell_retry_countdown = 0 then
+            cell_next_state(CELL_STATE_ERROR)
+        end if
+    end if
+end sub
+
+' Improve the ppp_create_frame function to handle escape characters
+function ppp_create_frame(protocol as word, code as byte, id as byte, data as string) as string
+    dim frame, escaped_frame as string
+    dim fcs as word
+    dim i, b as byte
+    
+    ' Format the basic frame
+    frame = chr(&hFF) + chr(&h03) + chr(protocol / 256) + chr(protocol MOD 256)
+    
+    ' Add code, ID and length for control protocols
+    if protocol = CELL_PPP_PROTOCOL_LCP or protocol = CELL_PPP_PROTOCOL_PAP or protocol = CELL_PPP_PROTOCOL_IPCP then
+        frame = frame + chr(code) + chr(id) + chr(0) + chr(len(data) + 4) + data
+    else
+        frame = frame + data
+    end if
+    
+    ' Calculate and append FCS
+    fcs = compute_fcs(frame)
+
+
+    fcs = ( (fcs SHL 8) OR ((fcs SHR 8) AND &hff) )
+		
+    fcs = fcs XOR &hffff		
+    frame = frame + chr(fcs SHR 8) + chr(fcs AND &hff)
+    
+    ' Apply byte stuffing (escape characters)
+    escaped_frame = ""
+    for i = 1 to len(frame)
+        b = asc(mid(frame, i, 1))
+        
+        ' Escape control characters
+        if b = &h7E or b = &h7D or b < &h20 then
+            escaped_frame = escaped_frame + chr(&h7D) + chr(b XOR &h20)
+        else
+            escaped_frame = escaped_frame + chr(b)
+        end if
+    next i
+    
+    ' Add frame delimiters
+    ppp_create_frame = chr(&h7E) + escaped_frame + chr(&h7E)
+end function
+
+function ppp_extract_ip(data as string, offset as byte) as string
+    dim ip as string
+    
+    ' Extract IP address (4 bytes)
+    if offset + 3 < len(data) then
+        ip = str(asc(mid(data, offset, 1))) + "." + 
+             str(asc(mid(data, offset+1, 1))) + "." + 
+             str(asc(mid(data, offset+2, 1))) + "." + 
+             str(asc(mid(data, offset+3, 1)))
+    end if
+    
+    ppp_extract_ip=ip
+end function
+
+sub cell_ppp_init()
+    ppp.enabled = false
+end sub
+
+sub cell_ppp_deinit()
+    ppp.enabled = false
+    ser.num = CELL_SER_PORT
+    ser.rxclear()
+    ser.txclear()
+end sub
+
+sub cell_send_sms(phone_number as string, message as string)
+    'send sms message
+    'see if cell_state is in CELL_STATE_PPP_CONNECTED
+    'add to command queue
+    cell_command_queue_push(CELL_CMD_AT_CMGS_SENDSMS, "=\x22" + phone_number + "\x22\r\n"+message + chr(26))
+    cell_enter_command_mode()
+end sub
+
+function parse_ppp_frame_str(byref buffer as string) as string
+    dim frame, unescaped_frame as string
+    dim frame_start, frame_end, i as byte
+    dim b as byte
+    dim escape_next as boolean
+    
+    ' Look for beginning and end flags
+    frame_start = instr(1, buffer, chr(&h7E), 1)
+    if frame_start = 0 then
+        ' No start flag found
+        parse_ppp_frame_str = ""
+        exit function
+    end if
+    
+    frame_end = instr(frame_start + 1, buffer, chr(&h7E), 1)
+    if frame_end = 0 then
+        ' No end flag found - incomplete frame
+        parse_ppp_frame_str = ""
+        exit function
+    end if
+    
+    ' Extract the frame including flags
+    frame = mid(buffer, frame_start, frame_end - frame_start + 1)
+    
+    ' Remove the processed part from the buffer
+    buffer = mid(buffer, frame_end + 1, 255)
+    
+    ' Skip the start flag
+    frame = mid(frame, 2, len(frame) - 2)
+    
+    ' Unescape the frame
+    unescaped_frame = ""
+    escape_next = FALSE
+    
+    for i = 1 to len(frame)
+        b = asc(mid(frame, i, 1))
+        
+        if escape_next = TRUE then
+            ' Apply XOR transformation for escaped byte
+            unescaped_frame = unescaped_frame + chr(b XOR &h20)
+            escape_next = FALSE
+        else if b = &h7D then
+            ' This is an escape character
+            escape_next = TRUE
+        else
+            ' Regular character
+            unescaped_frame = unescaped_frame + chr(b)
+        end if
+    next i
+    unescaped_frame = chr(&h7E) + unescaped_frame + chr(&h7E)
+    
+    ' ' Return the unescaped frame
+    parse_ppp_frame_str = unescaped_frame
+end function
+
+sub cell_proc_data()
+    if ser.num<>CELL_SER_PORT then
+        exit sub
+    end if
+    
+    ' If we're in PPP mode, just accumulate data and don't print it (could be binary)
+    ' if cell_state >= CELL_STATE_PPP_LCP and cell_state <= CELL_STATE_PPP_CONNECTED then
+    '     'if starts and ends in 0x7E, then it is a ppp frame
+    '     dim pos as word = instr(2,cell_buf,"\x7E",1)
+    '     while pos > 0
+    '     if left(cell_buf,1) = chr(&h7E) and pos > 0 then
+    '         cell_current_response = cell_buf
+    '         cell_buf = mid(cell_buf,pos+1,255)
+    '         cell_proc_state()
+    '         end if
+    '         pos = instr(pos+1,cell_buf,"\x7E",1)
+    '     wend
+    ' else
+    if cell_state >= CELL_STATE_PPP_LCP and cell_state <= CELL_STATE_PPP_CONNECTED then
+        ' Process PPP frames in the buffer
+        dim frame as string
+        dim data_len as byte=255-len(cell_buf)
+        dim cur_ser_data as string=ser.peekdata(255)
+        if data_len > 0 then
+            dim ser_data as string=ser.getdata(data_len)
+            if len(ser_data) > 0 then
+                cell_buf = cell_buf + ser_data
+                sys.debugprint("cell>recv: ")
+                cell_print_hex(ser_data)
+            end if
+        end if
+        
+        ' Try to extract and process complete frames
+        frame = parse_ppp_frame_str(cell_buf)
+        while frame <> ""
+            ' Process the parsed frame
+            process_ppp_frame(frame)
+            
+            ' Try to get another frame
+            frame = parse_ppp_frame_str(cell_buf)
+        wend
+    else
+        dim ser_data as string=ser.getdata(255)
+        if cell_state < CELL_STATE_AT_TRY then
+            exit sub
+        end if
+        'check for overflow
+        if len(cell_buf) + len(ser_data) > 255 then
+            cell_buf = ""
+            cell_current_response = ""
+            sys.debugprint("Cell module buffer overflow\r\n")
+            exit sub
+        end if
+        cell_buf = cell_buf + ser_data
+        sys.debugprint("cell>recv: " + ser_data)
+        ' Normal AT command processing
+        'check for newline
+        dim pos as dword = instr(1,cell_buf,"\r\n",2)
+        if pos > 0 then
+            dim first_pos as byte = instr(1,cell_buf,"\r\n",1)
+            ' get last position of \r\n
+            dim last_pos as byte = instr(pos+1,cell_buf,"\r\n",1)
+            while last_pos > 0
+                pos = last_pos
+                last_pos = instr(last_pos+1,cell_buf,"\r\n",1)
+            wend
+            
+            cell_current_response = mid(cell_buf,first_pos+2,pos-first_pos-2)
+            cell_buf = mid(cell_buf,pos+2,255)
+        else
+            cell_current_response = cell_buf
+        end if
+        
+        ' Check if this is a GPS response
+        if instr(1, cell_current_response, "+CGPSINFO:", 1) > 0 then
+            ' Parse GPS data
+            cell_parse_gps_data(cell_current_response)
+            cell_gps_last_updated = sys.timercountms
+        end if
+        
+        cell_proc_state()
+    end if
+end sub
+
+' New function to process PPP frames
+sub process_ppp_frame(frame as string)
+    ' Skip flag bytes
+    if len(frame) < 8 then 
+        sys.debugprint("cell>PPP frame too short\r\n")
+        exit sub
+    end if
+    
+    ' Validate frame format (Flag, Address, Control bytes)
+    if asc(mid(frame, 1, 1)) <> &h7E or asc(mid(frame, 2, 1)) <> &hFF or asc(mid(frame, 3, 1)) <> &h03 then
+        sys.debugprint("cell>Invalid PPP frame header\r\n")
+        exit sub
+    end if
+    
+    ' Extract protocol (after removing flag, address, and control bytes)
+    dim protocol as word = asc(mid(frame, 4, 1)) * 256 + asc(mid(frame, 5, 1))
+    
+    ' Extract payload (without headers and FCS)
+    dim payload_start as byte = 6
+    dim payload_end as byte = len(frame) - 3 ' Remove FCS (2 bytes) and end flag
+    dim payload as string = mid(frame, payload_start, payload_end - payload_start + 1)
+    
+    ' Validate FCS checksum
+    dim reported_fcs as word = asc(mid(frame, len(frame)-2, 1)) + asc(mid(frame, len(frame)-1, 1)) * 256
+    dim calculated_fcs as word = compute_fcs(mid(frame, 2, len(frame)-4)) ' From Address byte to before FCS
+    
+    if reported_fcs <> calculated_fcs then
+        sys.debugprint("cell>PPP frame checksum error\r\n")
+        ' exit sub
+    end if
+    
+    ' Extract code, ID for control protocols
+    dim code as byte = 0
+    dim id as byte = 0
+    dim data as string = ""
+    
+    if protocol = CELL_PPP_PROTOCOL_LCP or protocol = CELL_PPP_PROTOCOL_PAP or protocol = CELL_PPP_PROTOCOL_IPCP then
+        code = asc(mid(payload, 1, 1))
+        id = asc(mid(payload, 2, 1))
+        data = mid(payload, 5, len(payload)-4) ' Skip code, id, length
+        
+        sys.debugprint("cell>PPP frame: protocol=" + hex(protocol) + ", code=" + str(code) + ", id=" + str(id) + "\r\n")
+    else
+        sys.debugprint("cell>PPP frame: protocol=" + hex(protocol) + "\r\n")
+    end if
+    
+    select case protocol
+    case CELL_PPP_PROTOCOL_LCP:
+        ' Handle LCP packets
+        select case code
+        case PPP_PEER_CONFREQ: ' Configuration Request
+            'decode the fields of the LCP config request            
+            dim option_type, option_length as byte
+            dim i as byte = 1
+            dim options_str as string = ""
+            dim isPAP as boolean = false
+
+            dim reply_code as EN_CELL__OP_PPP_PEER_CODES = PPP_PEER_CONFACK
+            dim reply_data as string = ""
+            
+            sys.debugprint("cell>LCP CONFREQ data parsing:\r\n")
+            
+            ' Parse each option in the configuration request
+            while i < len(data)
+                option_type = asc(mid(data, i, 1))
+                option_length = asc(mid(data, i+1, 1))
+                
+                ' Make sure we have a valid option with enough data
+                if option_length < 2 or i + option_length > len(data) then
+                    sys.debugprint("  Invalid option format at position " + str(i) + "\r\n")
+                    exit while
+                end if
+                
+                ' Extract and interpret option data based on type
+                select case option_type
+                case 1: ' Maximum Receive Unit (MRU)
+                    dim mru as word
+                    if option_length >= 4 then
+                        mru = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
+                        sys.debugprint("  Option: MRU = " + str(mru) + "\r\n")
+                        options_str = options_str + "MRU=" + str(mru) + " "
+                    end if
+                    
+                case 2: ' Async Control Character Map (ACCM)
+                    if option_length >= 6 then
+                        sys.debugprint("  Option: ACCM = 0x" + 
+                            hex(asc(mid(data, i+2, 1))) + 
+                            hex(asc(mid(data, i+3, 1))) + 
+                            hex(asc(mid(data, i+4, 1))) + 
+                            hex(asc(mid(data, i+5, 1))) + "\r\n")
+                        options_str = options_str + "ACCM "
+                    end if
+                    
+                case 3: ' Authentication Protocol
+                    if option_length >= 4 then
+                        dim auth_protocol as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
+                        dim protocol_name as string = "Unknown"
+                        
+                        select case auth_protocol
+                        case &hC023:
+                            protocol_name = "PAP"
+                            isPAP = true
+                        case &hC223:
+                            protocol_name = "CHAP"
+                            ' we don't support CHAP
+                            reply_code = PPP_PEER_CONFNAK
+                            reply_data = reply_data + chr(3) + chr(4) + chr(&hC0) + chr(&h23)
+                        end select
+                        
+                        sys.debugprint("  Option: Authentication Protocol = " + protocol_name + " (0x" + hex(auth_protocol) + ")\r\n")
+                        options_str = options_str + protocol_name + " "
+                    end if
+                    
+                case 4: ' Quality Protocol
+                    if option_length >= 4 then
+                        dim quality_protocol as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
+                        sys.debugprint("  Option: Quality Protocol = 0x" + hex(quality_protocol) + "\r\n")
+                        options_str = options_str + "QP "
+                    end if
+                    
+                case 5: ' Magic Number
+                    if option_length >= 6 then
+                        dim magic as dword
+                        magic = (asc(mid(data, i+2, 1)) * 16777216) + 
+                                (asc(mid(data, i+3, 1)) * 65536) + 
+                                (asc(mid(data, i+4, 1)) * 256) + 
+                                asc(mid(data, i+5, 1))
+                        sys.debugprint("  Option: Magic Number = 0x" + hex(magic) + "\r\n")
+                        options_str = options_str + "Magic "
+                    end if
+                    
+                case 7: ' Protocol Field Compression (PFC)
+                    sys.debugprint("  Option: Protocol Field Compression\r\n")
+                    options_str = options_str + "PFC "
+                    
+                case 8: ' Address and Control Field Compression (ACFC)
+                    sys.debugprint("  Option: Address and Control Field Compression\r\n")
+                    options_str = options_str + "ACFC "
+                    
+                case else:
+                    sys.debugprint("  Unknown option type: " + str(option_type) + ", length: " + str(option_length) + "\r\n")
+                    options_str = options_str + "Type" + str(option_type) + " "
+                end select
+                
+                ' Move to the next option
+                i = i + option_length
+            wend
+            
+            sys.debugprint("cell>LCP CONFREQ Summary: " + options_str + "\r\n")
+
+            if reply_data = "" then
+                reply_data = data
+            end if
+
+            cell_ppp_send(ppp_create_frame(CELL_PPP_PROTOCOL_LCP, reply_code, id, reply_data))
+            
+        case PPP_PEER_CONFACK: ' Configuration Acknowledge
+            ' Our request was acknowledged
+            cell_state = CELL_STATE_PPP_PAP ' Move to next state
+            cell_retry_countdown = 5 ' Reset retry counter
+            cell_timeout = sys.timercountms + 100
+            
+        case PPP_PEER_CONFNAK:
+            ' Parse the NAK options to understand what values to adjust
+            sys.debugprint("cell>LCP CONFNAK parsing:\r\n")
+            
+            ' In CONFNAK, the peer suggests alternative values for our options
+            dim lcp_data as string = ""
+            dim i, option_type, option_length as byte
+            dim nakked_options as string = ""
+            
+            ' Process each option in the NAK data
+            i = 1
+            while i < len(data)
+                option_type = asc(mid(data, i, 1))
+                option_length = asc(mid(data, i+1, 1))
+                
+                if option_length < 2 or i + option_length > len(data) then
+                    sys.debugprint("  Invalid option format in CONFNAK at position " + str(i) + "\r\n")
+                    exit while
+                end if
+                
+                ' Log the NAK'd option
+                sys.debugprint("  NAK'd option: Type=" + str(option_type) + ", Length=" + str(option_length) + "\r\n")
+                nakked_options = nakked_options + str(option_type) + " "
+                
+                ' Add the suggested option to our new request
+                lcp_data = lcp_data + mid(data, i, option_length)
+                
+                select case option_type
+                case 1: ' MRU
+                    if option_length >= 4 then
+                        dim mru as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
+                        sys.debugprint("  Suggested MRU: " + str(mru) + "\r\n")
+                    end if
+                
+                case 2: ' ACCM
+                    if option_length >= 6 then
+                        sys.debugprint("  Suggested ACCM: 0x" + 
+                            hex(asc(mid(data, i+2, 1))) + 
+                            hex(asc(mid(data, i+3, 1))) + 
+                            hex(asc(mid(data, i+4, 1))) + 
+                            hex(asc(mid(data, i+5, 1))) + "\r\n")
+                    end if
+                
+                case 3: ' Authentication Protocol
+                    if option_length >= 4 then
+                        dim auth_protocol as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
+                        dim protocol_name as string = "Unknown"
+                        
+                        select case auth_protocol
+                        case &hC023:
+                            protocol_name = "PAP"
+                        case &hC223:
+                            protocol_name = "CHAP"
+                        end select
+                        
+                        sys.debugprint("  Suggested Authentication Protocol: " + protocol_name + " (0x" + hex(auth_protocol) + ")\r\n")
+                    end if
+                
+                case 5: ' Magic Number
+                    if option_length >= 6 then
+                        dim magic as dword
+                        magic = (asc(mid(data, i+2, 1)) * 16777216) + 
+                                (asc(mid(data, i+3, 1)) * 65536) + 
+                                (asc(mid(data, i+4, 1)) * 256) + 
+                                asc(mid(data, i+5, 1))
+                        sys.debugprint("  Suggested Magic Number: 0x" + hex(magic) + "\r\n")
+                    end if
+                
+                case else:
+                    sys.debugprint("  Unknown suggested option type: " + str(option_type) + "\r\n")
+                end select
+                
+                ' Move to next option
+                i = i + option_length
+            wend
+            
+            ' Now add any options from our original request that weren't NAK'd
+            dim full_config as string = CELL__PPP_LCP_CONFREQ_DATA_STR
+            
+            i = 1
+            while i < len(full_config)
+                option_type = asc(mid(full_config, i, 1))
+                option_length = asc(mid(full_config, i+1, 1))
+                
+                if option_length < 2 or i + option_length > len(full_config) then
+                    sys.debugprint("  Invalid option format in full config at position " + str(i) + "\r\n")
+                    exit while
+                end if
+                
+                ' Only include options that weren't NAK'd
+                if instr(1, nakked_options, str(option_type) + " ", 1) = 0 then
+                    lcp_data = lcp_data + mid(full_config, i, option_length)
+                end if
+                
+                ' Move to next option
+                i = i + option_length
+            wend
+            
+            sys.debugprint("cell>Sending updated LCP configuration request\r\n")
+            cell_ppp_current_id = 0
+            dim lcp_confreq as string = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
+            cell_ppp_current_id = cell_ppp_current_id + 1
+            cell_ppp_send(lcp_confreq)
+            cell_timeout = sys.timercountms + 3000
+
+        case PPP_PEER_CONFREJ: ' Configuration Nak/Reject
+            ' Parse the rejected options to understand what to remove
+            sys.debugprint("cell>LCP CONFREJ parsing:\r\n")
+            
+            ' Build a new LCP Configuration Request without the rejected options
+            dim lcp_data as string = ""
+            dim rejected_options as string = ""
+            dim i, option_type, option_length as byte
+            
+            ' Process each option in the rejection data
+            i = 1
+            while i < len(data)
+                option_type = asc(mid(data, i, 1))
+                option_length = asc(mid(data, i+1, 1))
+                
+                if option_length < 2 or i + option_length > len(data) then
+                    sys.debugprint("  Invalid option format in CONFREJ at position " + str(i) + "\r\n")
+                    exit while
+                end if
+                
+                ' Log the rejected option
+                sys.debugprint("  Rejected option: Type=" + str(option_type) + ", Length=" + str(option_length) + "\r\n")
+                rejected_options = rejected_options + str(option_type) + " "
+                
+                ' Move to next option
+                i = i + option_length
+            wend
+            
+            sys.debugprint("Rejected options: " + rejected_options + "\r\n")
+            
+            ' Start with the full configuration string
+            dim full_config as string = CELL__PPP_LCP_CONFREQ_DATA_STR
+            
+            ' Create a new configuration without the rejected options
+            i = 1
+            while i < len(full_config)
+                option_type = asc(mid(full_config, i, 1))
+                option_length = asc(mid(full_config, i+1, 1))
+                
+                if option_length < 2 or i + option_length > len(full_config) then
+                    sys.debugprint("  Invalid option format in full config at position " + str(i) + "\r\n")
+                    exit while
+                end if
+                
+                ' Check if this option was rejected
+                if instr(1, rejected_options, str(option_type) + " ", 1) = 0 then
+                    ' Option not rejected, keep it
+                    lcp_data = lcp_data + mid(full_config, i, option_length)
+                else
+                    sys.debugprint("  Removing option type " + str(option_type) + " from next request\r\n")
+                end if
+                
+                ' Move to next option
+                i = i + option_length
+            wend
+            
+            ' If we removed all options, include at least MRU
+            if len(lcp_data) = 0 then
+                sys.debugprint("  All options rejected, using minimal MRU option\r\n")
+                lcp_data = chr(1) + chr(4) + chr(5) + chr(220) ' MRU option only
+            end if
+            
+            cell_ppp_current_id = 0
+            dim lcp_confreq as string = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
+            cell_ppp_current_id = cell_ppp_current_id + 1
+            cell_ppp_send(lcp_confreq)
+            cell_timeout = sys.timercountms + 3000
+        case PPP_SENDER_DISREQ:
+            ' Disconnect request
+            ' dim lcp_data as string = ""
+            ' lcp_data = CELL__PPP_LCP_CONFREQ_DATA_STR
+            ' dim lcp_confreq as string = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
+            ' cell_ppp_current_id = cell_ppp_current_id + 1
+            sys.debugprint("cell>LCP DISREQ received\r\n")
+        end select
+        
+    case CELL_PPP_PROTOCOL_PAP:
+        ' Handle PAP packets
+        select case code
+        case PPP_PEER_CONFACK: ' Authentication Request
+            ' Move to IPCP state
+            cell_state = CELL_STATE_PPP_IPCP
+            cell_retry_countdown = 5 ' Reset retry counter
+            cell_timeout = sys.timercountms + 100
+            
+        case 3: ' Authentication Nak
+            if cell_retry_countdown > 0 then
+                ' Authentication failed, try again
+                cell_timeout = sys.timercountms + 3000
+            else
+                cell_next_state(CELL_STATE_ERROR)
+            end if
+        end select
+        
+    case CELL_PPP_PROTOCOL_IPCP:
+        ' Handle IPCP packets
+        select case code
+        case 1: ' Configuration Request
+            ' Send Configuration Acknowledge
+            dim ack_frame as string = ppp_create_frame(CELL_PPP_PROTOCOL_IPCP, 2, id, data)
+            cell_ppp_send(ack_frame)
+            
+        case 2: ' Configuration Acknowledge
+            ' Our IPCP request was acknowledged
+            ' Extract the IP address if provided
+            dim i as byte
+            for i = 1 to len(data) - 5
+                if asc(mid(data, i, 1)) = 3 then ' IP address option
+                    ' Extract the IP address (4 bytes)
+                    cell_ip_address = str(asc(mid(data, i+2, 1))) + "." + 
+                                     str(asc(mid(data, i+3, 1))) + "." + 
+                                     str(asc(mid(data, i+4, 1))) + "." + 
+                                     str(asc(mid(data, i+5, 1)))
+                    exit for
+                end if
+            next i
+            
+            ' Success - we're now connected
+            cell_next_state(CELL_STATE_PPP_CONNECTED)
+            
+        case 3: ' Configuration Nak
+            ' They provided us with an IP address
+            dim i as byte
+            for i = 1 to len(data) - 5
+                if asc(mid(data, i, 1)) = 3 then ' IP address option
+                    ' Extract the IP address (4 bytes)
+                    cell_ip_address = str(asc(mid(data, i+2, 1))) + "." + 
+                                     str(asc(mid(data, i+3, 1))) + "." + 
+                                     str(asc(mid(data, i+4, 1))) + "." + 
+                                     str(asc(mid(data, i+5, 1)))
+                    
+                    ' Send a new request with the provided IP
+                    dim ipcp_data as string
+                    ipcp_data = chr(3) + chr(6) + 
+                               chr(asc(mid(data, i+2, 1))) + 
+                               chr(asc(mid(data, i+3, 1))) + 
+                               chr(asc(mid(data, i+4, 1))) + 
+                               chr(asc(mid(data, i+5, 1)))
+                    
+                    dim ipcp_frame as string
+                    ipcp_frame = ppp_create_frame(CELL_PPP_PROTOCOL_IPCP, 1, id, ipcp_data)
+                    cell_ppp_send(ipcp_frame)
+                    exit for
+                end if
+            next i
+            
+            cell_timeout = sys.timercountms + 3000
+            
+        case 4: ' Configuration Reject
+            if cell_retry_countdown > 0 then
+                ' Try again with simpler options
+                dim ipcp_data as string
+                ipcp_data = chr(3) + chr(6) + chr(0) + chr(0) + chr(0) + chr(0)
+                
+                dim ipcp_frame as string
+                ipcp_frame = ppp_create_frame(CELL_PPP_PROTOCOL_IPCP, 1, cell_retry_countdown, ipcp_data)
+                cell_ppp_send(ipcp_frame)
+                cell_timeout = sys.timercountms + 3000
+            else
+                cell_next_state(CELL_STATE_ERROR)
+            end if
+        end select
+    end select
+end sub
+
+' Function to get the current IP address from the cellular module
+function cell_get_ip_address() as string
+    cell_get_ip_address = cell_ip_address
+end function
+
+' Function to get the current operator from the cellular module
+function cell_get_operator() as string
+    cell_get_operator = cell_operator
+end function
+
+sub cell_next_state(state as en_cell_states)
+    'detect if going into error state
+    if state = CELL_STATE_ERROR then
+        sys.debugprint("cell>error state\r\n")
+        callback_ppp_disconnected()
+        if cell_state = CELL_STATE_AT_TRY then
+            state = CELL_STATE_REBOOT_PWR1
+        else
+            state = CELL_STATE_AT_TRY
+        end if
+    end if
+    cell_state = state
+    if cell_retry_countdown <= 5 then
+        cell_retry_countdown = 5
+    end if
+    cell_timeout = sys.timercountms + 50
+end sub
+
+function compute_fcs(byref ppp_packet_format as string(128)) as word
+    'Define variables
+    dim p as word
+    dim i as byte
+    dim ppp_packet_format_item as byte
+    
+    const CELL__PPP_INIT_FCS = &hFFFF
+    const CELL__PPP_CRC16_POLYNOMIAL = &h8408
+    'Initial value
+    compute_fcs = CELL__PPP_INIT_FCS
+    
+    'Generate the FCS for the given PPP Packet Format
+    for p = 1 to len(ppp_packet_format)	'cycle through each character of the PPP Packet Format
+        ppp_packet_format_item = asc(mid(ppp_packet_format, p, 1))	'for each index p, get one character and convert to ASCII
+        
+        compute_fcs = (compute_fcs XOR ppp_packet_format_item)	'exclusive-OR `cell__ppp_generate_fcs` with `ppp_packet_format_item`
+        
+        for i = 0 to 7	'cycle 8 times and process the current character of the PPP Packet Format
+            if (compute_fcs AND &h01) = &h01 then	'LSB is set to `1`
+                compute_fcs = (compute_fcs SHR 1)	'FIRST: shift right by 1
+                compute_fcs = (compute_fcs XOR CELL__PPP_CRC16_POLYNOMIAL)	'THEN: XOR with `CRC16_POLYNOMIAL`
+            else	'LSB is set to `0`
+                compute_fcs = (compute_fcs SHR 1)	'shift right by 1
+            end if
+        next i
+    next p
+end function
+
+function cell_command_queue_is_empty() as boolean
+    cell_command_queue_is_empty = (cell_command_queue_count = 0)
+end function
+
+function cell_command_queue_is_full() as boolean
+    cell_command_queue_is_full = (cell_command_queue_count = CELL_COMMAND_QUEUE_SIZE)
+end function
+
+sub cell_command_queue_push(command_type as string, command_data as string)
+    if cell_command_queue_is_full() then
+        sys.debugprint("cell>Command queue full, dropping command: " + command_type + "\r\n")
+        exit sub
+    end if
+    
+    cell_command_queue(cell_command_queue_tail).command_type = command_type
+    cell_command_queue(cell_command_queue_tail).command_data = command_data
+    
+    cell_command_queue_tail = (cell_command_queue_tail + 1) mod CELL_COMMAND_QUEUE_SIZE
+    cell_command_queue_count = cell_command_queue_count + 1
+    
+    sys.debugprint("cell>Command queued: " + command_type + ", count: " + str(cell_command_queue_count) + "\r\n")
+end sub
+
+function cell_command_queue_pop() as cell_command_queue_struct
+    dim result as cell_command_queue_struct
+    
+    if cell_command_queue_is_empty() then
+        result.command_type = ""
+        result.command_data = ""
+        exit function
+    end if
+    
+    result = cell_command_queue(cell_command_queue_head)
+    cell_command_queue_head = (cell_command_queue_head + 1) mod CELL_COMMAND_QUEUE_SIZE
+    cell_command_queue_count = cell_command_queue_count - 1
+    
+    sys.debugprint("cell>Command dequeued: " + result.command_type + ", count: " + str(cell_command_queue_count) + "\r\n")
+    
+    cell_command_queue_pop = result
+end function
+
+sub cell_command_queue_init()
+    cell_command_queue_head = 0
+    cell_command_queue_tail = 0
+    cell_command_queue_count = 0
+    sys.debugprint("cell>Command queue initialized\r\n")
+end sub
