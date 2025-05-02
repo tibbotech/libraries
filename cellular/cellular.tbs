@@ -716,7 +716,7 @@ sub cell_proc_state()
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
             else
-                cell_retry_countdown = 40
+                cell_retry_countdown = 80
                 if cell_apn <> "" then
                     cell_next_state(CELL_STATE_SET_APN)
                 else
@@ -772,7 +772,7 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_retry_countdown = 40
+                cell_retry_countdown = 80
                 cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
             end if
         end if
