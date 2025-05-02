@@ -107,7 +107,12 @@ enum en_cell_states
 'reboot states
     CELL_STATE_REBOOT_RESET_SETTINGS,
     CELL_STATE_REBOOT_PWR1,
-    CELL_STATE_REBOOT_PWR2
+    CELL_STATE_REBOOT_PWR2,
+
+'power off states
+    CELL_STATE_POWER_OFF1,
+    CELL_STATE_POWER_OFF2,
+    CELL_STATE_POWER_OFF3
 end enum
 
 ' GPS data status enum

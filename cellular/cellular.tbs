@@ -330,13 +330,13 @@ sub cell_start()
 end sub
 
 sub cell_stop()
-    cell_state = CELL_STATE_IDLE
     cell_ppp_deinit()
-    callback_ppp_disconnected()
     cell_buf = ""
     cell_current_response = ""
     cell_current_command = ""
-    cell_timeout = 0
+    cell_retry_countdown = 0
+    cell_timeout = sys.timercountms + 100
+    cell_state = CELL_STATE_POWER_OFF1
 end sub
 
 sub cell_send_at_command(command as string)
@@ -1084,6 +1084,16 @@ sub cell_proc_state()
         io.lineset(CELL_IO_RESET, polarity_off)
         cell_timeout = sys.timercountms + 500
         cell_state = CELL_STATE_POWER1
+
+    case CELL_STATE_POWER_OFF1:
+        cell_log(LOG_INFO, "power off")
+        callback_ppp_disconnected()
+        io.lineset(CELL_IO_PWR, polarity_on)
+        cell_timeout = sys.timercountms + 2500
+        cell_state = CELL_STATE_POWER_OFF2
+    case CELL_STATE_POWER_OFF2:
+        io.lineset(CELL_IO_PWR, polarity_off)
+        cell_state = CELL_STATE_IDLE
     case CELL_STATE_ERROR:
         cell_log(LOG_ERROR, "Cell module error")
         cell_timeout = sys.timercountms + 5000
