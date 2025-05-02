@@ -22,6 +22,23 @@
     #define CELL_ECHO_MODE 1
 #endif
 
+#ifndef LOG_ERROR
+    #define LOG_ERROR 0
+#endif
+#ifndef LOG_WARNING
+    #define LOG_WARNING 1
+#endif
+#ifndef LOG_INFO
+    #define LOG_INFO 2
+#endif
+#ifndef LOG_DEBUG
+    #define LOG_DEBUG 3
+#endif
+
+#ifndef CELL_LOG_LEVEL
+    #define CELL_LOG_LEVEL LOG_INFO
+#endif
+
 
 #define CELL_CMD_AT_CMGS_SENDSMS "CMGS"
 

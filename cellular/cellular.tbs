@@ -49,7 +49,7 @@ declare function cell_command_queue_is_full() as boolean
 declare sub cell_command_queue_push(command_type as string, command_data as string)
 declare function cell_command_queue_pop() as cell_command_queue_struct
 declare sub cell_command_queue_init()
-
+declare sub cell_log(level as byte, byref message as string)
 ' GPS Functions Implementation
 function cell_gps_get_data() as cell_gps_data_struct
     cell_gps_get_data = cell_gps_data
@@ -315,7 +315,7 @@ sub cell_init(byref apn as string, byref username as string, byref password as s
     cell_gps_enabled = false
     cell_gps_last_updated = 0
     
-    sys.debugprint("cell>module initialized\r\n")
+    cell_log(LOG_INFO, "module initialized")
 
     'TODO: remove later
     cell_username = "myusername@realm"
@@ -353,7 +353,7 @@ sub cell_send_at_command(command as string)
     ser.rxclear()
     ser.setdata(cmd)
     ser.send()
-    sys.debugprint("cell>send: " + cmd)
+    cell_log(LOG_DEBUG, "send: " + cmd)
     cell_timeout = sys.timercountms + 1000
     cell_current_command = command
 end sub
@@ -395,7 +395,7 @@ sub cell_print_hex(byref data as string)
         output = output + tmp + " "
         if len(output) > max_len then
             output = output + " | " + mid(data,start,i-start)
-            sys.debugprint(output)
+            cell_log(LOG_DEBUG, output)
             output = ""
             start = i
         end if
@@ -406,7 +406,7 @@ sub cell_print_hex(byref data as string)
             output = output + " "
         next i
         output = output + " | " + mid(data,start,len(data)-start+1)
-        sys.debugprint(output)
+        cell_log(LOG_DEBUG, output)
     end if
 end sub
 
@@ -419,7 +419,7 @@ sub cell_ppp_send(frame as string)
     ser.setdata(frame)
     ser.send()
     
-    sys.debugprint("cell>Sent PPP frame: ")
+    cell_log(LOG_DEBUG, "Sent PPP frame: ")
     cell_print_hex(frame)
 end sub
 
@@ -442,7 +442,7 @@ end sub
 sub callback_gps_data_updated()
     ' Example implementation - log GPS data when it's valid
     if cell_gps_data.valid = TRUE then
-        sys.debugprint("GPS update: Lat=" + fstr(cell_gps_data.latitude) + 
+        cell_log(LOG_INFO, "GPS update: Lat=" + fstr(cell_gps_data.latitude) + 
                        ", Lon=" + fstr(cell_gps_data.longitude) + 
                        ", Alt=" + fstr(cell_gps_data.altitude) + 
                        ", Speed=" + fstr(cell_gps_data.speed) + 
@@ -474,6 +474,7 @@ sub cell_proc_state()
         cell_timeout = sys.timercountms + 1000
         cell_state = CELL_STATE_POWER3
         cell_retry_countdown = 25
+        cell_log(LOG_INFO, "module turning on")
     case CELL_STATE_POWER3:
         if io.lineget(CELL_IO_STATUS) = LOW then
             cell_timeout = sys.timercountms + 1000
@@ -482,7 +483,7 @@ sub cell_proc_state()
             cell_timeout = sys.timercountms + 1000
         end if
     case CELL_STATE_INIT:
-        sys.debugprint("Cell module initialized\r\n")
+        cell_log(LOG_INFO, "Cell module initializing")
         cell_next_state(CELL_STATE_AT_TRY)
     case CELL_STATE_GPS_ON:
         if sys.timercountms > cell_timeout then
@@ -520,7 +521,7 @@ sub cell_proc_state()
                 ' Check if we have a fix
                 if cell_gps_is_fixed() then
                     ' We have a GPS fix, continue with network setup
-                    sys.debugprint("GPS fix acquired: Lat=" + fstr(cell_gps_data.latitude) + ", Lon=" + fstr(cell_gps_data.longitude) + "\r\n")
+                    cell_log(LOG_INFO, "GPS fix acquired: Lat=" + fstr(cell_gps_data.latitude) + ", Lon=" + fstr(cell_gps_data.longitude))
                     cell_next_state(CELL_STATE_AT_TRY)
                 else
                     ' Wait for next poll
@@ -528,7 +529,7 @@ sub cell_proc_state()
                     
                     ' If retry count is depleted, continue without GPS
                     if cell_retry_countdown <= 1 then
-                        sys.debugprint("GPS fix not acquired, continuing without GPS\r\n")
+                        cell_log(LOG_INFO, "GPS fix not acquired, continuing without GPS")
                         cell_next_state(CELL_STATE_AT_TRY)
                     else
                         cell_retry_countdown = cell_retry_countdown - 1
@@ -543,7 +544,7 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                sys.debugprint("Cell module AT command successful\r\n")
+                cell_log(LOG_DEBUG, "module AT command successful")
                 cell_next_state(CELL_STATE_SET_CMEE)
             end if
         end if
@@ -602,7 +603,7 @@ sub cell_proc_state()
                 cell_timeout = sys.timercountms + 2000
                 cell_state = CELL_STATE_GET_PIN
             else
-                sys.debugprint("cell> PIN set failed, not retrying")
+                cell_log(LOG_ERROR, "PIN set failed, not retrying")
                 cell_next_state(CELL_STATE_IDLE)
             end if
         end if
@@ -806,7 +807,7 @@ sub cell_proc_state()
                 pos_end = instr(pos_start, cell_current_response, "\x0d", 1)
                 if pos_end > 0 then
                     cell_ip_address = mid(cell_current_response, pos_start, pos_end - pos_start)
-                    sys.debugprint("Cell IP address: " + cell_ip_address + "\r\n")
+                    cell_log(LOG_INFO, "Cell IP address: " + cell_ip_address)
                     cell_retry_countdown = 20
                     cell_next_state(CELL_STATE_COMMAND_MODE)
                 else
@@ -846,7 +847,7 @@ sub cell_proc_state()
             cell_current_command = "+++"
             ser.setdata("+++")
             ser.send()
-            sys.debugprint("cell>Enter command mode, sending +++")
+            cell_log(LOG_DEBUG, "Enter command mode, sending +++")
             cell_timeout = sys.timercountms + 2000
         else
             if cell_current_response = "OK" then
@@ -952,8 +953,7 @@ sub cell_proc_state()
             cell_send_at_command_with_timeout("CGDATA=\x22PPP\x22," + str(cell_pdp_context), 5000)
         else
             if instr(1, cell_current_response, "CONNECT", 1) = 1 then
-                
-                sys.debugprint("Starting PPP negotiation\r\n")
+                cell_log(LOG_DEBUG, "Starting PPP negotiation")
                 cell_next_state(CELL_STATE_PPP_LCP)
                 
             else if instr(1, cell_current_response, "ERROR", 1) = 1 then
@@ -1005,7 +1005,7 @@ sub cell_proc_state()
             dim pap_data as string
             ' Format: length_of_username + username + length_of_password + password
             pap_data = chr(len(cell_username)) + cell_username + chr(len(cell_password)) + cell_password
-            sys.debugprint("cell>pap: " + str(cell_ppp_current_id) + "\r\n")
+            cell_log(LOG_DEBUG, "pap: " + str(cell_ppp_current_id))
             dim pap_frame as string
             pap_frame = ppp_create_frame(CELL_PPP_PROTOCOL_PAP, PPP_PEER_CONFREQ, cell_ppp_current_id, pap_data)
             cell_ppp_current_id = cell_ppp_current_id + 1
@@ -1020,7 +1020,7 @@ sub cell_proc_state()
         ipcp_data = chr(2) + chr(6) + chr(0) + chr(0) + chr(0) + chr(0)
         ipcp_data = ipcp_data + chr(3) + chr(6) + chr(0) + chr(0) + chr(0) + chr(0)
         
-        sys.debugprint("cell>ipcp: " + ipcp_data + "\r\n")
+        cell_log(LOG_DEBUG, "ipcp: " + ipcp_data)
         dim ipcp_frame as string
         ipcp_frame = ppp_create_frame(CELL_PPP_PROTOCOL_IPCP, PPP_PEER_CONFREQ, cell_ppp_current_id, ipcp_data)
         cell_ppp_current_id = cell_ppp_current_id + 1
@@ -1042,7 +1042,7 @@ sub cell_proc_state()
     case CELL_STATE_PPP_CONNECTED:
         ' Verify PPP connection by checking if we have a valid IP address
         if cell_ip_address <> "" then
-            sys.debugprint("PPP connection established with IP: " + cell_ip_address + "\r\n")
+            cell_log(LOG_INFO, "PPP connection established with IP: " + cell_ip_address)
             ser.num = CELL_SER_PORT
             ser.rxclear()
             ser.txclear()
@@ -1051,13 +1051,13 @@ sub cell_proc_state()
             ppp.enabled = YES	'enable PPP (required to establish the connection)
             cell_state = CELL_STATE_PPP_IDLE
             cell_timeout = 0
-            sys.debugprint("Cell module ready with PPP connection\r\n")
+            cell_log(LOG_INFO, "Cell module ready with PPP connection")
             callback_ppp_connected()
         else
             if sys.timercountms > cell_timeout then
                 if cell_retry_countdown = 0 then
                     cell_next_state(CELL_STATE_ERROR)
-                    sys.debugprint("Failed to get IP address\r\n")
+                    cell_log(LOG_ERROR, "Failed to get IP address")
                 else
                     ' Go back to IPCP negotiation
                     cell_state = CELL_STATE_PPP_IPCP
@@ -1072,6 +1072,7 @@ sub cell_proc_state()
         cell_next_state(CELL_STATE_REBOOT_PWR1)
 
     case CELL_STATE_REBOOT_PWR1:
+        cell_log(LOG_INFO, "resetting module")
         io.lineset(CELL_IO_RESET, polarity_on)
         cell_timeout = sys.timercountms + 1200
         cell_retry_countdown = 0
@@ -1081,15 +1082,14 @@ sub cell_proc_state()
         cell_retry_countdown = 25
         cell_next_state(CELL_STATE_POWER3)
     case CELL_STATE_ERROR:
-        sys.debugprint("Cell module error\r\n")
+        cell_log(LOG_ERROR, "Cell module error")
         cell_timeout = sys.timercountms + 5000
-        cell_state = CELL_STATE_AT_TRY
     case else:
         'do nothing
     end select
 
     if cell_retry_countdown > 0 then
-        sys.debugprint("cell>retry: " + str(cell_retry_countdown) + "\r\n")
+        cell_log(LOG_DEBUG, "retry: " + str(cell_retry_countdown))
         cell_retry_countdown = cell_retry_countdown - 1
         if cell_retry_countdown = 0 then
             cell_next_state(CELL_STATE_ERROR)
@@ -1254,7 +1254,7 @@ sub cell_proc_data()
             dim ser_data as string=ser.getdata(data_len)
             if len(ser_data) > 0 then
                 cell_buf = cell_buf + ser_data
-                sys.debugprint("cell>recv: ")
+                cell_log(LOG_DEBUG, "recv: ")
                 cell_print_hex(ser_data)
             end if
         end if
@@ -1277,11 +1277,11 @@ sub cell_proc_data()
         if len(cell_buf) + len(ser_data) > 255 then
             cell_buf = ""
             cell_current_response = ""
-            sys.debugprint("Cell module buffer overflow\r\n")
+            cell_log(LOG_ERROR, "Cell module buffer overflow")
             exit sub
         end if
         cell_buf = cell_buf + ser_data
-        sys.debugprint("cell>recv: " + ser_data)
+        cell_log(LOG_DEBUG, "recv: " + ser_data)
         ' Normal AT command processing
         'check for newline
         dim pos as dword = instr(1,cell_buf,"\r\n",2)
@@ -1315,13 +1315,13 @@ end sub
 sub process_ppp_frame(frame as string)
     ' Skip flag bytes
     if len(frame) < 8 then 
-        sys.debugprint("cell>PPP frame too short\r\n")
+        cell_log(LOG_DEBUG, "PPP frame too short")
         exit sub
     end if
     
     ' Validate frame format (Flag, Address, Control bytes)
     if asc(mid(frame, 1, 1)) <> &h7E or asc(mid(frame, 2, 1)) <> &hFF or asc(mid(frame, 3, 1)) <> &h03 then
-        sys.debugprint("cell>Invalid PPP frame header\r\n")
+        cell_log(LOG_DEBUG, "Invalid PPP frame header")
         exit sub
     end if
     
@@ -1338,7 +1338,7 @@ sub process_ppp_frame(frame as string)
     dim calculated_fcs as word = compute_fcs(mid(frame, 2, len(frame)-4)) ' From Address byte to before FCS
     
     if reported_fcs <> calculated_fcs then
-        sys.debugprint("cell>PPP frame checksum error\r\n")
+        cell_log(LOG_DEBUG, "PPP frame checksum error")
         ' exit sub
     end if
     
@@ -1352,9 +1352,9 @@ sub process_ppp_frame(frame as string)
         id = asc(mid(payload, 2, 1))
         data = mid(payload, 5, len(payload)-4) ' Skip code, id, length
         
-        sys.debugprint("cell>PPP frame: protocol=" + hex(protocol) + ", code=" + str(code) + ", id=" + str(id) + "\r\n")
+        cell_log(LOG_DEBUG, "PPP frame: protocol=" + hex(protocol) + ", code=" + str(code) + ", id=" + str(id))
     else
-        sys.debugprint("cell>PPP frame: protocol=" + hex(protocol) + "\r\n")
+        cell_log(LOG_DEBUG, "PPP frame: protocol=" + hex(protocol))
     end if
     
     select case protocol
@@ -1371,7 +1371,7 @@ sub process_ppp_frame(frame as string)
             dim reply_code as EN_CELL__OP_PPP_PEER_CODES = PPP_PEER_CONFACK
             dim reply_data as string = ""
             
-            sys.debugprint("cell>LCP CONFREQ data parsing:\r\n")
+            cell_log(LOG_DEBUG, "LCP CONFREQ data parsing:")
             
             ' Parse each option in the configuration request
             while i < len(data)
@@ -1380,7 +1380,7 @@ sub process_ppp_frame(frame as string)
                 
                 ' Make sure we have a valid option with enough data
                 if option_length < 2 or i + option_length > len(data) then
-                    sys.debugprint("  Invalid option format at position " + str(i) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Invalid option format at position " + str(i))
                     exit while
                 end if
                 
@@ -1390,13 +1390,13 @@ sub process_ppp_frame(frame as string)
                     dim mru as word
                     if option_length >= 4 then
                         mru = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
-                        sys.debugprint("  Option: MRU = " + str(mru) + "\r\n")
+                        cell_log(LOG_DEBUG, "  Option: MRU = " + str(mru))
                         options_str = options_str + "MRU=" + str(mru) + " "
                     end if
                     
                 case 2: ' Async Control Character Map (ACCM)
                     if option_length >= 6 then
-                        sys.debugprint("  Option: ACCM = 0x" + 
+                        cell_log(LOG_DEBUG, "  Option: ACCM = 0x" + 
                             hex(asc(mid(data, i+2, 1))) + 
                             hex(asc(mid(data, i+3, 1))) + 
                             hex(asc(mid(data, i+4, 1))) + 
@@ -1420,14 +1420,14 @@ sub process_ppp_frame(frame as string)
                             reply_data = reply_data + chr(3) + chr(4) + chr(&hC0) + chr(&h23)
                         end select
                         
-                        sys.debugprint("  Option: Authentication Protocol = " + protocol_name + " (0x" + hex(auth_protocol) + ")\r\n")
+                        cell_log(LOG_DEBUG, "  Option: Authentication Protocol = " + protocol_name + " (0x" + hex(auth_protocol) + ")")
                         options_str = options_str + protocol_name + " "
                     end if
                     
                 case 4: ' Quality Protocol
                     if option_length >= 4 then
                         dim quality_protocol as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
-                        sys.debugprint("  Option: Quality Protocol = 0x" + hex(quality_protocol) + "\r\n")
+                        cell_log(LOG_DEBUG, "  Option: Quality Protocol = 0x" + hex(quality_protocol))
                         options_str = options_str + "QP "
                     end if
                     
@@ -1438,20 +1438,20 @@ sub process_ppp_frame(frame as string)
                                 (asc(mid(data, i+3, 1)) * 65536) + 
                                 (asc(mid(data, i+4, 1)) * 256) + 
                                 asc(mid(data, i+5, 1))
-                        sys.debugprint("  Option: Magic Number = 0x" + hex(magic) + "\r\n")
+                        cell_log(LOG_DEBUG, "  Option: Magic Number = 0x" + hex(magic))
                         options_str = options_str + "Magic "
                     end if
                     
                 case 7: ' Protocol Field Compression (PFC)
-                    sys.debugprint("  Option: Protocol Field Compression\r\n")
+                    cell_log(LOG_DEBUG, "  Option: Protocol Field Compression")
                     options_str = options_str + "PFC "
                     
                 case 8: ' Address and Control Field Compression (ACFC)
-                    sys.debugprint("  Option: Address and Control Field Compression\r\n")
+                    cell_log(LOG_DEBUG, "  Option: Address and Control Field Compression")
                     options_str = options_str + "ACFC "
                     
                 case else:
-                    sys.debugprint("  Unknown option type: " + str(option_type) + ", length: " + str(option_length) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Unknown option type: " + str(option_type) + ", length: " + str(option_length))
                     options_str = options_str + "Type" + str(option_type) + " "
                 end select
                 
@@ -1459,7 +1459,7 @@ sub process_ppp_frame(frame as string)
                 i = i + option_length
             wend
             
-            sys.debugprint("cell>LCP CONFREQ Summary: " + options_str + "\r\n")
+            cell_log(LOG_DEBUG, "LCP CONFREQ Summary: " + options_str)
 
             if reply_data = "" then
                 reply_data = data
@@ -1475,7 +1475,7 @@ sub process_ppp_frame(frame as string)
             
         case PPP_PEER_CONFNAK:
             ' Parse the NAK options to understand what values to adjust
-            sys.debugprint("cell>LCP CONFNAK parsing:\r\n")
+            cell_log(LOG_DEBUG, "LCP CONFNAK parsing:")
             
             ' In CONFNAK, the peer suggests alternative values for our options
             dim lcp_data as string = ""
@@ -1489,12 +1489,12 @@ sub process_ppp_frame(frame as string)
                 option_length = asc(mid(data, i+1, 1))
                 
                 if option_length < 2 or i + option_length > len(data) then
-                    sys.debugprint("  Invalid option format in CONFNAK at position " + str(i) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Invalid option format in CONFNAK at position " + str(i))
                     exit while
                 end if
                 
                 ' Log the NAK'd option
-                sys.debugprint("  NAK'd option: Type=" + str(option_type) + ", Length=" + str(option_length) + "\r\n")
+                cell_log(LOG_DEBUG, "  NAK'd option: Type=" + str(option_type) + ", Length=" + str(option_length))
                 nakked_options = nakked_options + str(option_type) + " "
                 
                 ' Add the suggested option to our new request
@@ -1504,16 +1504,16 @@ sub process_ppp_frame(frame as string)
                 case 1: ' MRU
                     if option_length >= 4 then
                         dim mru as word = asc(mid(data, i+2, 1)) * 256 + asc(mid(data, i+3, 1))
-                        sys.debugprint("  Suggested MRU: " + str(mru) + "\r\n")
+                        cell_log(LOG_DEBUG, "  Suggested MRU: " + str(mru))
                     end if
                 
                 case 2: ' ACCM
                     if option_length >= 6 then
-                        sys.debugprint("  Suggested ACCM: 0x" + 
+                        cell_log(LOG_DEBUG, "  Suggested ACCM: 0x" + 
                             hex(asc(mid(data, i+2, 1))) + 
                             hex(asc(mid(data, i+3, 1))) + 
                             hex(asc(mid(data, i+4, 1))) + 
-                            hex(asc(mid(data, i+5, 1))) + "\r\n")
+                            hex(asc(mid(data, i+5, 1))))
                     end if
                 
                 case 3: ' Authentication Protocol
@@ -1528,7 +1528,7 @@ sub process_ppp_frame(frame as string)
                             protocol_name = "CHAP"
                         end select
                         
-                        sys.debugprint("  Suggested Authentication Protocol: " + protocol_name + " (0x" + hex(auth_protocol) + ")\r\n")
+                        cell_log(LOG_DEBUG, "  Suggested Authentication Protocol: " + protocol_name + " (0x" + hex(auth_protocol))
                     end if
                 
                 case 5: ' Magic Number
@@ -1538,11 +1538,11 @@ sub process_ppp_frame(frame as string)
                                 (asc(mid(data, i+3, 1)) * 65536) + 
                                 (asc(mid(data, i+4, 1)) * 256) + 
                                 asc(mid(data, i+5, 1))
-                        sys.debugprint("  Suggested Magic Number: 0x" + hex(magic) + "\r\n")
+                        cell_log(LOG_DEBUG, "  Suggested Magic Number: 0x" + hex(magic))
                     end if
                 
                 case else:
-                    sys.debugprint("  Unknown suggested option type: " + str(option_type) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Unknown suggested option type: " + str(option_type))
                 end select
                 
                 ' Move to next option
@@ -1558,7 +1558,7 @@ sub process_ppp_frame(frame as string)
                 option_length = asc(mid(full_config, i+1, 1))
                 
                 if option_length < 2 or i + option_length > len(full_config) then
-                    sys.debugprint("  Invalid option format in full config at position " + str(i) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Invalid option format in full config at position " + str(i))
                     exit while
                 end if
                 
@@ -1571,7 +1571,7 @@ sub process_ppp_frame(frame as string)
                 i = i + option_length
             wend
             
-            sys.debugprint("cell>Sending updated LCP configuration request\r\n")
+            cell_log(LOG_DEBUG, "Sending updated LCP configuration request")
             cell_ppp_current_id = 0
             dim lcp_confreq as string = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
             cell_ppp_current_id = cell_ppp_current_id + 1
@@ -1580,7 +1580,7 @@ sub process_ppp_frame(frame as string)
 
         case PPP_PEER_CONFREJ: ' Configuration Nak/Reject
             ' Parse the rejected options to understand what to remove
-            sys.debugprint("cell>LCP CONFREJ parsing:\r\n")
+            cell_log(LOG_DEBUG, "LCP CONFREJ parsing:")
             
             ' Build a new LCP Configuration Request without the rejected options
             dim lcp_data as string = ""
@@ -1594,19 +1594,19 @@ sub process_ppp_frame(frame as string)
                 option_length = asc(mid(data, i+1, 1))
                 
                 if option_length < 2 or i + option_length > len(data) then
-                    sys.debugprint("  Invalid option format in CONFREJ at position " + str(i) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Invalid option format in CONFREJ at position " + str(i))
                     exit while
                 end if
                 
                 ' Log the rejected option
-                sys.debugprint("  Rejected option: Type=" + str(option_type) + ", Length=" + str(option_length) + "\r\n")
+                cell_log(LOG_DEBUG, "  Rejected option: Type=" + str(option_type) + ", Length=" + str(option_length))
                 rejected_options = rejected_options + str(option_type) + " "
                 
                 ' Move to next option
                 i = i + option_length
             wend
             
-            sys.debugprint("Rejected options: " + rejected_options + "\r\n")
+            cell_log(LOG_DEBUG, "Rejected options: " + rejected_options)
             
             ' Start with the full configuration string
             dim full_config as string = CELL__PPP_LCP_CONFREQ_DATA_STR
@@ -1618,7 +1618,7 @@ sub process_ppp_frame(frame as string)
                 option_length = asc(mid(full_config, i+1, 1))
                 
                 if option_length < 2 or i + option_length > len(full_config) then
-                    sys.debugprint("  Invalid option format in full config at position " + str(i) + "\r\n")
+                    cell_log(LOG_DEBUG, "  Invalid option format in full config at position " + str(i))
                     exit while
                 end if
                 
@@ -1627,7 +1627,7 @@ sub process_ppp_frame(frame as string)
                     ' Option not rejected, keep it
                     lcp_data = lcp_data + mid(full_config, i, option_length)
                 else
-                    sys.debugprint("  Removing option type " + str(option_type) + " from next request\r\n")
+                    cell_log(LOG_DEBUG, "  Removing option type " + str(option_type) + " from next request")
                 end if
                 
                 ' Move to next option
@@ -1636,7 +1636,7 @@ sub process_ppp_frame(frame as string)
             
             ' If we removed all options, include at least MRU
             if len(lcp_data) = 0 then
-                sys.debugprint("  All options rejected, using minimal MRU option\r\n")
+                cell_log(LOG_DEBUG, "  All options rejected, using minimal MRU option")
                 lcp_data = chr(1) + chr(4) + chr(5) + chr(220) ' MRU option only
             end if
             
@@ -1651,7 +1651,7 @@ sub process_ppp_frame(frame as string)
             ' lcp_data = CELL__PPP_LCP_CONFREQ_DATA_STR
             ' dim lcp_confreq as string = ppp_create_frame(CELL_PPP_PROTOCOL_LCP, PPP_PEER_CONFREQ, cell_ppp_current_id, lcp_data)
             ' cell_ppp_current_id = cell_ppp_current_id + 1
-            sys.debugprint("cell>LCP DISREQ received\r\n")
+            cell_log(LOG_DEBUG, "LCP DISREQ received")
         end select
         
     case CELL_PPP_PROTOCOL_PAP:
@@ -1756,7 +1756,7 @@ end function
 sub cell_next_state(state as en_cell_states)
     'detect if going into error state
     if state = CELL_STATE_ERROR then
-        sys.debugprint("cell>error state\r\n")
+        cell_log(LOG_ERROR, "error state")
         callback_ppp_disconnected()
         if cell_state >= CELL_STATE_PPP_CONNECTED then
             state = CELL_STATE_AT_TRY
@@ -1809,7 +1809,7 @@ end function
 
 sub cell_command_queue_push(command_type as string, command_data as string)
     if cell_command_queue_is_full() then
-        sys.debugprint("cell>Command queue full, dropping command: " + command_type + "\r\n")
+        cell_log(LOG_DEBUG, "Command queue full, dropping command: " + command_type)
         exit sub
     end if
     
@@ -1819,7 +1819,7 @@ sub cell_command_queue_push(command_type as string, command_data as string)
     cell_command_queue_tail = (cell_command_queue_tail + 1) mod CELL_COMMAND_QUEUE_SIZE
     cell_command_queue_count = cell_command_queue_count + 1
     
-    sys.debugprint("cell>Command queued: " + command_type + ", count: " + str(cell_command_queue_count) + "\r\n")
+    cell_log(LOG_DEBUG, "Command queued: " + command_type + ", count: " + str(cell_command_queue_count))
 end sub
 
 function cell_command_queue_pop() as cell_command_queue_struct
@@ -1835,7 +1835,7 @@ function cell_command_queue_pop() as cell_command_queue_struct
     cell_command_queue_head = (cell_command_queue_head + 1) mod CELL_COMMAND_QUEUE_SIZE
     cell_command_queue_count = cell_command_queue_count - 1
     
-    sys.debugprint("cell>Command dequeued: " + result.command_type + ", count: " + str(cell_command_queue_count) + "\r\n")
+    cell_log(LOG_DEBUG, "Command dequeued: " + result.command_type + ", count: " + str(cell_command_queue_count))
     
     cell_command_queue_pop = result
 end function
@@ -1844,5 +1844,12 @@ sub cell_command_queue_init()
     cell_command_queue_head = 0
     cell_command_queue_tail = 0
     cell_command_queue_count = 0
-    sys.debugprint("cell>Command queue initialized\r\n")
+    cell_log(LOG_DEBUG, "Command queue initialized")
+end sub
+
+sub cell_log(level as byte, byref message as string)
+    if level > CELL_LOG_LEVEL then
+        exit sub
+    end if
+    sys.debugprint("cell>" + message)
 end sub
