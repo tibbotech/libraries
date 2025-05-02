@@ -350,6 +350,7 @@ sub cell_send_at_command(command as string)
     end if
     cell_buf = ""
     cell_current_response = ""
+    ser.rxclear()
     ser.setdata(cmd)
     ser.send()
     sys.debugprint("cell>send: " + cmd)
@@ -756,7 +757,7 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SET_APN)
+                cell_next_state(CELL_STATE_CHECK_CGATT)
             end if
         end if
     case CELL_STATE_SET_APN:
@@ -788,7 +789,7 @@ sub cell_proc_state()
             ' Verify we're attached to GPRS
             if instr(1, cell_current_response, "+CGATT: 1", 1) > 0 then
                 cell_retry_countdown = 10
-                cell_next_state(CELL_STATE_GET_IP)
+                cell_next_state(CELL_STATE_COMMAND_MODE)
             else
                 cell_timeout = sys.timercountms + 1000
                 cell_state = CELL_STATE_CHECK_CGATT
@@ -830,8 +831,11 @@ sub cell_proc_state()
              ' Check for network registration
             dim creg_reg_1 as boolean = instr(1, cell_current_response, "+CREG: 1,1", 1) > 0
             dim creg_reg_5 as boolean = instr(1, cell_current_response, "+CREG: 1,5", 1) > 0
+            dim creg_reg_0 as boolean = instr(1, cell_current_response, "+CREG: 1,0", 1) > 0
             if creg_reg_1 or creg_reg_5 then
                 cell_next_state(CELL_STATE_GET_OPERATOR)
+            else if creg_reg_0 then
+                cell_next_state(CELL_STATE_ERROR)
             else
                 cell_timeout = sys.timercountms + 1000
                 cell_state = CELL_STATE_CHECK_CREG_WAIT
@@ -953,7 +957,7 @@ sub cell_proc_state()
                 cell_next_state(CELL_STATE_PPP_LCP)
                 
             else if instr(1, cell_current_response, "ERROR", 1) = 1 then
-                cell_next_state(CELL_STATE_REBOOT_PWR1)
+                cell_next_state(CELL_STATE_ERROR)
             else
                 cell_send_at_command_with_timeout(cell_current_command, 5000)
             end if
@@ -1063,6 +1067,9 @@ sub cell_proc_state()
         end if
     case CELL_STATE_PPP_IDLE:
         ' Module is ready for communication
+
+    case CELL_STATE_REBOOT_RESET_SETTINGS:
+        cell_next_state(CELL_STATE_REBOOT_PWR1)
 
     case CELL_STATE_REBOOT_PWR1:
         io.lineset(CELL_IO_RESET, polarity_on)
@@ -1751,17 +1758,17 @@ sub cell_next_state(state as en_cell_states)
     if state = CELL_STATE_ERROR then
         sys.debugprint("cell>error state\r\n")
         callback_ppp_disconnected()
-        if cell_state = CELL_STATE_AT_TRY then
-            state = CELL_STATE_REBOOT_PWR1
-        else
+        if cell_state >= CELL_STATE_PPP_CONNECTED then
             state = CELL_STATE_AT_TRY
+        else if cell_state >= CELL_STATE_AT_TRY AND cell_state <= CELL_STATE_PPP_CONNECTED then
+            state = CELL_STATE_REBOOT_PWR1
         end if
     end if
     cell_state = state
     if cell_retry_countdown <= 5 then
         cell_retry_countdown = 5
     end if
-    cell_timeout = sys.timercountms + 50
+    cell_timeout = sys.timercountms + 20 ' spec says 20ms
 end sub
 
 function compute_fcs(byref ppp_packet_format as string(128)) as word

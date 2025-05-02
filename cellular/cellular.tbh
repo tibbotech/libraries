@@ -88,6 +88,7 @@ enum en_cell_states
     CELL_STATE_ERROR
 
 'reboot states
+    CELL_STATE_REBOOT_RESET_SETTINGS,
     CELL_STATE_REBOOT_PWR1,
     CELL_STATE_REBOOT_PWR2
     
