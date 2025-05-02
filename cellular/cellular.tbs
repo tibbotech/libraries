@@ -717,7 +717,11 @@ sub cell_proc_state()
                 cell_send_at_command(cell_current_command)
             else
                 cell_retry_countdown = 40
-                cell_next_state(CELL_STATE_SET_APN)
+                if cell_apn <> "" then
+                    cell_next_state(CELL_STATE_SET_APN)
+                else
+                    cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+                end if
             end if
         end if
     case CELL_STATE_GET_OPERATOR_WAIT:
