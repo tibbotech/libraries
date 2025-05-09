@@ -22,6 +22,7 @@ dim cell_pin as string(10) = ""
 dim cell_ppp_current_id as byte = 0
 dim cell_ppp_enabled as boolean = true
 dim cell_pdp_context as byte = 1
+dim cell_ppp_authenticated as boolean = false
 
 ' GPS variables
 dim cell_gps_data as cell_gps_data_struct
@@ -367,7 +368,6 @@ sub cell_enter_command_mode()
     if cell_state >= CELL_STATE_COMMAND_MODE_WAIT then
         'disconnect ppp and switch to command mode
         cell_ppp_deinit()
-        callback_ppp_disconnected()
     
         cell_buf = ""
         cell_current_response = ""
@@ -430,12 +430,12 @@ sub cell_proc_timer()
     end if
     
     ' Check if it's time to update GPS data while in idle state
-    if cell_gps_enabled = true AND (cell_state = CELL_STATE_COMMAND_MODE OR cell_state = CELL_STATE_PPP_IDLE) then
-        if (sys.timercountms - cell_gps_last_updated) > cell_gps_update_interval then
-            cell_gps_last_updated = sys.timercountms
-            cell_send_at_command("CGPSINFO")
-        end if
-    end if
+    ' if cell_gps_enabled = true AND (cell_state = CELL_STATE_COMMAND_MODE OR cell_state = CELL_STATE_PPP_IDLE) then
+    '     if (sys.timercountms - cell_gps_last_updated) > cell_gps_update_interval then
+    '         cell_gps_last_updated = sys.timercountms
+    '         cell_send_at_command("CGPSINFO")
+    '     end if
+    ' end if
 end sub
 
 ' Empty callback function - should be implemented by the application
@@ -483,8 +483,10 @@ sub cell_proc_state()
             cell_timeout = sys.timercountms + 1000
         end if
     case CELL_STATE_INIT:
+        cell_ppp_deinit()
         cell_log(LOG_INFO, "Cell AT command mode initializing")
         cell_next_state(CELL_STATE_AT_TRY)
+        cell_ppp_authenticated = false
     case CELL_STATE_GPS_ON:
         if sys.timercountms > cell_timeout then
             cell_gps_enabled = true
@@ -585,7 +587,7 @@ sub cell_proc_state()
         else
             if instr(1,cell_current_response,"READY",1) > 0 then
                 'no pin required
-                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+                cell_next_state(CELL_STATE_GET_PREFERRED_MODE)
             else if instr(1,cell_current_response,"SIM PIN",1) > 0 then
                 'pin required
                 cell_next_state(CELL_STATE_SET_PIN)
@@ -664,7 +666,7 @@ sub cell_proc_state()
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+                cell_next_state(CELL_STATE_GET_PREFERRED_MODE)
             end if
         end if
     case CELL_STATE_GET_PREFERRED_OPERATORS:
@@ -674,7 +676,7 @@ sub cell_proc_state()
             if instr(1,cell_current_response,"OK",1) = 0 then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+                cell_next_state(CELL_STATE_GET_PREFERRED_MODE)
             end if
         end if
     case CELL_STATE_SET_FLOW_CONTROL:
@@ -684,12 +686,23 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else 
+                cell_next_state(CELL_STATE_GET_PREFERRED_MODE)
+            end if
+        end if
+    case CELL_STATE_GET_PREFERRED_MODE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CNMP?")
+        else
+            'read response
+            if instr(1,cell_current_response,"+CNMP: "+str(CELL_MODE_AUTO),1) = 0 then
                 cell_next_state(CELL_STATE_SET_PREFERRED_MODE)
+            else
+                cell_next_state(CELL_STATE_SET_CREG)
             end if
         end if
     case CELL_STATE_SET_PREFERRED_MODE:
         if sys.timercountms > cell_timeout then
-            cell_send_at_command("CNMP=" + str(CELL_MODE_LTE))
+            cell_send_at_command("CNMP=" + str(CELL_MODE_AUTO))
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
@@ -717,11 +730,7 @@ sub cell_proc_state()
                 cell_send_at_command(cell_current_command)
             else
                 cell_retry_countdown = 80
-                if cell_apn <> "" then
-                    cell_next_state(CELL_STATE_SET_APN)
-                else
-                    cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
-                end if
+                cell_next_state(CELL_STATE_SET_APN)
             end if
         end if
     case CELL_STATE_GET_OPERATOR_WAIT:
@@ -736,7 +745,7 @@ sub cell_proc_state()
         else
             if instr(1,cell_current_response,"+COPS: 0\x0d",1) = 1 then
                 cell_timeout = sys.timercountms + 1000
-                cell_next_state(CELL_STATE_GET_OPERATOR_WAIT)
+                cell_state = CELL_STATE_GET_OPERATOR_WAIT
             else
                 cell_next_state(CELL_STATE_CHECK_CGATT)
             end if
@@ -762,12 +771,16 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_CHECK_CGATT)
+                cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
             end if
         end if
     case CELL_STATE_SET_APN:
         if sys.timercountms > cell_timeout then
-            cell_send_at_command("CGDCONT=1,\x22IP\x22,\x22"+cell_apn+"\x22")
+            if cell_apn <> "" then
+                cell_send_at_command("CGDCONT=1,\x22IP\x22,\x22"+cell_apn+"\x22")
+            else
+                cell_next_state(CELL_STATE_CHECK_CREG_WAIT)
+            end if
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
@@ -821,11 +834,17 @@ sub cell_proc_state()
         end if
     case CELL_STATE_CHECK_CREG_WAIT:
         'check again after 1000ms
-        cell_timeout = sys.timercountms + 1000
+        cell_timeout = sys.timercountms + 2000
         cell_state = CELL_STATE_GET_SIGNAL_QUALITY
     case CELL_STATE_GET_SIGNAL_QUALITY:
         if sys.timercountms > cell_timeout then
             cell_send_at_command("CSQ")
+        else
+            cell_next_state(CELL_STATE_CHECK_CREG)
+        end if
+    case CELL_STATE_GET_PACKET_SWITCHING_REGISTRATION:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CGREG?")
         else
             cell_next_state(CELL_STATE_CHECK_CREG)
         end if
@@ -840,9 +859,7 @@ sub cell_proc_state()
             dim creg_reg_3 as boolean = instr(1, cell_current_response, "+CREG: 1,3", 1) > 0 'registration denied
             if creg_reg_1 or creg_reg_5 then
                 cell_next_state(CELL_STATE_GET_OPERATOR)
-            else if creg_reg_0 then
-                cell_next_state(CELL_STATE_ERROR)
-            else if creg_reg_3 then
+            else if creg_reg_0 OR creg_reg_3 then
                 cell_next_state(CELL_STATE_ERROR)
             else
                 cell_timeout = sys.timercountms + 1000
@@ -874,6 +891,8 @@ sub cell_proc_state()
                     cell_next_state(CELL_STATE_SEND_SMS_START)
                 case else:
                     'unknown command
+                    command = cell_command_queue_pop()
+                    cell_send_at_command(command.command_type+command.command_data)
                     ' cell_next_state(CELL_STATE_PPP_START)
             end select
             
@@ -883,6 +902,7 @@ sub cell_proc_state()
             cell_send_at_command("ATO")
         else
             if instr(1, cell_current_response, "CONNECT", 1) = 0 then
+                callback_ppp_disconnected()
                 cell_next_state(CELL_STATE_PPP_START)
             else
                 cell_next_state(CELL_STATE_PPP_LCP)
@@ -1056,8 +1076,10 @@ sub cell_proc_state()
             ppp.portnum = CELL_SER_PORT	'assign a PPP-portnumber (which is equal to the serial-port number used for AT-commands)
             ppp.ip = cell_ip_address	'set a valid remote ip-address (retrieved during the IPCP-negotiation)
             ppp.enabled = YES	'enable PPP (required to establish the connection)
+            cell_retry_countdown = 0
+            cell_ppp_authenticated = true
             cell_state = CELL_STATE_PPP_IDLE
-            cell_timeout = 0
+            cell_timeout = sys.timercountms + 60000
             cell_log(LOG_INFO, "Cell module ready with PPP connection")
             callback_ppp_connected()
         else
@@ -1074,6 +1096,23 @@ sub cell_proc_state()
         end if
     case CELL_STATE_PPP_IDLE:
         ' Module is ready for communication
+        dim f as byte
+        dim has_connected_socket as boolean = false
+        for f=0 to sock.numofsock-1
+            sock.num=f
+            if sock.targetinterface=PL_SOCK_INTERFACE_PPP then
+                if sock.statesimple=PL_SSTS_EST then
+                    has_connected_socket = true
+                    exit for
+                end if
+            end if
+        next f
+        if has_connected_socket = false then
+            cell_command_queue_push("CGREG", "?")
+            cell_enter_command_mode()
+        else
+            cell_timeout = sys.timercountms + 60000
+        end if
 
     case CELL_STATE_REBOOT_RESET_SETTINGS:
         cell_next_state(CELL_STATE_REBOOT_PWR1)
@@ -1760,6 +1799,14 @@ sub process_ppp_frame(frame as string)
     end select
 end sub
 
+sub cell_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_state_simple)
+    if newstatesimple = PL_SSTS_CLOSED AND sock.targetinterface = PL_SOCK_INTERFACE_PPP then
+        ' see if ppp connection lost
+        if cell_state = CELL_STATE_PPP_IDLE then
+            cell_timeout = sys.timercountms + 5000
+        end if
+    end if
+end sub
 ' Function to get the current IP address from the cellular module
 function cell_get_ip_address() as string
     cell_get_ip_address = cell_ip_address

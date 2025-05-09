@@ -66,6 +66,7 @@ enum en_cell_states
     CELL_STATE_SET_PIN,
     CELL_STATE_SET_CMEE, 'preferred mode e.g. LTE, GSM, WCDMA
     CELL_STATE_GET_PREFERRED_OPERATORS,
+    CELL_STATE_GET_PREFERRED_MODE,
     CELL_STATE_SET_PREFERRED_MODE,
     CELL_STATE_SET_ECHO_MODE,
     CELL_STATE_SET_FLOW_CONTROL,
@@ -73,6 +74,7 @@ enum en_cell_states
     CELL_STATE_SET_CREG,
     CELL_STATE_CHECK_CREG_WAIT,
     CELL_STATE_CHECK_CREG,
+    CELL_STATE_GET_PACKET_SWITCHING_REGISTRATION,
     CELL_STATE_GET_OPERATOR_WAIT,
     CELL_STATE_GET_OPERATOR,
     CELL_STATE_SET_OPERATOR,
@@ -208,6 +210,7 @@ declare sub cell_start()
 declare sub cell_stop()
 declare sub cell_proc_data()
 declare sub cell_send_sms(phone_number as string, message as string)
+declare sub cell_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_state_simple)
 
 declare sub callback_ppp_disconnected()
 declare sub callback_ppp_connected()
