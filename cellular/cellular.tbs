@@ -351,6 +351,7 @@ sub cell_send_at_command(command as string)
     end if
     cell_buf = ""
     cell_current_response = ""
+    ser.num = CELL_SER_PORT
     ser.rxclear()
     ser.setdata(cmd)
     ser.send()
@@ -416,6 +417,7 @@ sub cell_ppp_send(frame as string)
     
     ' Send the frame through the serial port
     cell_current_response=""
+    ser.num = CELL_SER_PORT
     ser.setdata(frame)
     ser.send()
     
@@ -869,6 +871,7 @@ sub cell_proc_state()
     case CELL_STATE_COMMAND_MODE_WAIT:
         if sys.timercountms > cell_timeout then
             cell_current_command = "+++"
+            ser.num = CELL_SER_PORT
             ser.setdata("+++")
             ser.send()
             cell_log(LOG_DEBUG, "Enter command mode, sending +++")
@@ -967,6 +970,7 @@ sub cell_proc_state()
         dim tmp as string = mid(command.command_data, pos_start+2,255)
         cell_current_response = ""
         cell_current_command = tmp
+        ser.num = CELL_SER_PORT
         ser.setdata(tmp)
         ser.send()
         cell_timeout = sys.timercountms + 5000
