@@ -210,7 +210,7 @@ function mqtt_connect() as ok_ng
 	mqtt_connect = NG
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit function
 	end if
@@ -245,7 +245,7 @@ sub mqtt_disconnect()
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
@@ -264,7 +264,7 @@ sub mqtt_sub(byref topic as string,qos as en_qos_choices)
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
@@ -289,7 +289,7 @@ sub mqtt_unsub(byref topic as string)
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
@@ -633,7 +633,7 @@ sub mqtt_publish(byref topic as string, byref data as string, qos as en_qos_choi
 	
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
@@ -691,7 +691,7 @@ sub mqtt_start_publish(byref topic as string, qos as en_qos_choices, length as d
 
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
@@ -735,7 +735,7 @@ sub mqtt_continue_publish(byref data as string)
 
 	if mqtt_init_flag<>MQTT_INIT_SIGNATURE then
 		#if MQTT_DEBUG_PRINT=1
-			mqtt_debug_print("ERROR: mqtt_start() wasn't called.")
+			mqtt_debug_print("ERROR: MQTT connection not established.")
 		#endif
 		exit sub
 	end if
