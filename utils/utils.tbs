@@ -15,12 +15,34 @@ function math_pow(base as integer, exp as integer) as real
 end function
 
 
-function math_hex_to_float(byref num as string(5)) as real
+function math_hex_to_float(byref num as string(8)) as real
 	dim tmp as dword = lval("&h" + num)
 	dim sign as byte = (tmp SHR 31)
-	dim mantissa as dword = (tmp AND &h7FFFFF) OR &h800000      ' 11244903
-	dim exp as integer = ((tmp SHR 23) AND &hFF) - 127 - 23       ' -15	
-	math_hex_to_float = mantissa * math_pow(2,exp) '343.1672
+	dim exponent as integer = ((tmp SHR 23) AND &hFF)
+	dim mantissa as dword = (tmp AND &h7FFFFF)  ' Extract 23-bit mantissa
+	
+	' Handle special cases
+	if exponent = 0 then
+		if mantissa = 0 then
+			math_hex_to_float = 0.0  ' Zero
+		else
+			' Denormalized number
+			math_hex_to_float = (mantissa / math_pow(2, 23)) * math_pow(2, -126)
+		end if
+	else if exponent = 255 then
+		if mantissa = 0 then
+			' Infinity - return a large number since we can't represent true infinity
+			math_hex_to_float = 3.4028235e38
+		else
+			' NaN - return 0 or handle as needed
+			math_hex_to_float = 0.0
+		end if
+	else
+		' Normalized number - add implicit leading 1
+		dim full_mantissa as real = 1.0 + (mantissa / math_pow(2, 23))
+		math_hex_to_float = full_mantissa * math_pow(2, exponent - 127)
+	end if
+	
 	if sign = 1 then
 		math_hex_to_float = -math_hex_to_float
 	end if
