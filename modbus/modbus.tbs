@@ -692,6 +692,59 @@ function modbus_read_word(byref bytes as byte(255), start as byte) as word
 	modbus_read_word = (bytes(start) shl 8) or bytes(start + 1)
 end function
 
+function modbus_parse_response(byref data as string, data_type as modbusDataType, endianness as modbusEndianness) as float
+	modbus_parse_response = 0
+	dim bytes as byte(255) = data
+	' 16 bits or 2 characters per register address
+	' support up to 32 bits
+	if data_type = modbus_unsigned then
+		dim regvalue as dword = 0
+		if len(data) = 2 then '16 bit
+			regvalue = 0+((bytes(0) SHL 8) OR bytes(1))
+		else if len(data) = 4 then '32 bit
+			if endianness = modbus_big then
+				regvalue = 0+((bytes(0) SHL 24) OR (bytes(1) SHL 16) OR (bytes(2) SHL 8) OR bytes(3))
+			else if endianness = modbus_little then
+				regvalue = 0+((bytes(2) SHL 24) OR (bytes(3) SHL 16) OR (bytes(0) SHL 8) OR bytes(1))
+			end if
+		end if
+		modbus_parse_response = regvalue
+	else if data_type = modbus_signed then
+		dim signed_max as dword = 32767
+		dim signed_subtract as dword = 65535
+		dim regvalue as long = 0
+		if len(data) = 2 then '16 bit
+			regvalue = 0+((bytes(0) SHL 8) OR bytes(1))
+		else if len(data) = 4 then '32 bit
+			signed_max = 2147483647
+			signed_subtract = 4294967295
+			if endianness = modbus_big then
+				regvalue = 0+((bytes(0) SHL 24) OR (bytes(1) SHL 16) OR (bytes(2) SHL 8) OR bytes(3))
+			else if endianness = modbus_little then
+				regvalue = 0+((bytes(2) SHL 24) OR (bytes(3) SHL 16) OR (bytes(0) SHL 8) OR bytes(1))
+			end if
+		end if
+		if regvalue > signed_max then
+			regvalue = regvalue - signed_subtract
+		end if
+		modbus_parse_response = regvalue
+	else if data_type = modbus_float then
+		dim regvalue as float = 0
+		dim tmp_fstr as string(4)
+            dim tmp_fstr_hex as string(8)
+		if endianness = modbus_big then
+			tmp_fstr = mid(data,1,1) + mid(data,2,1) + mid(data,3,1) + mid(data,4,1)
+            tmp_fstr_hex = str_to_hex(tmp_fstr)
+		else
+			tmp_fstr = mid(data,3,1) + mid(data,4,1) + mid(data,1,1) + mid(data,2,1)
+            tmp_fstr_hex = str_to_hex(tmp_fstr)
+		end if
+		regvalue=math_hex_to_float(tmp_fstr_hex)
+		modbus_parse_response = regvalue
+	end if
+	
+end function
+
 function modbus_print_packet(byref s as string) as string
 	dim size as byte=len(s)
 	dim i as byte

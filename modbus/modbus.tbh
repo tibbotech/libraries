@@ -3,11 +3,6 @@ enum modbusProtocol
 	modbus_RTU=1
 end enum
 
-enum modbusEndianness
-	BIG=0,
-	LITTLE=1
-end enum
-
 type modbus_reqhdr
 	func_code as byte
 	address as word
@@ -52,6 +47,17 @@ enum modbusFunc
 	PresetSingleRegister = 6,
 	WriteMultipleCoils = 15,
 	PresetMultipleRegisters = 16
+end enum
+
+enum modbusDataType
+	modbus_float=0,
+	modbus_signed=1,
+	modbus_unsigned=2
+end enum
+
+enum modbusEndianness
+	modbus_big=0,
+	modbus_little=1
 end enum
 
 type modbus_request_item
@@ -99,3 +105,4 @@ declare sub modbus_proc_timer()
 declare sub modbus_proc_ser_data_sent()
 declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub modbus_master_send_next()
+declare function modbus_parse_response(byref data as string, data_type as modbusDataType, endianness as modbusEndianness) as float
