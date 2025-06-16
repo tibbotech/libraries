@@ -37,6 +37,9 @@ end type
 #ifndef MODBUS_DEBUG_PRINT
 	#define MODBUS_DEBUG_PRINT 0
 #endif
+#ifndef MODBUS_FRAME_DELAY_MS
+	#define MODBUS_FRAME_DELAY_MS 10
+#endif
 
 enum modbusFunc
 	ReadCoilStatus = 1,

@@ -21,6 +21,7 @@ dim modbus_slave_send_buffer as string=""
 dim modbus_slave_protocol as modbusProtocol=modbus_TCP
 dim modbus_slave_interface as byte=255
 dim modbus_slave_last_recv_ts as dword=0
+dim modbus_master_next_send_ts as dword=0
 
 dim _crc_table_hi as byte(256) = {
 	&H00,&HC1,&H81,&H40,&H01,&HC0,&H80,&H41,&H01,&HC0,&H80,&H41,&H00,&HC1,&H81,&H40,
@@ -91,6 +92,7 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	dim data as string = modbus_slave_recv_buffer + recv_data
 	modbus_slave_recv_buffer = data
 	modbus_slave_last_recv_ts=sys.timercountms
+	modbus_master_next_send_ts=sys.timercountms+MODBUS_FRAME_DELAY_MS
 	if len(modbus_slave_recv_buffer)=255 then
 		modbus_slave_recv_buffer=""
 		exit sub
@@ -351,10 +353,6 @@ sub modbus_proc_ser_data_sent()
 			dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
 			ser.rxclear()
 			ser.txclear()
-			'modbus requires 1.75ms delay between frames
-			dim targ as dword=sys.timercountms+2
-			while sys.timercountms<targ
-			wend
 			ser.setdata(data)
 			ser.send()
 		end if
@@ -404,7 +402,9 @@ end sub
 sub modbus_proc_timer()
 	dim request_item as modbus_request_item
 	if modbus_queue_start <> -1 then
-		if modbus_request_queue(modbus_queue_start).timestamp = 0 then
+		dim current_time as dword = sys.timercountms
+		if modbus_request_queue(modbus_queue_start).timestamp = 0 
+		AND current_time > modbus_master_next_send_ts then
 			modbus_master_send_next()
 		else
 			if modbus_time_elapsed(modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT) then
