@@ -92,7 +92,6 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 	dim data as string = modbus_slave_recv_buffer + recv_data
 	modbus_slave_recv_buffer = data
 	modbus_slave_last_recv_ts=sys.timercountms
-	modbus_master_next_send_ts=sys.timercountms+MODBUS_FRAME_DELAY_MS
 	if len(modbus_slave_recv_buffer)=255 then
 		modbus_slave_recv_buffer=""
 		exit sub
@@ -401,11 +400,12 @@ end sub
 
 sub modbus_proc_timer()
 	dim request_item as modbus_request_item
-	if modbus_queue_start <> -1 then
-		dim current_time as dword = sys.timercountms
-		if modbus_request_queue(modbus_queue_start).timestamp = 0 
-		AND current_time > modbus_master_next_send_ts then
-			modbus_master_send_next()
+	if modbus_queue_start <> -1 then		
+		if modbus_request_queue(modbus_queue_start).timestamp = 0 then
+			dim current_time as dword = sys.timercountms
+			if current_time > modbus_master_next_send_ts then
+				modbus_master_send_next()
+			end if
 		else
 			if modbus_time_elapsed(modbus_request_queue(modbus_queue_start).timestamp + MODBUS_TIMEOUT) then
 				dim data as string=modbus_master_get_request(modbus_request_queue(modbus_queue_start))
@@ -559,6 +559,8 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 			exit sub
 		end if
 	end if
+
+	modbus_master_next_send_ts=sys.timercountms+MODBUS_FRAME_DELAY_MS
 	
 	request_item = modbus_queue_pop()
 	if request_item.device_id <> modbusUnitId then
@@ -572,7 +574,7 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	#endif
 
 	callback_modbus_slave_reply(request_item, str_modbus)
-	modbus_master_send_next()
+	' modbus_master_send_next()
 end sub
 
 sub modbus_queue_clear()
