@@ -3,6 +3,7 @@ declare sub tbl_web_start()
 declare sub tbl_web_set(byref tbl_name as string, tbl_enabled as no_yes)
 declare sub tbl_web_get_tables(byref selected_type as string)
 declare sub tbl_web_get_rows(byref table as string)
+declare sub tbl_web_get_rows_by_offset(byref table as string, byref offset as word, byref count as word)
 declare sub tbl_web_get_table_active_rows(byref table as string, byref tbl_rows as word, byref tbl_rows_all as word)
 declare sub tbl_web_get_flds(byref table as string)
 declare function tbl_web_delete_row(byref table as string,row as word) as string

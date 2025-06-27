@@ -191,8 +191,45 @@ sub tbl_web_get_rows(byref table as string)
         end if
         
     next i
+end sub
 
+sub tbl_web_get_rows_by_offset(byref table as string, byref offset as word, byref count as word)
+	dim i as word
+	dim j, num_of_fld as byte
+	dim tbl_rows, tbl_rows_all as word
+	dim tmp_data as string=""
+	
+	tbl_web_get_table_active_rows(table, tbl_rows, tbl_rows_all)
+    
+	num_of_fld = tbl_get_num_fields(table)
+	tmp_data = tbl_web_get_header(table)+"\r\n"
 
+    while sock.txfree < len(tmp_data)
+        doevents
+    wend
+    sock.setdata(tmp_data)
+    sock.send()
+
+    for i = offset to offset + count - 1
+        if tbl_rows_all=0 then
+            exit for
+        end if
+		if i > tbl_rows then
+			exit sub
+		end if
+        if tbl_is_record_deleted(i)<>YES then
+			tmp_data=tbl_web_get_fld_data(i, num_of_fld)+"\r\n"
+			while sock.txfree < len(tmp_data)
+				doevents
+			wend
+			sock.setdata(tmp_data)
+			sock.send()
+			tmp_data=""
+        end if
+        
+    next i
+	
+	
 end sub
 
 
