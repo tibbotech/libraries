@@ -1829,7 +1829,15 @@ sub cell_next_state(state as en_cell_states)
         if cell_state >= CELL_STATE_PPP_CONNECTED then
             state = CELL_STATE_AT_TRY
         else if cell_state >= CELL_STATE_AT_TRY AND cell_state <= CELL_STATE_PPP_CONNECTED then
-            state = CELL_STATE_REBOOT_PWR1
+            if cell_state >= CELL_STATE_DATA_MODE_CHECK then
+                ' pop the current command queue
+                if cell_command_queue_is_empty() <> true then
+                    cell_command_queue_pop()
+                end if
+                state = CELL_STATE_COMMAND_MODE
+            else
+                state = CELL_STATE_REBOOT_PWR1
+            end if
         end if
     end if
     cell_state = state
