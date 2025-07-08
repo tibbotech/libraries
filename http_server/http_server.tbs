@@ -117,7 +117,7 @@ function http_server_auth_response_get(byref params as string, byref item as str
     end if
 end function
 
-function hex_str(hash as string) as string
+function hex_str(byref hash as string) as string
 	dim i as byte
 	dim j as byte
     dim result as byte(255)
@@ -356,8 +356,8 @@ sub http_server_proc_sock_data()
                     if http_servers(index).request_header_name="Content-Length" then
                         http_servers(index).request_length=lval(http_servers(index).request_value_buffer)
                     else if http_servers(index).request_header_name="Authorization" AND http_server_password<>"" then
-                        dim ha1 as string=""
-                        dim ha2 as string=""
+                        dim ha1 as string(100)=""
+                        dim ha2 as string(100)=""
                         
                         dim response as string=""
                         ti=instr(1,http_servers(index).request_value_buffer,"response=\x22",1)
