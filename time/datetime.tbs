@@ -89,7 +89,7 @@ sub datetime_string_format(byref result as string(14),
 	dim value as word
 	dim max as byte=len(format)
 	dim index as byte=1
-	dim dstr as string=""
+	dim dstr as string(50)=""
 	while index<max
 		dim cur_str as string=mid(format,index,1)
 		select case cur_str
@@ -239,7 +239,7 @@ end sub
 
 function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
     datetime_str_to_timestamp=0
-    dim param_str as string=datestr
+    dim param_str as string(50)=datestr
     dim days as word=0
     dim mins as word=0
     dim secs as byte=0

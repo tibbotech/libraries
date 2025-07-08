@@ -250,24 +250,23 @@ function hex_mac(byref mac as string) as string
 	dim startpos as integer = 1
 	dim endpos as integer = 0
 	dim num as word = ""
-	dim result as string = ""
 	
 	for i = 0 to 5
 		endpos = instr(startpos,mac,".",0)
 		num = val(  mid(mac,startpos,  endpos-startpos) )
 		if num<>0 then
 			if num < 16 then
-				result = result + "0" + right(hex(num),1) + ":"
+				hex_mac = hex_mac + "0" + right(hex(num),1) + ":"
 			else
-				result = result + right(hex(num),2) + ":"
+				hex_mac = hex_mac + right(hex(num),2) + ":"
 			end if
 		else
-			result = result + "00" + ":"
+			hex_mac = hex_mac + "00" + ":"
 		end if
 		startpos=endpos+1
 	next i
 
-	hex_mac = left(result,len(result)-1)
+	hex_mac = left(hex_mac,len(hex_mac)-1)
 
 end function
 

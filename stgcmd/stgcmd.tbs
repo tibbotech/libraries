@@ -6,9 +6,8 @@ const STGCMD_CMD_ESC_CHAR = "@"
 
 public function stgcmd_proc_cmd(byref cmd_str as string) as string
 	stgcmd_proc_cmd=""
-	dim reply_str as string
 	dim x as byte
-	dim setting_name as string
+	dim setting_name as string(STG_MAX_SETTING_NAME_LEN)
 	dim explicit_index as no_yes
 	dim index as byte
 	dim s2 as string(64)
@@ -34,7 +33,7 @@ public function stgcmd_proc_cmd(byref cmd_str as string) as string
 	case "G": 'get setting --------------------------------------
         #IFDEF STG_MAX_SETTING_NAME_LEN
             setting_name=mid(cmd_str,2,STG_MAX_SETTING_NAME_LEN)
-            select case stg_sg(setting_name,0,reply_str,EN_STG_GET)
+            select case stg_sg(setting_name,0,stgcmd_proc_cmd,EN_STG_GET)
             case EN_STG_STATUS_OK:
                 goto reply_ok_have_data
             case EN_STG_STATUS_UNKNOWN:
@@ -97,29 +96,28 @@ public function stgcmd_proc_cmd(byref cmd_str as string) as string
 	end select
 
 reply_rejected:
-	reply_str="R"
+	stgcmd_proc_cmd="R"
 	goto send
 
 reply_err:
-	reply_str="C"
+	stgcmd_proc_cmd="C"
 	goto send
 
 reply_failed:
-	reply_str="F"
+	stgcmd_proc_cmd="F"
 	goto send
 
 reply_ok:
-	reply_str="A"
+	stgcmd_proc_cmd="A"
 	goto send
 
 reply_ok_have_data:
-	reply_str="A"+reply_str
+	stgcmd_proc_cmd="A"+stgcmd_proc_cmd
 	goto send
 
 send:
-	reply_str=chr(2)+reply_str+chr(13) 'add encapsulation
+	stgcmd_proc_cmd=chr(2)+stgcmd_proc_cmd+chr(13) 'add encapsulation
 	
-	stgcmd_proc_cmd=reply_str
 	
 reply_null:
 end function
