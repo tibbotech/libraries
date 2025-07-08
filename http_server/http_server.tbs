@@ -208,6 +208,7 @@ sub http_server_send_response_header(index as byte)
             header=header+"Server: Tibbo\r\n"
             header=header+"Content-Type: "+content_type+"\r\n"
             header=header+"Connection: close\r\n"
+            header=header+"Cache-Control: max-age=604800\r\n"
             header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
             header=header+content_encoding
             header=header+"\r\n"
