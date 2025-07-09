@@ -70,7 +70,7 @@ public sub net_cmd_proc(cmd_mode as cmd_modes, error_mode as no_yes)
 	dim reply_str as string(MAX_NET_RPL_LEN)
 	dim ip_change_needed as no_yes
 	dim curr_block_num,num_sectors as word
-	dim setting_name as string(STG_MAX_SETTING_NAME_LEN)=""
+	dim setting_name as string=""
 	dim explicit_index as no_yes
 	dim sock_interface as pl_sock_interfaces
 	dim i as word
