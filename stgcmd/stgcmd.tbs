@@ -7,7 +7,7 @@ const STGCMD_CMD_ESC_CHAR = "@"
 public function stgcmd_proc_cmd(byref cmd_str as string) as string
 	stgcmd_proc_cmd=""
 	dim x as byte
-	dim setting_name as string(STG_MAX_SETTING_NAME_LEN)
+	dim setting_name as string
 	dim explicit_index as no_yes
 	dim index as byte
 	dim s2 as string(64)
