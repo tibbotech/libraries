@@ -24,7 +24,6 @@ end enum
 type http_server_state
 	socket as byte
 	state as http_server_op_state
-	request_buf as string
 	request_path as string(128)
 	request_value_buffer as string
 	request_file_name as string(HTTP_SERVER_MAX_FILE_NAME_LEN)
