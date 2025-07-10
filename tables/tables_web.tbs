@@ -3,7 +3,7 @@ include "global.tbh"
 
 dim tbl_web_enabled_tables(TBL_MAX_NUM_TABLES) as string(TBL_MAX_TABLE_NAME_LEN)
 dim tbl_web_tbl_status as en_tbl_status_codes
-dim tbl_web_fields(TBL_MAX_TOTAL_NUM_FIELDS) as string
+dim tbl_web_fields(TBL_MAX_TOTAL_NUM_FIELDS) as string(TBL_MAX_FIELD_NAME_LEN)
 
 sub tbl_web_start()
 	dim i as byte
@@ -111,7 +111,7 @@ sub tbl_web_get_flds(byref table as string)
 	
 end sub
 
-function tbl_web_get_header(table as string) as string
+function tbl_web_get_header(byref table as string) as string
 	dim num_of_fld, i as byte
 	
 	tbl_web_get_header = "\x22index\x22,"
@@ -240,10 +240,10 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 	dim i, j, pos1, pos2, num_of_fld as byte
 	dim ts as struct_tbl_timestamp
 	dim s as string
-	dim error as string
+	dim error as string(50)
 	dim stemp as string(16)
     dim enclosed_in_quotes as no_yes=NO
-    dim delimiter as string=","
+    dim delimiter as string(1)=","
     dim enclosed_quote_offset as byte=0
 	tbl_web_add_row=""
 
@@ -372,10 +372,10 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 	dim i, j, pos1, pos2, num_of_fld as byte
 	dim ts as struct_tbl_timestamp
 	dim s as string
-	dim error as string
+	dim error as string(50)
 	dim stemp as string(16)
     dim enclosed_in_quotes as no_yes=NO
-    dim delimiter as string=","
+    dim delimiter as string(1)=","
     dim enclosed_quote_offset as byte=0
 	tbl_web_edit_row=""
 

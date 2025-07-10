@@ -7,7 +7,6 @@ include "global.tbh"
 '--------------------------------------------------------------------
 const FILENUM_STAMP="FILENUM> "
 const FILENUM_CR_LF=chr(13)+chr(10)
-const FILENUM_MAX_FILES=26
 const FILENUM_UNUSED_SIGNATURE="----"
 const FILENUM_INIT_SIGNATURE=&h39BD
 

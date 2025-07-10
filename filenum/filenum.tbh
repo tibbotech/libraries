@@ -15,6 +15,10 @@
 	#define FILENUM_MAX_FILENAME_LEN 0
 #endif
 
+#ifndef FILENUM_MAX_FILES
+	#define FILENUM_MAX_FILES 10
+#endif
+
 '------------------------------------------------------------------------------
 declare function filenum_open(byref signature as string, byref filename as string, byref status as pl_fd_status_codes) as byte
 declare function filenum_get(byref signature as string) as byte

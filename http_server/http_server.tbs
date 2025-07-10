@@ -1,15 +1,21 @@
 
 include "global.tbh"
 
+const HTTP_SERVER_INIT_SIGNATURE=&hEA4E
 dim http_server_password as string(50)
 dim http_server_session as string(20)
 dim http_servers as http_server_state(HTTP_SERVER_COUNT)
 dim http_server_session_nonce as string
 dim http_server_realm as string(50)=""
+dim http_server_init_flag as word=0
 
 declare sub http_server_send_response(index as byte)
 
 sub http_server_start()
+    if http_server_init_flag=HTTP_SERVER_INIT_SIGNATURE then
+        exit sub
+    end if
+    http_server_init_flag=HTTP_SERVER_INIT_SIGNATURE
 	dim ii as byte
     for ii=0 to HTTP_SERVER_COUNT-1
         sock.num=sock_get("W" + str(ii))
