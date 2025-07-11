@@ -1978,7 +1978,7 @@ query:
 		end if
 		
 		if tbl_field_info(field_index).field_type=EN_TBL_FIELD_FLOAT then
-			dim query_num as float=strtof(search_data)
+			dim query_num as float=string_to_float(search_data)
 			dim tbl_result as en_tbl_status_codes=EN_TBL_STATUS_OK
 			dim tmp_rec_num as word=-1
 			dim tbl_rows as word=0
@@ -1988,7 +1988,7 @@ query:
 				tmp_rec_num=rec_num
 				tbl_result=tbl_record_sg(tmp_rec_num,EN_TBL_GET)
 				s=tbl_field_get(field_name)
-				dim fnum as float=strtof(s)
+				dim fnum as float=string_to_float(s)
 				select case find_method
 				case PL_FD_FIND_EQUAL:
 					if query_num = fnum then
@@ -2342,7 +2342,7 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
 		case EN_TBL_FIELD_FLOAT,EN_TBL_FIELD_TIME:
-			dim tmp_f as float=strtof(field_value)
+			dim tmp_f as float=string_to_float(field_value)
 			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIME then
 				p1=0
 				p2=86400
