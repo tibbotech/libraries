@@ -226,6 +226,35 @@ sub date_set_datetime(byref dt_string as string)
 #endif		
 end sub
 
+function string_to_float(byref s as string) as float
+#IF SYS_VER=1000
+	dim int_part as long
+	if len(s)=0 then
+		string_to_float=0
+		exit function
+	end if
+	dim index as byte=instr(1,s,".",1)
+	if index=0 then
+		int_part=s
+		string_to_float=int_part
+		exit function
+	end if
+	dim tmp as string=mid(s,1,index-1)
+	int_part=tmp
+	string_to_float=int_part
+	'decimal part
+	dim dps as float=mid(s,index+1,255)
+	dim count as byte=len(s)-index
+	dim i as byte=0
+	for i=0 to count
+		dps=dps / 10.0
+	next i
+	string_to_float=string_to_float + dps
+#ELSE
+	string_to_float=strtof(s)
+#ENDIF
+end function
+
 function ftofixed(r as real, decimals as byte) as string
 	ftofixed = fstr(r)
 	dim pos as byte = instr(1,ftofixed, ".", 1)
