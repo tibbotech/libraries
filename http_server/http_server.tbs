@@ -361,26 +361,26 @@ sub http_server_proc_sock_data()
                     if http_servers(index).request_header_name="Content-Length" then
                         http_servers(index).request_length=lval(http_servers(index).request_value_buffer)
                     else if http_servers(index).request_header_name="Authorization" AND http_server_password<>"" then
-                        dim ha1 as string=""
-                        dim ha2 as string=""
+                        dim ha as string=""
                         
                         dim response as string=""
                         ti=instr(1,http_servers(index).request_value_buffer,"response=\x22",1)
                         if ti<>0 then
-                            dim encoded as string=http_server_auth_response_get(http_servers(index).request_value_buffer, "response")
                             dim nc as string(10)=http_server_auth_response_get(http_servers(index).request_value_buffer, "nc")
                             dim cnonce as string(50)=http_server_auth_response_get(http_servers(index).request_value_buffer, "cnonce")
                             dim opaque as string(10)=http_server_auth_response_get(http_servers(index).request_value_buffer, "opaque")
 
 							dim username as string(50)="admin"
-                            ha1=username+":"+http_server_realm+":"+http_server_password
-							ha1=hex_str(md5(ha1, "", MD5_FINISH, len(ha1)))
-                            ha2=http_servers(index).request_method+":"+http_servers(index).request_path
-							ha2=hex_str(md5(ha2, "", MD5_FINISH, len(ha2)))
-                            response=ha1+":"+http_server_session_nonce+":"+nc+":"+cnonce+":auth:"+ha2
+                            ha=username+":"+http_server_realm+":"+http_server_password
+							ha=str_to_hex(md5(ha, "", MD5_FINISH, len(ha)))
+                            
+                            response=ha+":"+http_server_session_nonce+":"+nc+":"+cnonce+":auth:"
+							ha=http_servers(index).request_method+":"+http_servers(index).request_path
+							ha=str_to_hex(md5(ha, "", MD5_FINISH, len(ha)))
+							response=response+ha
 							response=md5(response, "", MD5_FINISH, len(response))
-							response=hex_str(response)
-                            if encoded=response then
+							response=str_to_hex(response)
+                            if http_server_auth_response_get(http_servers(index).request_value_buffer, "response")=response then
                                 http_servers(index).request_authenticated=true
                             else
                                 #IF HTTP_SERVER_DEBUG_PRINT
