@@ -48,6 +48,7 @@ function math_hex_to_float(byref num as string(8)) as real
 	end if
 end function
 
+#IF REQUIRES_BASE64
 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
 dim base64_chars as byte(64) = {
 		&h41, &h42, &h43, &h44, &h45, &h46, &h47, &h48, &h49, &h4A, &h4B, &h4C, &h4D, &h4E, &h4F,
@@ -185,6 +186,7 @@ sub base64_decode(byref input as string, byref result as string)
 	result = mid(result,0,out_len)
 
 end sub
+#ENDIF
 
 sub date_set_datetime(byref dt_string as string)
 	
