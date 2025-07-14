@@ -418,7 +418,7 @@ function unescape_string(data as string) as string
     wend
 end function
 
-function str_to_hex(byref hash as string) as string
+function str_to_hex(hash as string) as string
 	dim i as byte
 	dim j as byte
     dim result as byte(255)
