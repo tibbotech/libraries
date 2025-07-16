@@ -10,6 +10,7 @@ dim http_server_realm as string(50)=""
 dim http_server_init_flag as word=0
 
 declare sub http_server_send_response(index as byte)
+dim hcount as dword=0
 
 sub http_server_start()
     if http_server_init_flag=HTTP_SERVER_INIT_SIGNATURE then
@@ -21,10 +22,18 @@ sub http_server_start()
         sock.num=sock_get("W" + str(ii))
 		http_servers(ii).socket=sock.num
         http_servers(ii).state=HTTP_SERVER_STATE_IDLE
-        sock.connectiontout=120
+        sock.connectiontout=40
         sock.txbuffrq(HTTP_SEVER_RX_BUFF_SIZE)
         sock.rxbuffrq(1)
         sys.buffalloc()
+		if sock.txbuffsize < 1 OR sock.txbuffsize < 1 then
+			sock.txbuffrq(0)
+			sock.rxbuffrq(0)
+			sys.buffalloc()
+			http_servers(ii).socket=255
+			sys.debugprint("HTTP>insufficient buffer\r\n")
+		end if
+		
         
         sock.protocol=PL_SOCK_PROTOCOL_TCP
         sock.localportlist="80"
@@ -74,7 +83,6 @@ sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_s
             http_servers(index).request_header_end=""
             http_servers(index).request_length=0
             http_servers(index).file_pos=0
-            http_servers(index).resp_buf=""
             http_servers(index).request_value_buffer=""
             http_servers(index).request_authenticated=http_server_password=""
         else if sock.statesimple=PL_SSTS_CLOSED then
@@ -147,15 +155,7 @@ function hex_str(hash as string) as string
 end function
 
 sub http_server_send_response_header(index as byte)
-    dim header as string="HTTP/1.1 200 OK\r\n"
-
-    dim extension as string(10)=right(http_servers(index).request_file_name,10)
-    dim content_encoding as string(30)=""
-    dim dot_index as byte=1
-    while instr(dot_index,extension,".",1)>0
-        extension=right(extension,len(extension)-instr(dot_index,extension,".",1))
-        dot_index=dot_index+1
-    wend
+    
 
     if http_server_password<>"" AND http_servers(index).request_authenticated=false then
         if instr(1,http_servers(index).request_path,"?password="+http_server_password,1)=0 then
@@ -166,7 +166,6 @@ sub http_server_send_response_header(index as byte)
             dim opaque as string(1)="a"
             http_server_response_header("WWW-Authenticate","Digest algorithm=MD5,qop=\x22auth\x22,nonce=\x22"+http_server_session_nonce+"\x22,opaque=\x22"+opaque+"\x22")
             http_server_response_header_end()
-            http_servers(index).resp_buf=""
             http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
             sock.notifysent(0)
             exit sub
@@ -175,60 +174,16 @@ sub http_server_send_response_header(index as byte)
     
     dim callback_result as boolean=callback_http_server_endpoint_called(http_servers(index))
     if callback_result<>true then
-        dim content_type as string(30)="text/html"
-        select case extension
-            case "json":
-                content_type="application/json"
-            case "js":
-                romfile.open(http_servers(index).request_file_name+".gz")
-                if romfile.size<>0 then
-                    http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
-                    content_encoding="Content-Encoding: gzip\r\n"
-                end if
-                content_type="application/javascript"
-            case "css":
-                romfile.open(http_servers(index).request_file_name+".gz")
-                if romfile.size<>0 then
-                    http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
-                    content_encoding="Content-Encoding: gzip"
-                end if
-                content_type="text/css"
-            case "html":
-                content_type="text/html"
-            case "png":
-                content_type="image/png"
-            case "jpg", "jpeg":
-                content_type="image/jpeg"
-            case else:
-                content_type=""
-        end select
-
-        romfile.open(http_servers(index).request_file_name)
-        http_servers(index).file_size=romfile.size
-        if content_type="" OR romfile.size=0 then
-            header="HTTP/1.1 404 Not Found\r\n\r\n"
-        else
-            http_servers(index).file_size=romfile.size
-            http_servers(index).file_pos=0
-            
-            header=header+"Server: Tibbo\r\n"
-            header=header+"Content-Type: "+content_type+"\r\n"
-            header=header+"Connection: close\r\n"
-            header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
-            header=header+content_encoding
-            header=header+"\r\n"
-        end if
-
         
-        http_servers(index).resp_buf=header
-        http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+        http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
+		
 	else
 		http_servers(index).file_size=0
         http_servers(index).file_pos=0
-		http_servers(index).resp_buf=""
 		http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
 	end if
-    sock.notifysent(sock.txbuffsize-len(http_servers(index).resp_buf))
+	hcount=0
+    sock.notifysent(sock.txbuffsize-255)
 end sub
 
 sub http_server_send_response(index as byte)
@@ -240,10 +195,15 @@ sub http_server_send_response(index as byte)
     if http_servers(index).file_pos<=http_servers(index).file_size AND http_servers(index).file_size>0 then
         romfile.open(http_servers(index).request_file_name)
         romfile.pointer32=http_servers(index).file_pos
-        dim data as string=romfile.getdata(255)
-        http_servers(index).file_pos=romfile.pointer32
-        http_servers(index).resp_buf=data
-        sock.notifysent(sock.txbuffsize-len(data))
+		dim chunk_size as word = sock.txbuffsize-1
+		if romfile.size - romfile.pointer32 < chunk_size then
+			chunk_size = romfile.size - romfile.pointer32
+		end if
+'        dim data as string=romfile.getdata(255)
+'        http_servers(index).file_pos=romfile.pointer32
+'        http_servers(index).resp_buf=data
+'        sock.notifysent(sock.txbuffsize-len(data))
+		sock.notifysent(sock.txbuffsize-chunk_size)
     else
         http_servers(index).state=HTTP_SERVER_STATE_IDLE
         #IF HTTP_SERVER_DEBUG_PRINT
@@ -251,7 +211,11 @@ sub http_server_send_response(index as byte)
 		sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
         #ENDIF
 		http_servers(index).ts=sys.timercountms
-        sock.close()
+		if sock.txlen=0 then
+			sock.close()
+		else
+			sock.notifysent(0)
+		end if
     end if
 end sub
 
@@ -432,8 +396,88 @@ end sub
 sub http_server_proc_sock_data_sent()
     dim index as byte=http_server_get(sock.num)
     if index<>255 then
-        sock.setdata(http_servers(index).resp_buf)
-        sock.send()
+		if http_servers(index).state=HTTP_SERVER_STATE_RS_BODY then
+			if http_servers(index).file_pos < http_servers(index).file_size then
+				romfile.open(http_servers(index).request_file_name)
+				romfile.pointer32=http_servers(index).file_pos
+				dim chunk_size as word = sock.txbuffsize-1
+				if romfile.size - romfile.pointer32 < chunk_size then
+					chunk_size = romfile.size - romfile.pointer32
+				end if
+				dim pointer_count as dword=0
+				dim sz as byte=255
+				while pointer_count < chunk_size
+					sz=255
+					if pointer_count + sz > chunk_size then
+						sz = chunk_size - pointer_count + 1
+					end if
+					dim data as string=romfile.getdata(sz)
+					hcount=hcount+len(data)
+					sock.setdata(data)
+					pointer_count = pointer_count + len(data)
+				wend
+				http_servers(index).file_pos=romfile.pointer32
+				sock.send()
+			end if
+		else if http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER then
+			dim header as string="HTTP/1.1 200 OK\r\n"
+
+			dim extension as string(10)=right(http_servers(index).request_file_name,10)
+			dim content_encoding as string(30)=""
+			dim dot_index as byte=1
+			while instr(dot_index,extension,".",1)>0
+				extension=right(extension,len(extension)-instr(dot_index,extension,".",1))
+				dot_index=dot_index+1
+			wend
+			dim content_type as string(30)="text/html"
+			select case extension
+				case "json":
+					content_type="application/json"
+				case "js":
+					romfile.open(http_servers(index).request_file_name+".gz")
+					if romfile.size<>0 then
+						http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+						content_encoding="Content-Encoding: gzip\r\n"
+					end if
+					content_type="application/javascript"
+				case "css":
+					romfile.open(http_servers(index).request_file_name+".gz")
+					if romfile.size<>0 then
+						http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+						content_encoding="Content-Encoding: gzip"
+					end if
+					content_type="text/css"
+				case "html":
+					content_type="text/html"
+				case "png":
+					content_type="image/png"
+				case "jpg", "jpeg":
+					content_type="image/jpeg"
+				case else:
+					content_type=""
+			end select
+
+			romfile.open(http_servers(index).request_file_name)
+			http_servers(index).file_size=romfile.size
+			if content_type="" OR romfile.size=0 then
+				header="HTTP/1.1 404 Not Found\r\n\r\n"
+			else
+				http_servers(index).file_size=romfile.size
+				http_servers(index).file_pos=0
+				
+				header=header+"Server: Tibbo\r\n"
+				header=header+"Content-Type: "+content_type+"\r\n"
+				header=header+"Connection: close\r\n"
+				header=header+"Content-Length: "+lstr(http_servers(index).file_size)+"\r\n"
+				header=header+content_encoding
+				header=header+"\r\n"
+			end if
+
+			
+			sock.setdata(header)
+			sock.send()
+			http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+		end if
         http_server_send_response(index)
     end if
 end sub

@@ -33,7 +33,6 @@ type http_server_state
 	request_authenticated as boolean
 	request_length as dword
 	request_read_pos as dword
-	resp_buf as string
 	file_size as dword
 	file_pos as dword
 	ts as dword
