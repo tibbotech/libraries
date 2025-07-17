@@ -181,6 +181,8 @@ sub http_server_send_response_header(index as byte)
 		http_servers(index).file_size=0
         http_servers(index).file_pos=0
 		http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+        http_server_send_response(index)
+        exit sub
 	end if
 	hcount=0
     sock.notifysent(sock.txbuffsize-255)
@@ -196,8 +198,8 @@ sub http_server_send_response(index as byte)
         romfile.open(http_servers(index).request_file_name)
         romfile.pointer32=http_servers(index).file_pos
 		dim chunk_size as word = sock.txbuffsize-1
-		if romfile.size - romfile.pointer32 < chunk_size then
-			chunk_size = romfile.size - romfile.pointer32
+		if romfile.size + 1 - romfile.pointer32 < chunk_size then
+			chunk_size = romfile.size + 1 - romfile.pointer32
 		end if
 '        dim data as string=romfile.getdata(255)
 '        http_servers(index).file_pos=romfile.pointer32
@@ -393,12 +395,12 @@ sub http_server_proc_sock_data_sent()
     dim index as byte=http_server_get(sock.num)
     if index<>255 then
 		if http_servers(index).state=HTTP_SERVER_STATE_RS_BODY then
-			if http_servers(index).file_pos < http_servers(index).file_size then
+			if http_servers(index).file_pos <= http_servers(index).file_size then
 				romfile.open(http_servers(index).request_file_name)
 				romfile.pointer32=http_servers(index).file_pos
 				dim chunk_size as word = sock.txbuffsize-1
-				if romfile.size - romfile.pointer32 < chunk_size then
-					chunk_size = romfile.size - romfile.pointer32
+				if romfile.size + 1 - romfile.pointer32 < chunk_size then
+					chunk_size = romfile.size + 1 - romfile.pointer32
 				end if
 				dim pointer_count as dword=0
 				dim sz as byte=255
