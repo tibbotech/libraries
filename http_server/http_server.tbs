@@ -211,11 +211,7 @@ sub http_server_send_response(index as byte)
 		sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
         #ENDIF
 		http_servers(index).ts=sys.timercountms
-		if sock.txlen=0 then
-			sock.close()
-		else
-			sock.notifysent(0)
-		end if
+		sock.close()
     end if
 end sub
 
