@@ -99,14 +99,14 @@ declare sub http_on_sock_data_sent()
 
 declare function callback_http_open_romfile() as dword
 'open the romfile that contains the certificate for the current domain
-declare sub callback_http_header_arrival(header_type as string, header_value as string)
-declare sub callback_http_content_arrival(data as string)
+declare sub callback_http_header_arrival(byref header_type as string, byref header_value as string)
+declare sub callback_http_content_arrival(byref data as string)
 declare sub callback_http_send_post_data(remaining_content_length as dword)
 declare sub callback_http_post_data_sent_ok()
-declare sub callback_http_response_code_arrival(http_response as string)
+declare sub callback_http_response_code_arrival(byref http_response as string)
 declare sub callback_http_headers_complete()
 declare sub callback_http_request_complete()
-declare sub callback_http_request_failed(error_message as string)
+declare sub callback_http_request_failed(byref error_message as string)
 declare sub callback_http_send_headers()
 
 declare http_request_item as http_request_type
