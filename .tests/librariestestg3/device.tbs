@@ -553,7 +553,7 @@ sub callback_http_request_complete()
 end sub
 
 
-sub callback_http_response_code_arrival(http_response as string)
+sub callback_http_response_code_arrival(byref http_response as string)
     
 end sub
 
