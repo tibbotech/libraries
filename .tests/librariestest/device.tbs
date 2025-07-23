@@ -497,17 +497,17 @@ sub callback_stgcmd_buzz_command()
 end sub
         
 
-sub callback_http_reponse_code_arrival(http_response as string)
+sub callback_http_reponse_code_arrival(byref http_response as string)
     
 end sub
 
 
-sub callback_http_request_failed(error_message as string)
+sub callback_http_request_failed(byref error_message as string)
     
 end sub
 
 
-sub callback_http_header_arrival(header_type as string, header_value as string)
+sub callback_http_header_arrival(byref header_type as string, byref header_value as string)
     
 end sub
 
@@ -517,7 +517,7 @@ sub callback_http_headers_complete()
 end sub
 
 
-sub callback_http_content_arrival(data as string)
+sub callback_http_content_arrival(byref data as string)
     
 
     if http_request_item.url = "http://tibbo.com" then
