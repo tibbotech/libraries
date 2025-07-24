@@ -10,7 +10,7 @@ include "global.tbh"
 const DHCP_STAMP1="DHCP("
 const DHCP_STAMP2=")> "
 const DHCP_CR_LF=chr(13)+chr(10)
-const DHCP_MIN_BUFFER_SPACE=300	'necessary!
+const DHCP_MIN_BUFFER_SPACE=700	'necessary!
 const DHCP_SOCK_BUFF_PAGES=3	'necessary!
 const DHCP_INIT_SIGNATURE=&h3D4E
 const DHCP_SOCK_GET_SIGNATURE="DHCP"
