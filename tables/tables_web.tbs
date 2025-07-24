@@ -175,6 +175,9 @@ sub tables_web_proc_sock_data_sent()
 			dim table_name as string=http_server_find_param(tmp_data,"table")
 			tbl_web_get_table_active_rows(table_name, tbl_rows, tbl_rows_all)
 			num_of_fld = tbl_get_num_fields(table_name)
+			if tbl_rows_all < tbl_rows then
+				tbl_rows=tbl_rows_all
+			end if
 			
 			dim count as word=val(http_server_find_param(tmp_data,"count"))
 			dim offset as word=val(http_server_find_param(tmp_data,"offset")) + 1
