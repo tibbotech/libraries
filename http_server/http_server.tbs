@@ -10,36 +10,45 @@ dim http_server_realm as string(50)=""
 dim http_server_init_flag as word=0
 
 declare sub http_server_send_response(index as byte)
-dim hcount as dword=0
 
 sub http_server_start()
     if http_server_init_flag=HTTP_SERVER_INIT_SIGNATURE then
         exit sub
     end if
     http_server_init_flag=HTTP_SERVER_INIT_SIGNATURE
+	dim server_count as byte=0
 	dim ii as byte
+	dim buf_size as byte=HTTP_SEVER_RX_BUFF_SIZE
     for ii=0 to HTTP_SERVER_COUNT-1
+		buf_size=HTTP_SEVER_RX_BUFF_SIZE
         sock.num=sock_get("W" + str(ii))
 		http_servers(ii).socket=sock.num
         http_servers(ii).state=HTTP_SERVER_STATE_IDLE
+		if sys.freebuffpages < buf_size + 1 then
+			buf_size = sys.freebuffpages - 1
+		end if
         sock.connectiontout=40
-        sock.txbuffrq(HTTP_SEVER_RX_BUFF_SIZE)
+        sock.txbuffrq(buf_size)
         sock.rxbuffrq(1)
         sys.buffalloc()
-		if sock.txbuffsize < 1 OR sock.txbuffsize < 1 then
+		if sock.txbuffsize < 1 OR sock.rxbuffsize < 1 then
 			sock.txbuffrq(0)
 			sock.rxbuffrq(0)
 			sys.buffalloc()
 			http_servers(ii).socket=255
 			sys.debugprint("HTTP>insufficient buffer\r\n")
+			sock.localportlist=""
+			sock.allowedinterfaces=""
+			sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
+		else
+			server_count=server_count+1
+			sock.protocol=PL_SOCK_PROTOCOL_TCP
+			sock.localportlist="80"
+			sock.allowedinterfaces="NET,WLN"
+			sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
 		end if
-		
-        
-        sock.protocol=PL_SOCK_PROTOCOL_TCP
-        sock.localportlist="80"
-        sock.allowedinterfaces="NET,WLN"
-        sock.inconmode=PL_SOCK_INCONMODE_ANY_IP_ANY_PORT
     next ii
+	sys.debugprint("HTTP>"+str(server_count)+" sockets\r\n")
 end sub
 
 function http_server_find_param(byref http_req_string as string, byref argument as string) as string
@@ -171,20 +180,8 @@ sub http_server_send_response_header(index as byte)
             exit sub
         end if
     end if
+	http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER_START
     
-    dim callback_result as boolean=callback_http_server_endpoint_called(http_servers(index))
-    if callback_result<>true then
-        
-        http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
-		
-	else
-		http_servers(index).file_size=0
-        http_servers(index).file_pos=0
-		http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
-        http_server_send_response(index)
-        exit sub
-	end if
-	hcount=0
     sock.notifysent(sock.txbuffsize-255)
 end sub
 
@@ -395,7 +392,7 @@ sub http_server_proc_sock_data_sent()
     dim index as byte=http_server_get(sock.num)
     if index<>255 then
 		if http_servers(index).state=HTTP_SERVER_STATE_RS_BODY then
-			if http_servers(index).file_pos <= http_servers(index).file_size then
+			if http_servers(index).file_pos <= http_servers(index).file_size AND http_servers(index).file_size > 0 then
 				romfile.open(http_servers(index).request_file_name)
 				romfile.pointer32=http_servers(index).file_pos
 				dim chunk_size as word = sock.txbuffsize-1
@@ -410,14 +407,29 @@ sub http_server_proc_sock_data_sent()
 						sz = chunk_size - pointer_count + 1
 					end if
 					dim data as string=romfile.getdata(sz)
-					hcount=hcount+len(data)
 					sock.setdata(data)
 					pointer_count = pointer_count + len(data)
 				wend
 				http_servers(index).file_pos=romfile.pointer32
 				sock.send()
 			end if
+		else if http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER_START then
+			http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+			dim callback_result as boolean=callback_http_server_endpoint_called(http_servers(index))
+			if callback_result<>true then
+				
+				http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER
+				sock.notifysent(0)
+				exit sub
+				
+			else
+				http_servers(index).file_size=0
+				http_servers(index).file_pos=0
+				http_server_send_response(index)
+				exit sub
+			end if
 		else if http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER then
+		
 			dim header as string="HTTP/1.1 200 OK\r\n"
 
 			dim extension as string(10)=right(http_servers(index).request_file_name,10)

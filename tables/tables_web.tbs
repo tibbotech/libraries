@@ -159,6 +159,49 @@ function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
 	tbl_web_get_fld_data = tmp_data 
 end function
 
+sub tables_web_proc_sock_data_sent()
+	dim index as byte=http_server_get(sock.num)
+	if index<>255 then
+		if http_servers(index).state=HTTP_SERVER_STATE_RS_BODY_CONTENT then
+			dim server as http_server_state=http_servers(index)
+			'for returning table rows
+			dim tbl_rows, tbl_rows_all as word
+			dim i as word
+			dim j, num_of_fld as byte
+			dim tmp_data as string=server.request_path
+			if server.request_method<>"GET" then
+				tmp_data=server.request_value_buffer
+			end if
+			dim table_name as string=http_server_find_param(tmp_data,"table")
+			tbl_web_get_table_active_rows(table_name, tbl_rows, tbl_rows_all)
+			num_of_fld = tbl_get_num_fields(table_name)
+			
+			dim count as word=val(http_server_find_param(tmp_data,"count"))
+			dim offset as word=val(http_server_find_param(tmp_data,"offset")) + 1
+			if server.request_read_pos>=tbl_rows then
+				http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
+				sock.notifysent(0)
+				exit sub
+			end if
+			if count=0 then
+				'return all rows
+				tmp_data=tbl_web_get_fld_data(server.request_read_pos, num_of_fld)+"\r\n"
+				sock.setdata(tmp_data)
+				sock.send()
+			else
+				if server.request_read_pos < (offset + count) then
+					tmp_data=tbl_web_get_fld_data(server.request_read_pos, num_of_fld)+"\r\n"
+					sock.setdata(tmp_data)
+					sock.send()
+				end if
+			end if
+			http_servers(index).request_read_pos=http_servers(index).request_read_pos+1
+			sock.notifysent(sock.txbuffsize-len(tmp_data))
+			
+		end if
+	end if
+end sub
+
 sub tbl_web_get_rows(byref table as string)
 	dim i as word
 	dim j, num_of_fld as byte

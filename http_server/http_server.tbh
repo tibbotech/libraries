@@ -17,8 +17,10 @@ enum http_server_op_state
 	HTTP_SERVER_STATE_RQ_PROTOCOL
 	HTTP_SERVER_STATE_RQ_HEADER
 	HTTP_SERVER_STATE_RQ_BODY
+	HTTP_SERVER_STATE_RS_HEADER_START
 	HTTP_SERVER_STATE_RS_HEADER
 	HTTP_SERVER_STATE_RS_BODY
+	HTTP_SERVER_STATE_RS_BODY_CONTENT
 end enum
 
 type http_server_state
@@ -57,3 +59,4 @@ declare sub callback_http_server_body_received(byref server as http_server_state
 declare function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
 declare function http_server_decode(byref encoded_string as string) as string
 declare function http_server_find_param(byref http_req_string as string, byref argument as string) as string
+declare function http_server_get(socket_num as byte) as byte
