@@ -6,7 +6,6 @@ declare sub tbl_web_get_rows(byref table as string)
 declare sub tbl_web_get_rows_by_offset(byref table as string, byref offset as word, byref count as word)
 declare sub tbl_web_get_table_active_rows(byref table as string, byref tbl_rows as word, byref tbl_rows_all as word)
 declare sub tbl_web_get_flds(byref table as string)
-declare sub tables_web_proc_sock_data_sent()
 declare function tbl_web_delete_row(byref table as string,row as word) as string
 declare function tbl_web_edit_row(byref table as string,byref index as word,byref row as string) as string
 declare function tbl_web_get_field_def(byref table_name_or_num as string, byref field_name as string) as string
