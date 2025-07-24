@@ -178,7 +178,7 @@ sub tables_web_proc_sock_data_sent()
 			
 			dim count as word=val(http_server_find_param(tmp_data,"count"))
 			dim offset as word=val(http_server_find_param(tmp_data,"offset")) + 1
-			if server.request_read_pos>=tbl_rows then
+			if server.request_read_pos>tbl_rows then
 				http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
 				sock.notifysent(0)
 				exit sub
