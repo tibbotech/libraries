@@ -15,6 +15,10 @@ type modbus_req
 	crc as word
 end type
 
+#IFNDEF MODBUS_SLAVE_ENABLED
+	#define MODBUS_SLAVE_ENABLED 0
+#ENDIF
+
 ' Read Input Registers
 #define MODBUS_ADC_INPUT_REGISTER_HEX 0
 #define MODBUS_ADC_INPUT_REGISTER_FLOAT 100
@@ -80,10 +84,12 @@ declare modbus_queue_end as char
 declare modbus_awaiting_reply as boolean
 declare modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
 declare modbus_recv_buffer as string
+#IF MODBUS_SLAVE_ENABLED
 declare modbus_slave_recv_buffer as string
 declare modbus_slave_id as byte
 declare modbus_slave_protocol as modbusProtocol
 declare modbus_slave_interface as byte
+#ENDIF
 
 declare function modbus_initialize() as boolean
 declare function modbus_callback_ReadCoilStatus(address as word) as boolean

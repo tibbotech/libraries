@@ -11,16 +11,18 @@ declare function modbus_time_elapsed(end_time as dword) as boolean
 
 dim modbus_queue_start as char
 dim modbus_queue_end as char
+#IF MODBUS_SLAVE_ENABLED
 dim modbus_slave_recv_buffer as string
-dim modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
-dim modbus_master_recv_buffer as string
-dim modbus_trans_id as word
-dim modbus_queue_count as byte
 dim modbus_slave_id  as byte = 1
 dim modbus_slave_send_buffer as string=""
 dim modbus_slave_protocol as modbusProtocol=modbus_TCP
 dim modbus_slave_interface as byte=255
 dim modbus_slave_last_recv_ts as dword=0
+#ENDIF
+dim modbus_request_queue as modbus_request_item(MODBUS_MAX_REQUESTS)
+dim modbus_master_recv_buffer as string
+dim modbus_trans_id as word
+dim modbus_queue_count as byte
 dim modbus_master_next_send_ts as dword=0
 
 dim _crc_table_hi as byte(256) = {
@@ -66,11 +68,14 @@ dim _crc_table_lo as byte(256) = {
 function modbus_initialize() as boolean
 	
 	modbus_queue_clear()
+#IF MODBUS_SLAVE_ENABLED
 	modbus_slave_recv_buffer=""
+#ENDIF	
 	modbus_initialize = true
 	
 end function
 
+#IF MODBUS_SLAVE_ENABLED
 sub modbus_slave_receive(byref recv_data as string, interface_number as byte, protocol as modbusProtocol)
 	
 	dim transactionId as word
@@ -303,6 +308,8 @@ sub modbus_slave_receive(byref recv_data as string, interface_number as byte, pr
 
 end sub
 
+#ENDIF
+
 sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 	dim senddata as string=""
 	if protocol=modbus_TCP then
@@ -334,7 +341,9 @@ sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactio
 
 		ser.num=interface_number
 		ser.notifysent(ser.txbuffsize-len(senddata))
+#IF MODBUS_SLAVE_ENABLED
 		modbus_slave_send_buffer=senddata
+#ENDIF
 	end if
 
 	#if MODBUS_DEBUG_PRINT
@@ -356,12 +365,14 @@ sub modbus_proc_ser_data_sent()
 			ser.send()
 		end if
 	end if
+#IF MODBUS_SLAVE_ENABLED
 	if ser.num=modbus_slave_interface AND modbus_slave_protocol=modbus_RTU AND modbus_slave_send_buffer<>"" then
 		ser.txclear()
 		ser.setdata(modbus_slave_send_buffer)
 		ser.send()
 		modbus_slave_send_buffer=""
 	end if
+#ENDIF
 end sub
 
 sub modbus_master_send_next()
@@ -420,11 +431,13 @@ sub modbus_proc_timer()
 			end if
 		end if
 	end if
+#IF MODBUS_SLAVE_ENABLED
 	if modbus_slave_recv_buffer<>"" then
 		if sys.timercountms-modbus_slave_last_recv_ts>MODBUS_TIMEOUT then
 			modbus_slave_recv_buffer=""
 		end if
 	end if
+#ENDIF
 end sub
 
 function modbus_time_elapsed(end_time as dword) as boolean
