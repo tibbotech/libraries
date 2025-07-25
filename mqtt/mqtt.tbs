@@ -21,12 +21,12 @@ dim mqtt_state as en_mqtt_states
 dim mqtt_connection_counter as dword
 dim mqtt_ping_counter as dword
 dim mqtt_server_port as word
-dim mqtt_server_address as string
+dim mqtt_server_address as string(100)
 dim mqtt_server_ip as string(15)
-dim mqtt_user as string
-dim mqtt_pw	as string
+dim mqtt_user as string(50)
+dim mqtt_pw	as string(50)
 dim mqtt_packet_length as long
-dim mqtt_client_id as string=""
+dim mqtt_client_id as string(50)=""
 dim mqtt_target_interface as pl_sock_interfaces
 dim mqtt_encrypted as boolean
 dim mqtt_unreplied_ping_count as byte=0

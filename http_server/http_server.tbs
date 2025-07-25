@@ -5,7 +5,7 @@ const HTTP_SERVER_INIT_SIGNATURE=&hEA4E
 dim http_server_password as string(50)
 dim http_server_session as string(20)
 dim http_servers as http_server_state(HTTP_SERVER_COUNT)
-dim http_server_session_nonce as string
+dim http_server_session_nonce as string(10)
 dim http_server_realm as string(50)=""
 dim http_server_init_flag as word=0
 
@@ -26,6 +26,12 @@ sub http_server_start()
         http_servers(ii).state=HTTP_SERVER_STATE_IDLE
 		if sys.freebuffpages < buf_size + 1 then
 			buf_size = sys.freebuffpages - 1
+		end if
+		if ii=0 then
+			'first socket serves index does not need as much buffer
+			if sys.freebuffpages < HTTP_SEVER_RX_BUFF_SIZE * HTTP_SERVER_COUNT then
+				buf_size=1
+			end if
 		end if
         sock.connectiontout=40
         sock.txbuffrq(buf_size)
