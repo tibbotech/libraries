@@ -33,7 +33,7 @@
 #define LCD_GRAPH_WIDTH 320
 #define LCD_GRAPH_HEIGHT 240
 #define LCD_GRAPH_FILL &h7e0
-
+#define MODBUS_SLAVE_ENABLED 1
 
 
 
