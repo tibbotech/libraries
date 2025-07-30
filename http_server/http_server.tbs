@@ -215,15 +215,14 @@ sub http_server_send_response(index as byte)
 		sys.debugprint("HTTP>FN: "+http_servers(index).request_path+"\r\n")
 		sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
         #ENDIF
-		http_servers(index).ts=sys.timercountms
-		sock.close()
+        sock.close()
     end if
 end sub
 
 sub http_server_proc_sock_data()
 	dim index as byte=http_server_get(sock.num)
     if index<>255 then
-        http_servers(index).ts=sys.timercountms
+        ' http_servers(index).ts=sys.timercountms
         dim data as string=sock.getdata(255)
 		dim data_len as byte=len(data)
         dim c as string(1)=""
@@ -273,7 +272,6 @@ sub http_server_proc_sock_data()
                     if instr(1,http_servers(index).request_file_name,"#",1)>0 then
                         http_servers(index).request_file_name=left(http_servers(index).request_file_name,instr(1,http_servers(index).request_file_name,"#",1)-1)
                     end if
-                    http_servers(index).ts=sys.timercountms
                     #IF HTTP_SERVER_DEBUG_PRINT
                     sys.debugprint("HTTP>RQ: "+http_servers(index).request_method+" "+http_servers(index).request_path+"\r\n")
                     #ENDIF
@@ -365,7 +363,6 @@ sub http_server_proc_sock_data()
                     sys.debugprint("HTTP>HD: "+http_servers(index).request_path+"\r\n")
 					sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
                     #ENDIF
-					http_servers(index).ts=sys.timercountms
                     if http_servers(index).request_length>0 then
                         http_servers(index).state=HTTP_SERVER_STATE_RQ_BODY
                     else
@@ -431,7 +428,8 @@ sub http_server_proc_sock_data_sent()
 			else
 				http_servers(index).file_size=0
 				http_servers(index).file_pos=0
-				http_server_send_response(index)
+                sock.notifysent(sock.txlen)
+				' http_server_send_response(index)
 				exit sub
 			end if
 		else if http_servers(index).state=HTTP_SERVER_STATE_RS_HEADER then
