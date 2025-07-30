@@ -96,6 +96,7 @@ sub http_server_proc_sock_event(newstate as pl_sock_state,newstatesimple as pl_s
             http_servers(index).request_file_name=""
             http_servers(index).request_method=""
             http_servers(index).request_header_end=""
+            http_servers(index).request_header_name=""
             http_servers(index).request_length=0
             http_servers(index).file_pos=0
             http_servers(index).request_value_buffer=""
@@ -215,6 +216,13 @@ sub http_server_send_response(index as byte)
 		sys.debugprint("HTTP>FN: "+http_servers(index).request_path+"\r\n")
 		sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
         #ENDIF
+		' http_servers(index).ts=sys.timercountms
+        ' sys.trace("HTTP>FN: "+http_servers(index).request_path+"\r\n")
+        ' sys.trace(str(sys.timercountms-http_servers(index).ts)+"\r\n")
+        dim b as byte=0
+        while sock.txlen>0 OR sock.newtxlen>0
+            b=b+1
+        wend
         sock.close()
     end if
 end sub
@@ -228,6 +236,7 @@ sub http_server_proc_sock_data()
         dim c as string(1)=""
 		dim ci as byte=0
         dim ti as byte=0
+
 		while ci<data_len
 		c=mid(data,ci+1,1)
 		ci=ci+1
@@ -306,6 +315,9 @@ sub http_server_proc_sock_data()
                         end if
                         ci=len(data)
                     end if
+                    ' if http_servers(index).request_header_name="User-Agent" then
+                    '     sys.trace("socket: "+str(sock.num)+" Value: "+http_servers(index).request_value_buffer)
+                    ' end if
                 end if
                 ti=instr(ci,data,"\n",1)
                 if ti<>0 then
