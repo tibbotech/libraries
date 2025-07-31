@@ -211,7 +211,6 @@ sub http_server_send_response(index as byte)
 '        sock.notifysent(sock.txbuffsize-len(data))
 		sock.notifysent(sock.txbuffsize-chunk_size)
     else
-        http_servers(index).state=HTTP_SERVER_STATE_IDLE
         #IF HTTP_SERVER_DEBUG_PRINT
 		sys.debugprint("HTTP>FN: "+http_servers(index).request_path+"\r\n")
 		sys.debugprint(str(sys.timercountms-http_servers(index).ts)+"\r\n")
@@ -219,11 +218,10 @@ sub http_server_send_response(index as byte)
 		' http_servers(index).ts=sys.timercountms
         ' sys.trace("HTTP>FN: "+http_servers(index).request_path+"\r\n")
         ' sys.trace(str(sys.timercountms-http_servers(index).ts)+"\r\n")
-        dim b as byte=0
-        while sock.txlen>0 OR sock.newtxlen>0
-            b=b+1
-        wend
-        sock.close()
+        if http_servers(index).state<>HTTP_SERVER_STATE_END then
+            http_servers(index).state=HTTP_SERVER_STATE_END
+            sock.notifysent(0)            
+        end if
     end if
 end sub
 
@@ -505,7 +503,11 @@ sub http_server_proc_sock_data_sent()
 			sock.send()
 			http_servers(index).state=HTTP_SERVER_STATE_RS_BODY
 		end if
-        http_server_send_response(index)
+        if http_servers(index).state=HTTP_SERVER_STATE_END then
+            sock.close()
+        else
+            http_server_send_response(index)
+        end if
     end if
 end sub
 

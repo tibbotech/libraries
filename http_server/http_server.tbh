@@ -21,6 +21,7 @@ enum http_server_op_state
 	HTTP_SERVER_STATE_RS_HEADER
 	HTTP_SERVER_STATE_RS_BODY
 	HTTP_SERVER_STATE_RS_BODY_CONTENT
+	HTTP_SERVER_STATE_END
 end enum
 
 type http_server_state
