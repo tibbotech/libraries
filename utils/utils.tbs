@@ -241,16 +241,14 @@ function string_to_float(byref s as string) as float
 		string_to_float=int_part
 		exit function
 	end if
-	dim tmp as string(10)=mid(s,1,index-1)
+	dim tmp as string(9)=mid(s,1,index-1)
 	int_part=tmp
 	string_to_float=int_part
 	'decimal part
-	int_part=mid(s,index+1,10)
+	tmp=mid(s,index+1,9)
+	int_part=tmp
 	dim dps as float=int_part
-	dim count as byte=len(s)-index
-	if count > 10 then
-		count = 10
-	end if
+	dim count as byte=len(tmp)
 	if count > 0 then
 		dim i as byte=0
 		for i=0 to count-1
