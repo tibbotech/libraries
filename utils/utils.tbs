@@ -237,7 +237,6 @@ sub date_set_datetime(byref dt_string as string)
 end sub
 
 function string_to_float(byref s as string) as float
-#IF SYS_VER=1000
 	' IEEE 754 string to float conversion algorithm
 	if len(s)=0 then
 		string_to_float=0.0
@@ -309,9 +308,9 @@ function string_to_float(byref s as string) as float
 	end if
 	
 	string_to_float = result
-#ELSE
-	string_to_float=strtof(s)
-#ENDIF
+' #IF SYS_VER=2000
+' 	string_to_float=strtof(s)
+' #ENDIF
 end function
 
 function ftofixed(r as real, decimals as byte) as string
