@@ -14,6 +14,14 @@ function math_pow(base as integer, exp as integer) as real
 	math_pow = p
 end function
 
+function abs(Value as real) as real
+    abs = Value * sgn(Value)
+end function
+
+function sgn(Value as real) as real
+    if Value < 0 then sgn = -1 else sgn = 1
+end function
+
 
 function math_hex_to_float(byref num as string(8)) as real
 	dim tmp as dword = lval("&h" + num)

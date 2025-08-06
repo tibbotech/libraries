@@ -2,7 +2,10 @@
 declare sub base64_encode(byref input_str as string, input_len as byte, byref result as string)
 declare sub base64_decode(byref input as string, byref result as string)
 #ENDIF
+
 declare sub time_delay_ms(delay_ms as word)
+declare function abs(Value as real) as real
+declare function sgn(Value as real) as real
 declare function math_pow(base as integer, exp as integer) as real
 declare function math_hex_to_float(byref num as string(8)) as real
 declare function string_to_float(byref s as string) as float
