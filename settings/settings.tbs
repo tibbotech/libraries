@@ -1477,7 +1477,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			goto lb2
 
 		case EN_STG_TYPE_FLOAT,EN_STG_TYPE_TIME:
-			dim ff as float=stg_value
+			dim ff as float=string_to_float(stg_value)
 			bintostr(new_member_str,ff,4)
 			i=ff
 			goto lb2

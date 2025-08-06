@@ -238,32 +238,77 @@ end sub
 
 function string_to_float(byref s as string) as float
 #IF SYS_VER=1000
-	dim int_part as long
+	' IEEE 754 string to float conversion algorithm
 	if len(s)=0 then
-		string_to_float=0
+		string_to_float=0.0
 		exit function
 	end if
-	dim index as byte=instr(1,s,".",1)
-	if index=0 then
-		int_part=s
-		string_to_float=int_part
+	
+	' Handle sign
+	dim is_negative as byte = 0
+	dim start_pos as byte = 1
+	if mid(s, 1, 1) = "-" then
+		is_negative = 1
+		start_pos = 2
+	end if
+	if mid(s, 1, 1) = "+" then
+		start_pos = 2
+	end if
+	
+	' Handle special cases
+	dim number_part as string = mid(s, start_pos, len(s) - start_pos + 1)
+	if number_part = "0" or number_part = "0.0" then
+		string_to_float = 0.0
 		exit function
 	end if
-	dim tmp as string(9)=mid(s,1,index-1)
-	int_part=tmp
-	string_to_float=int_part
-	'decimal part
-	tmp=mid(s,index+1,9)
-	int_part=tmp
-	dim dps as float=int_part
-	dim count as byte=len(tmp)
-	if count > 0 then
-		dim i as byte=0
-		for i=0 to count-1
-			dps=dps / 10.0
+	
+	' Find decimal point
+	dim decimal_pos as byte = instr(1, number_part, ".", 1)
+	dim integer_part as string
+	dim fractional_part as string
+	
+	if decimal_pos = 0 then
+		' No decimal point - integer only
+		integer_part = number_part
+		fractional_part = ""
+	else
+		integer_part = mid(number_part, 1, decimal_pos - 1)
+		fractional_part = mid(number_part, decimal_pos + 1, len(number_part) - decimal_pos)
+	end if
+	
+	' Convert integer part
+	dim result as real = 0.0
+	if len(integer_part) > 0 and integer_part <> "0" then
+		dim int_value as long = val(integer_part)
+		result = int_value
+	end if
+	
+	' Convert fractional part using more precise method
+	if len(fractional_part) > 0 then
+		dim frac_value as real = 0.0
+		dim power_of_ten as real = 0.1
+		dim i as byte
+		
+		for i = 1 to len(fractional_part)
+			dim digit_char as string = mid(fractional_part, i, 1)
+			dim digit_val as byte = asc(digit_char) - asc("0")
+			
+			' Validate digit
+			if digit_val >= 0 and digit_val <= 9 then
+				frac_value = frac_value + (digit_val * power_of_ten)
+				power_of_ten = power_of_ten * 0.1
+			end if
 		next i
-		string_to_float=string_to_float + dps
+		
+		result = result + frac_value
 	end if
+	
+	' Apply sign
+	if is_negative = 1 then
+		result = -result
+	end if
+	
+	string_to_float = result
 #ELSE
 	string_to_float=strtof(s)
 #ENDIF
