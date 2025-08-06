@@ -12,3 +12,14 @@ declare function json_get_value(byref key as string, byref data as string) as st
 declare function escape_string(data as string) as string
 declare function unescape_string(data as string) as string
 declare function str_to_hex(hash as string) as string
+declare function float_to_shortest_decimal(f as real) as string
+declare function format_scientific_notation(f as real) as string
+declare function format_fixed_point(f as real) as string
+declare function trim_trailing_zeros(s as string) as string
+declare function float_to_shortest_decimal_precise(f as real) as string
+declare function find_shortest_decimal(f as real) as string
+declare function are_same_ieee754_value(a as real, b as real) as boolean
+declare function fallback_shortest_decimal(f as real) as string
+declare function test_round_trip_accuracy(original as real, decimal_str as string) as boolean
+declare function truncate_last_digit(s as string) as string
+declare function round_up_last_digit(s as string) as string
