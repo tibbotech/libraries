@@ -255,7 +255,7 @@ function string_to_float(byref s as string) as float
 	end if
 	
 	' Handle special cases
-	dim number_part as string = mid(s, start_pos, len(s) - start_pos + 1)
+	dim number_part as string(FLOAT_MAX_STRING_LENGTH) = mid(s, start_pos, len(s) - start_pos + 1)
 	if number_part = "0" or number_part = "0.0" then
 		string_to_float = 0.0
 		exit function
@@ -263,8 +263,8 @@ function string_to_float(byref s as string) as float
 	
 	' Find decimal point
 	dim decimal_pos as byte = instr(1, number_part, ".", 1)
-	dim integer_part as string
-	dim fractional_part as string
+	dim integer_part as string(FLOAT_MAX_STRING_LENGTH)
+	dim fractional_part as string(FLOAT_MAX_STRING_LENGTH)
 	
 	if decimal_pos = 0 then
 		' No decimal point - integer only
@@ -289,7 +289,7 @@ function string_to_float(byref s as string) as float
 		dim i as byte
 		
 		for i = 1 to len(fractional_part)
-			dim digit_char as string = mid(fractional_part, i, 1)
+			dim digit_char as string(1) = mid(fractional_part, i, 1)
 			dim digit_val as byte = asc(digit_char) - asc("0")
 			
 			' Validate digit
