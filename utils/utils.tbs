@@ -453,110 +453,9 @@ function str_to_hex(hash as string) as string
     next i
 end function
 
-' IEEE 754 shortest decimal representation implementation
-function float_to_shortest_decimal(f as real) as string
-	' Handle special cases first
-	if f = 0.0 then
-		float_to_shortest_decimal = "0"
-		exit function
-	end if
-	
-	' Extract IEEE 754 components using bit manipulation
-	dim bits as dword = 0
-	' Note: This is a simplified approach - in practice you'd need platform-specific bit casting
-	dim temp_str as string = fstr(f)
-	if instr(1, temp_str, "inf", 1) > 0 then
-		if f < 0 then
-			float_to_shortest_decimal = "-Infinity"
-		else
-			float_to_shortest_decimal = "Infinity"
-		end if
-		exit function
-	end if
-	
-	if instr(1, temp_str, "nan", 1) > 0 then
-		float_to_shortest_decimal = "NaN"
-		exit function
-	end if
-	
-	' Handle negative numbers
-	dim is_negative as boolean = f < 0
-	if is_negative then
-		f = -f
-	end if
-	
-	' Use a simplified approach for shortest representation
-	' This implements a basic version of the Dragon4 algorithm concept
-	dim result as string = ""
-	
-	' Handle very small numbers (close to zero)
-	if f < 0.000001 then
-		result = format_scientific_notation(f)
-	' Handle very large numbers  
-	else if f > 1000000 then
-		result = format_scientific_notation(f)
-	else
-		' Handle normal range numbers
-		result = format_fixed_point(f)
-	end if
-	
-	if is_negative then
-		float_to_shortest_decimal = "-" + result
-	else
-		float_to_shortest_decimal = result
-	end if
-end function
-
-' Helper function to format numbers in scientific notation
-function format_scientific_notation(f as real) as string
-	dim exponent as integer = 0
-	dim mantissa as real = f
-	
-	' Normalize mantissa to be between 1 and 10
-	if mantissa >= 10.0 then
-		while mantissa >= 10.0
-			mantissa = mantissa / 10.0
-			exponent = exponent + 1
-		wend
-	else if mantissa < 1.0 and mantissa > 0.0 then
-		while mantissa < 1.0
-			mantissa = mantissa * 10.0
-			exponent = exponent - 1
-		wend
-	end if
-	
-	' Format mantissa with minimal decimal places
-	dim mantissa_str as string = trim_trailing_zeros(ftostr(mantissa, FTOSTR_MODE_PLAIN, 6))
-	
-	if exponent = 0 then
-		format_scientific_notation = mantissa_str
-	else
-		format_scientific_notation = mantissa_str + "e" + str(exponent)
-	end if
-end function
-
-' Helper function to format numbers in fixed-point notation
-function format_fixed_point(f as real) as string
-	' Determine appropriate decimal places
-	dim decimal_places as byte = 6
-	
-	' Reduce decimal places for larger numbers
-	if f >= 1000 then
-		decimal_places = 2
-	else if f >= 100 then
-		decimal_places = 3
-	else if f >= 10 then
-		decimal_places = 4
-	else if f >= 1 then
-		decimal_places = 5
-	end if
-	
-	dim result as string = ftostr(f, FTOSTR_MODE_PLAIN, decimal_places)
-	format_fixed_point = trim_trailing_zeros(result)
-end function
 
 ' Helper function to remove trailing zeros and unnecessary decimal point
-function trim_trailing_zeros(s as string) as string
+function trim_trailing_zeros(s as string(FLOAT_MAX_STRING_LENGTH)) as string(FLOAT_MAX_STRING_LENGTH)
 	dim result as string = s
 	
 	' Only trim if there's a decimal point
@@ -576,14 +475,14 @@ function trim_trailing_zeros(s as string) as string
 end function
 
 ' Enhanced version that finds the true shortest decimal representation
-function float_to_shortest_decimal_precise(f as real) as string
+function float_to_shortest_decimal_precise(f as real) as string(FLOAT_MAX_STRING_LENGTH)
 	' Handle special cases
 	if f = 0.0 then
 		float_to_shortest_decimal_precise = "0"
 		exit function
 	end if
 	
-	dim temp_str as string = fstr(f)
+	dim temp_str as string(FLOAT_MAX_STRING_LENGTH) = fstr(f)
 	if instr(1, temp_str, "inf", 1) > 0 then
 		if f < 0 then
 			float_to_shortest_decimal_precise = "-Infinity"
@@ -606,7 +505,7 @@ function float_to_shortest_decimal_precise(f as real) as string
 	
 	' Implementation of shortest decimal representation algorithm
 	' This finds the shortest decimal that rounds to the same IEEE 754 value
-	dim result as string = find_shortest_decimal(f)
+	dim result as string(FLOAT_MAX_STRING_LENGTH) = find_shortest_decimal(f)
 	
 	if is_negative then
 		float_to_shortest_decimal_precise = "-" + result
@@ -616,7 +515,7 @@ function float_to_shortest_decimal_precise(f as real) as string
 end function
 
 ' Core algorithm to find shortest decimal representation
-function find_shortest_decimal(f as real) as string
+function find_shortest_decimal(f as real) as string(FLOAT_MAX_STRING_LENGTH)
 	' Special case for small integers
 	dim int_f as long = f
 	if int_f = f and f < 1000000 then
@@ -628,13 +527,13 @@ function find_shortest_decimal(f as real) as string
 	' that when parsed rounds to the same binary value
 	
 	' Start with a reasonable precision and work our way down
-	dim best_candidate as string = ""
+	dim best_candidate as string(FLOAT_MAX_STRING_LENGTH) = ""
 	dim best_length as byte = 255
 	
 	' Try different decimal places from high to low precision
 	dim decimal_places as byte
 	for decimal_places = 9 to 1 step -1
-		dim candidate as string = ftostr(f, FTOSTR_MODE_PLAIN, decimal_places)
+		dim candidate as string(FLOAT_MAX_STRING_LENGTH) = ftostr(f, FTOSTR_MODE_PLAIN, decimal_places)
 		candidate = trim_trailing_zeros(candidate)
 		
 		' Check if this candidate, when parsed, gives the same binary value
@@ -677,13 +576,13 @@ function fallback_shortest_decimal(f as real) as string
 	' rounds to the same IEEE 754 binary value
 	
 	' Start with high precision and work down to find shortest accurate representation
-	dim shortest_str as string = ""
+	dim shortest_str as string(FLOAT_MAX_STRING_LENGTH) = ""
 	dim shortest_len as byte = 255
 	
 	' Try different approaches: both rounding up and down at each precision level
 	dim precision as byte
 	for precision = 1 to 15
-		dim base_str as string = ftostr(f, FTOSTR_MODE_PLAIN, precision)
+		dim base_str as string(FLOAT_MAX_STRING_LENGTH) = ftostr(f, FTOSTR_MODE_PLAIN, precision)
 		base_str = trim_trailing_zeros(base_str)
 		
 		' Test if this representation round-trips correctly
@@ -696,7 +595,7 @@ function fallback_shortest_decimal(f as real) as string
 		
 		' Also try truncated versions (rounding down)
 		if precision > 1 then
-			dim truncated_str as string = truncate_last_digit(base_str)
+			dim truncated_str as string(FLOAT_MAX_STRING_LENGTH) = truncate_last_digit(base_str)
 			if len(truncated_str) > 0 then
 				if test_round_trip_accuracy(f, truncated_str) then
 					if len(truncated_str) < shortest_len then
@@ -708,7 +607,7 @@ function fallback_shortest_decimal(f as real) as string
 		end if
 		
 		' Try rounding up the last digit
-		dim rounded_up_str as string = round_up_last_digit(base_str)
+		dim rounded_up_str as string(FLOAT_MAX_STRING_LENGTH) = round_up_last_digit(base_str)
 		if rounded_up_str <> base_str then
 			if test_round_trip_accuracy(f, rounded_up_str) then
 				if len(rounded_up_str) < shortest_len then
@@ -728,13 +627,13 @@ function fallback_shortest_decimal(f as real) as string
 end function
 
 ' Test if a decimal string round-trips to the same IEEE 754 value
-function test_round_trip_accuracy(original as real, decimal_str as string) as boolean
+function test_round_trip_accuracy(original as real, decimal_str as string(FLOAT_MAX_STRING_LENGTH)) as boolean
 	dim parsed_back as real = string_to_float(decimal_str)
 	test_round_trip_accuracy = are_same_ieee754_value(original, parsed_back)
 end function
 
 ' Truncate the last digit of a decimal string
-function truncate_last_digit(s as string) as string
+function truncate_last_digit(s as string(FLOAT_MAX_STRING_LENGTH)) as string(FLOAT_MAX_STRING_LENGTH)
 	if len(s) <= 1 then
 		truncate_last_digit = ""
 		exit function
@@ -759,7 +658,7 @@ function truncate_last_digit(s as string) as string
 end function
 
 ' Round up the last digit of a decimal string
-function round_up_last_digit(s as string) as string
+function round_up_last_digit(s as string(FLOAT_MAX_STRING_LENGTH)) as string(FLOAT_MAX_STRING_LENGTH)
 	if len(s) = 0 then
 		round_up_last_digit = s
 		exit function
@@ -767,12 +666,12 @@ function round_up_last_digit(s as string) as string
 	
 	dim dot_pos as byte = instr(1, s, ".", 1)
 	dim last_digit_pos as byte = len(s)
-	dim last_char as string = right(s, 1)
+	dim last_char as string(1) = right(s, 1)
 	
 	' Check if last character is a digit
 	if asc(last_char) >= asc("0") and asc(last_char) <= asc("8") then
 		' Can round up
-		dim new_digit as string = chr(asc(last_char) + 1)
+		dim new_digit as string(1) = chr(asc(last_char) + 1)
 		round_up_last_digit = left(s, len(s) - 1) + new_digit
 	else if last_char = "9" then
 		' Need to carry over - this is complex, so we'll use a simple approach
