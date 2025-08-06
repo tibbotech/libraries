@@ -1416,6 +1416,9 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			dim tmp_f as float=0
 			strtobin(tmp_f,stg_str,4)
 			stg_value=fstr(tmp_f)
+			if stg_sdr(num).stype=EN_STG_TYPE_FLOAT then
+				stg_value=float_to_shortest_decimal_precise(tmp_f)
+			end if
 			i=tmp_f
 			goto lb1
 		
