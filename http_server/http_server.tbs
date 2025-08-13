@@ -293,25 +293,16 @@ sub http_server_proc_sock_data()
                     ci=ti
                 end if
             case HTTP_SERVER_STATE_RQ_HEADER
-				dim ti_colon as byte=instr(ci,data,":",1)
-				dim ti_cr as byte=instr(ci,data,"\r",1)
-				dim ti_lf as byte=instr(ci,data,"\n",1)
-				dim ti_eol as byte=0
-				if ti_cr<>0 then
-					ti_eol=ti_cr
-				end if
-				if ti_lf<>0 then
-					if ti_eol=0 OR ti_lf<ti_eol then
-						ti_eol=ti_lf
-					end if
-				end if
-				if ti_colon<>0 AND http_servers(index).request_header_end="" then
-					if ti_eol=0 OR ti_colon<ti_eol then
-						http_servers(index).request_header_name=http_servers(index).request_header_name+mid(data,ci,ti_colon-ci)
-						ci=ti_colon+1
-						http_servers(index).request_header_end=":"
-					end if
-				end if
+                if http_servers(index).request_header_end="" AND http_servers(index).request_header_name="" then
+                    ti=instr(ci,data,":",1)
+                    if ti<>0 then
+                        if instr(ci,data,"\r",1)=0 OR ti < instr(ci,data,"\r",1) then
+                            http_servers(index).request_header_name=http_servers(index).request_header_name+mid(data,ci,ti-ci)
+                            ci=ti+1
+                            http_servers(index).request_header_end=":"
+                        end if
+                    end if
+                end if
                 if http_servers(index).request_header_end="" OR http_servers(index).request_header_end = ":" then
                     ti=instr(ci,data,"\r",1)
                     if ti<>0 then
