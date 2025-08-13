@@ -13,3 +13,4 @@ declare function tbl_web_add_row(byref table as string,byref row as string) as s
 declare function tbl_web_clear_table(byref table as string) as string
 declare function tbl_web_get_header(byref table as string) as string 
 declare function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
+declare function tbl_web_get_fld_data_json(index as word, num_of_fld as byte) as string

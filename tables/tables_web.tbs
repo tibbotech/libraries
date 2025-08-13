@@ -130,10 +130,37 @@ function tbl_web_get_header(byref table as string) as string
     tbl_web_get_header=tbl_web_get_header
 end function
 
+function tbl_web_get_fld_data_json(index as word, num_of_fld as byte) as string
+	'same as tbl_web_get_fld_data but as json
+	dim j, k, x as byte
+	dim fld_data as string
+	dim tmp_data as string=""
+	if num_of_fld=0 then
+		tbl_web_get_fld_data_json=""
+		exit function
+	end if
+	tbl_record_sg(index,EN_TBL_GET)
+	tmp_data="{\x22index\x22:"+str(index)+","
+	for j = 0 to num_of_fld - 1
+		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
+		tmp_data=tmp_data+"\x22"+tbl_web_fields(j)+"\x22:"
+		tmp_data=tmp_data+"\x22"+escape_string(fld_data)+"\x22"
+		tmp_data=tmp_data+"}"
+		if j<num_of_fld - 1 then
+			tmp_data=tmp_data+","
+		end if
+	next j
+	tbl_web_get_fld_data_json=tmp_data
+end function
+
 function tbl_web_get_fld_data(index as word, num_of_fld as byte) as string
 	dim j, k, x as byte
 	dim fld_data as string
 	dim tmp_data as string=""
+	if num_of_fld=0 then
+		tbl_web_get_fld_data=""
+		exit function
+	end if
 	tbl_record_sg(index,EN_TBL_GET)
 	tmp_data="\x22"+str(index)+"\x22,"
 	for j = 0 to num_of_fld - 1
