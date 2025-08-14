@@ -293,7 +293,7 @@ sub http_server_proc_sock_data()
                     ci=ti
                 end if
             case HTTP_SERVER_STATE_RQ_HEADER
-                if http_servers(index).request_header_end="" AND http_servers(index).request_header_name="" then
+                if http_servers(index).request_header_end="" then
                     ti=instr(ci,data,":",1)
                     if ti<>0 then
                         if instr(ci,data,"\r",1)=0 OR ti < instr(ci,data,"\r",1) then
