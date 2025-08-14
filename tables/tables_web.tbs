@@ -145,11 +145,11 @@ function tbl_web_get_fld_data_json(index as word, num_of_fld as byte) as string
 		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
 		tmp_data=tmp_data+"\x22"+tbl_web_fields(j)+"\x22:"
 		tmp_data=tmp_data+"\x22"+escape_string(fld_data)+"\x22"
-		tmp_data=tmp_data+"}"
 		if j<num_of_fld - 1 then
 			tmp_data=tmp_data+","
 		end if
 	next j
+	tmp_data=tmp_data+"}"
 	tbl_web_get_fld_data_json=tmp_data
 end function
 
