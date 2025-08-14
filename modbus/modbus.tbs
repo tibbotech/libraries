@@ -587,7 +587,9 @@ sub modbus_master_receive(recv_data as string, protocol as modbusProtocol)
 	#endif
 
 	callback_modbus_slave_reply(request_item, str_modbus)
-	' modbus_master_send_next()
+	if request_item.timestamp + MODBUS_FRAME_DELAY_MS > sys.timercountms then
+		modbus_master_send_next()
+	end if
 end sub
 
 sub modbus_queue_clear()
