@@ -144,7 +144,13 @@ function tbl_web_get_fld_data_json(index as word, num_of_fld as byte) as string
 	for j = 0 to num_of_fld - 1
 		tbl_field_sg(tbl_web_fields(j),fld_data,EN_TBL_GET)
 		tmp_data=tmp_data+"\x22"+tbl_web_fields(j)+"\x22:"
-		tmp_data=tmp_data+"\x22"+escape_string(fld_data)+"\x22"
+		'determine if fld_data is a number
+		dim fld_info as tbl_field_type
+		tbl_get_field_info(tbl_get_table_name(), j, fld_info)
+		if fld_info.field_type=EN_TBL_FIELD_STRING then
+			fld_data="\x22"+escape_string(fld_data)+"\x22"
+		end if
+		tmp_data=tmp_data+fld_data
 		if j<num_of_fld - 1 then
 			tmp_data=tmp_data+","
 		end if
