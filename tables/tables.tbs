@@ -2859,8 +2859,8 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 	dim tbl_result as en_tbl_status_codes
 	dim field_data as tbl_field_type
 	dim table_data as tbl_type
-	dim line_end, field_start_pos as word
-	dim field_num, i, pointer_file as byte
+	dim line_end, field_start_pos, pointer_file as word
+	dim field_num, i as byte
 	dim s, table_name, hash as string
 	dim schema_string as string=""
 	dim w as word
