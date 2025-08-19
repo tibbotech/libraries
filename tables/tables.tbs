@@ -1123,7 +1123,9 @@ finish:
 	if fd.transactionstarted=YES then fd.transactioncommit
 	if fd.ready=NO then tbl_close=EN_TBL_STATUS_FAILURE
 	f=filenum_open("TBL", file_name, tbl_close)
-	filenum_release(f)
+	if f<>255 then
+		filenum_release(f)
+	end if
 	if tbl_close<>EN_TBL_STATUS_OK then 
 		callback_tbl_error(tbl_close)
 		#if TBL_DEBUG_PRINT
@@ -2879,7 +2881,7 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 		table_name = tbl_get_descriptor_field(line_end, field_start_pos)
 		pointer_file = romfile.find(romfile.pointer,"==", 1)
 
-		tbl_result=tbl_select(table_name, file_name)
+		tbl_result=tbl_select(table_name, table_name)
 		if tbl_result<>EN_TBL_STATUS_OK then goto finish
 		field_num=tbl_get_num_fields(table_name)
 		tbl_get_table_info(table_name,table_data)
@@ -2892,6 +2894,7 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 		hash=md5(schema_string, hash, MD5_UPDATE, 0)
 		tables_array(table_index) = table_name
 		table_index = table_index + 1
+		tbl_close(table_name)
 
 		
 	wend
@@ -2914,7 +2917,6 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 	else
 		if hash<>s then tbl_result=EN_TBL_STATUS_FAILURE
 	end if
-	tbl_close(file_name)
 finish:
 	tbl_schema_check=tbl_result
 	if fd.ready=NO then tbl_schema_check=EN_TBL_STATUS_FAILURE

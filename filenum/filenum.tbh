@@ -16,7 +16,7 @@
 #endif
 
 #ifndef FILENUM_MAX_FILES
-	#define FILENUM_MAX_FILES 10
+	#define FILENUM_MAX_FILES 32
 #endif
 
 '------------------------------------------------------------------------------
