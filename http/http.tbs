@@ -6,6 +6,9 @@ dim http_request_item as http_request_type
 dim http_timer_count as dword = 0
 dim http_chunk_length as dword = 0
 dim http_last_domain as string = ""
+dim http_header_end as string(4) = ""
+dim http_header_name as string(50) = ""
+dim http_header_value as string(50) = ""
 
 declare function http_time_elapsed(end_time as dword) as boolean
 
@@ -192,9 +195,9 @@ sub http_get_headers()
 	while http_request_item.state<>HTTP_HEADERS_PROCESSED 
 		if http_request_item.tls then
 #if TLS_AVAILABLE
-				if sock.tlsrxlen = 0 then
-					exit sub
-				end if
+			if sock.tlsrxlen = 0 then
+				exit sub
+			end if
 #endif
 		else 
 			if sock.rxlen = 0 then
@@ -202,7 +205,21 @@ sub http_get_headers()
 			end if			
 		end if
 		next_byte=http_get_data(1)
-		if next_byte="\x0a" then
+		select case http_request_item.state
+		case HTTP_RESPONSE_HEADER_NAME:
+			if next_byte<>":" then
+				http_header_name=http_header_name+next_byte
+			end if
+		case HTTP_RESPONSE_HEADER_VALUE:
+			if next_byte<>"\r" and next_byte<>"\n" then
+				http_header_value=http_header_value+next_byte
+			end if
+		case else:
+			http_reply=http_reply+next_byte
+		end select
+		if next_byte="\r" then
+			http_header_end=http_header_end+next_byte
+		else if next_byte="\n" then
 			if http_request_item.state=REQUEST_SENT then
 				http_reply=left(http_reply,len(http_reply)-1)
 				dim b1 as byte=instr(1,http_reply," ",1)
@@ -210,38 +227,44 @@ sub http_get_headers()
 				http_reply=mid(http_reply,b1+1,b2-b1-1)
 				callback_http_response_code_arrival(http_reply)
 				http_debugprint("Response code:" + http_reply)
-				http_request_item.state=HTTP_RESPONSE_PROCESSED
+				http_request_item.state=HTTP_RESPONSE_HEADER_NAME
 				http_reply=""
-			else if http_request_item.state=HTTP_RESPONSE_PROCESSED then
-				dim header_type, header_value as string
-				dim b as byte= instr(1,http_reply,": ",1)
-				if b=0 then
+			else
+				http_header_end=http_header_end+next_byte
+				if http_header_name<>"" then
+					callback_http_header_arrival(http_header_name,http_header_value)
+					http_debugprint("Header> " + http_header_name + "\t\tValue: " + http_header_value)
+					http_parse_headers(http_header_name)
+					http_parse_headers(http_header_value)
+					if http_header_name="content-length" then
+						http_request_item.remaining_response_content_length=lval(http_header_value)
+						http_chunk_length = http_request_item.remaining_response_content_length
+					end if
+					if http_header_name="transfer-encoding" then
+						if http_header_value="chunked" then
+							http_request_item.chunked=true
+						end if
+					end if
+				end if
+				http_header_name=""
+				http_header_value=""
+				'determine if header is complete
+				if http_header_end="\r\n\r\n" then
 					callback_http_headers_complete()
 					http_debugprint("Headers Complete")
 					http_request_item.state=HTTP_HEADERS_PROCESSED
 					exit while
 				end if
-				header_type=left(http_reply,b-1)
-				header_value=right(http_reply,len(http_reply)-b-1)
-				header_value=left(header_value,len(header_value)-1)
-				callback_http_header_arrival(header_type,header_value)
-				http_debugprint("Header> " + header_type + "\t\tValue: " + header_value)
-				http_parse_headers(header_type)
-				http_parse_headers(header_value)
-				if header_type="content-length" then
-					http_request_item.remaining_response_content_length=lval(header_value)
-					http_chunk_length = http_request_item.remaining_response_content_length
-				end if
-				if header_type="transfer-encoding" then
-					if header_value="chunked" then
-						http_request_item.chunked=true
-					end if
-				end if
-				http_reply=""
+
+				http_request_item.state=HTTP_RESPONSE_HEADER_NAME
 			end if
-		else
-			http_reply=http_reply+next_byte
+		else if next_byte=":" then
+			if http_request_item.state=HTTP_RESPONSE_HEADER_NAME then
+				http_header_end=""
+				http_request_item.state=HTTP_RESPONSE_HEADER_VALUE
+			end if
 		end if
+		
 	wend	
 	
 	if http_request_item.chunked=true then
@@ -303,7 +326,7 @@ sub http_proc_data()
 	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	select case http_request_item.state
 	
-	case REQUEST_SENT:
+	case REQUEST_SENT,HTTP_RESPONSE_PROCESSED,HTTP_RESPONSE_HEADER_NAME,HTTP_RESPONSE_HEADER_VALUE:
 		http_get_headers()
 	case HTTP_HEADERS_PROCESSED:
 		http_get_content()
@@ -531,6 +554,9 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 	http_request_merged=http_request_item.socket
 	http_request_item.interface=interface	
 	http_request_item.chunked=false
+	http_header_end=""
+	http_header_name=""
+	http_header_value=""
 	if http_request_item.state=FREE then
 		http_set_port()
 #if TLS_AVAILABLE <> 1
