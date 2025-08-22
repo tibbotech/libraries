@@ -192,7 +192,7 @@ sub http_get_headers()
 
 	sock.num=http_request_item.socket
 	dim http_reply, next_byte as string
-	while http_request_item.state<>HTTP_HEADERS_PROCESSED 
+	while http_request_item.state<HTTP_HEADERS_PROCESSED 
 		if http_request_item.tls then
 #if TLS_AVAILABLE
 			if sock.tlsrxlen = 0 then
@@ -207,7 +207,7 @@ sub http_get_headers()
 		next_byte=http_get_data(1)
 		select case http_request_item.state
 		case HTTP_RESPONSE_HEADER_NAME:
-			if next_byte<>":" then
+			if next_byte<>":" AND next_byte<>"\r" and next_byte<>"\n" then
 				http_header_name=http_header_name+next_byte
 			end if
 		case HTTP_RESPONSE_HEADER_VALUE:
@@ -220,6 +220,7 @@ sub http_get_headers()
 		if next_byte="\r" then
 			http_header_end=http_header_end+next_byte
 		else if next_byte="\n" then
+			http_header_end=http_header_end+next_byte
 			if http_request_item.state=REQUEST_SENT then
 				http_reply=left(http_reply,len(http_reply)-1)
 				dim b1 as byte=instr(1,http_reply," ",1)
@@ -230,7 +231,6 @@ sub http_get_headers()
 				http_request_item.state=HTTP_RESPONSE_HEADER_NAME
 				http_reply=""
 			else
-				http_header_end=http_header_end+next_byte
 				if http_header_name<>"" then
 					callback_http_header_arrival(http_header_name,http_header_value)
 					http_debugprint("Header> " + http_header_name + "\t\tValue: " + http_header_value)
