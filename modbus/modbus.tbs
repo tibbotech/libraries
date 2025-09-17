@@ -605,6 +605,29 @@ sub modbus_queue_add(request_item as modbus_request_item)
 			exit sub
 		end if
 	end if
+	' DEDUPE: avoid enqueueing duplicate READ requests (pending or inflight)
+	if request_item.request_function=ReadCoilStatus OR request_item.request_function=ReadInputStatus OR request_item.request_function=ReadHoldingRegisters OR request_item.request_function=ReadInputRegisters then
+		if modbus_queue_count>0 AND modbus_queue_start<>-1 then
+			dim i as byte
+			dim modbus_queue_idx as byte = modbus_queue_start
+			for i=0 to modbus_queue_count-1
+				dim queued_request as modbus_request_item = modbus_request_queue(modbus_queue_idx)
+				
+				if queued_request.device_id = request_item.device_id
+				AND queued_request.request_function = request_item.request_function
+				AND queued_request.start_register = request_item.start_register
+				AND queued_request.count = request_item.count
+				AND queued_request.interface_number = request_item.interface_number
+				AND queued_request.protocol = request_item.protocol then
+					exit sub
+				end if
+				modbus_queue_idx = modbus_queue_idx + 1
+				if modbus_queue_idx = MODBUS_MAX_REQUESTS then
+					modbus_queue_idx = 0
+				end if
+			next i
+		end if
+	end if
 	' cut in line if request is write
 	' loop through current queue and find first read request of same device
 	' replace with write request
@@ -614,21 +637,30 @@ sub modbus_queue_add(request_item as modbus_request_item)
 		dim i as byte
 		dim modbus_queue_start_tmp as byte = modbus_queue_start
 		for i=0 to modbus_queue_count-1
-			' if modbus_request_queue(modbus_queue_start_tmp).device_id = request_item.device_id 
-			' AND modbus_request_queue(modbus_queue_start_tmp).start_register = request_item.start_register
-			' AND modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
-			' 	modbus_request_queue(modbus_queue_start_tmp) = request_item
-			' 	'cutting in line
-			' 	exit sub
-			' end if
-			if modbus_request_queue(modbus_queue_start_tmp).request_function=ReadCoilStatus
-			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadInputStatus
-			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadHoldingRegisters
-			OR modbus_request_queue(modbus_queue_start_tmp).request_function=ReadInputRegisters then
-				if modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
-					'cutting in line
-					modbus_request_queue(modbus_queue_start_tmp) = request_item
-					exit sub
+			' Only replace a matching pending READ (same device and start)
+			if modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
+				if modbus_request_queue(modbus_queue_start_tmp).device_id = request_item.device_id then
+					if modbus_request_queue(modbus_queue_start_tmp).start_register = request_item.start_register then
+						' Map write to corresponding read function to ensure type-appropriate replacement
+						dim is_matching_read as boolean = false
+						select case request_item.request_function
+							case WriteSingleCoil, WriteMultipleCoils
+								if modbus_request_queue(modbus_queue_start_tmp).request_function=ReadCoilStatus then
+									is_matching_read = true
+								end if
+							case PresetSingleRegister, PresetMultipleRegisters
+								if modbus_request_queue(modbus_queue_start_tmp).request_function=ReadHoldingRegisters then
+									is_matching_read = true
+								end if
+							case else
+								is_matching_read = false
+						end select
+						if is_matching_read then
+							'cutting in line
+							modbus_request_queue(modbus_queue_start_tmp) = request_item
+							exit sub
+						end if
+					end if
 				end if
 			end if
 			modbus_queue_start_tmp = modbus_queue_start_tmp + 1
@@ -641,16 +673,40 @@ sub modbus_queue_add(request_item as modbus_request_item)
 		dim i as byte
 		dim modbus_queue_start_tmp as byte = modbus_queue_start
 		for i=0 to modbus_queue_count-1
-			if modbus_request_queue(modbus_queue_start_tmp).timestamp=0 then
-				'cutting in line
-				modbus_request_queue(modbus_queue_start_tmp) = request_item
-				exit sub
+			' Look for sent requests that have timed out (timestamp > 0 and timed out)
+			if modbus_request_queue(modbus_queue_start_tmp).timestamp > 0 then
+				if modbus_time_elapsed(modbus_request_queue(modbus_queue_start_tmp).timestamp + MODBUS_TIMEOUT) then
+					'cutting in line - replace timed out request
+					modbus_request_queue(modbus_queue_start_tmp) = request_item
+					exit sub
+				end if
 			end if
 			modbus_queue_start_tmp = modbus_queue_start_tmp + 1
 			if modbus_queue_start_tmp = MODBUS_MAX_REQUESTS then
 				modbus_queue_start_tmp = 0
 			end if
 		next i
+		' If no timed out requests found, replace the LAST pending entry (timestamp=0) to avoid starving the head
+		dim last_index as byte = modbus_queue_end
+		if last_index = 0 then
+			last_index = MODBUS_MAX_REQUESTS - 1
+		else
+			last_index = last_index - 1
+		end if
+		for i=0 to modbus_queue_count-1
+			dim cur as byte = last_index
+			if cur > i then
+				cur = cur - i
+			else
+				cur = MODBUS_MAX_REQUESTS + cur - i
+			end if
+			if cur = MODBUS_MAX_REQUESTS then cur = 0
+			if modbus_request_queue(cur).timestamp = 0 then
+				modbus_request_queue(cur) = request_item
+				exit for
+			end if
+		next i
+		exit sub
 	end if
 	if modbus_queue_start=-1 then
 		modbus_queue_start = 0
