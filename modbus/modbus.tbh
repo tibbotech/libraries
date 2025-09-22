@@ -115,3 +115,4 @@ declare sub modbus_proc_ser_data_sent()
 declare sub modbus_send(interface_number as byte, protocol as modbusProtocol, transactionId as word, protocolId as word, modbusUnitId as byte, modbusFunction as modbusFunc, byref data as string)
 declare sub modbus_master_send_next()
 declare function modbus_parse_response(byref data as string, data_type as modbusDataType, endianness as modbusEndianness) as float
+declare function modbus_request_exists(request_function as byte, device_id as byte, start_register as word, count as word, interface_number as byte, protocol as modbusProtocol) as no_yes
