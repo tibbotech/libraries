@@ -323,7 +323,6 @@ function tbl_web_add_row(byref table as string,byref row as string) as string
 		next i
 		
 		tbl_web_tbl_status=tbl_record_add(stemp)
-        tbl_close(table)
 	end if
 	
 verify:
@@ -344,6 +343,7 @@ verify:
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
+	tbl_close(table)
 	tbl_web_add_row=error
 		
 end function
@@ -375,7 +375,6 @@ function tbl_web_delete_row(byref table as string,row as word) as string
 	tbl_web_tbl_status=tbl_get_table_info(table,html_tbl)
 	if tbl_web_tbl_status=EN_TBL_STATUS_OK then
 		tbl_record_delete(row)
-		tbl_close(table)
 	end if
 	
 
@@ -396,6 +395,7 @@ function tbl_web_delete_row(byref table as string,row as word) as string
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
+	tbl_close(table)
 	tbl_web_delete_row=error
 		
 end function
@@ -458,7 +458,6 @@ function tbl_web_edit_row(byref table as string,byref index as word,byref row as
 			pos1=pos2+1+enclosed_quote_offset
 		next i
 		tbl_web_tbl_status=tbl_record_edit(index)
-		tbl_close(table)
 	end if
     
 	
@@ -480,6 +479,7 @@ verify:
 	case else
 		error=str(tbl_web_tbl_status)
 	end select
+	tbl_close(table)
 	tbl_web_edit_row=error
 end function
 
