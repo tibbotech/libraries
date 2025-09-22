@@ -278,7 +278,7 @@ function string_to_float(byref s as string) as float
 	' Convert integer part
 	dim result as real = 0.0
 	if len(integer_part) > 0 and integer_part <> "0" then
-		dim int_value as long = val(integer_part)
+		dim int_value as long = lval(integer_part)
 		result = int_value
 	end if
 	
