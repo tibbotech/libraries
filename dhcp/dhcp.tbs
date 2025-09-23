@@ -3,14 +3,16 @@
 '			DHCP LIBRARY
 '			(Works with NET, WLN)
 '***********************************************************************************************************
-
+' DHCP protocol details:
+' https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol#DHCP_message_types
+'
 include "global.tbh"  
 
 '------------------------------------------------------------------------------
 const DHCP_STAMP1="DHCP("
 const DHCP_STAMP2=")> "
 const DHCP_CR_LF=chr(13)+chr(10)
-const DHCP_MIN_BUFFER_SPACE=700	'necessary!
+const DHCP_MIN_BUFFER_SPACE=300	'necessary!
 const DHCP_SOCK_BUFF_PAGES=3	'necessary!
 const DHCP_INIT_SIGNATURE=&h3D4E
 const DHCP_SOCK_GET_SIGNATURE="DHCP"
@@ -57,6 +59,7 @@ dim dhcp_obtained_ip(NUM_INTERFACES) as string(16)
 dim dhcp_obtained_gateway(NUM_INTERFACES) as string(16)
 dim dhcp_obtained_netmask(NUM_INTERFACES) as string(16)
 dim dhcp_obtained_lease_time(NUM_INTERFACES) as dword
+dim dhcp_obtained_rebinding_time(NUM_INTERFACES) as dword
 dim dhcp_timer(NUM_INTERFACES) as dword 
 dim dhcp_retry_ctr(NUM_INTERFACES) as byte
 dim dhcp_interface_token as pl_sock_interfaces
@@ -501,12 +504,15 @@ decode_packet:
 		goto dhcp_proc_data_error
 	end if	
 
-	dhcp_obtained_lease_time(dhcp_i)=4294967295 'first, assume max lease time
+	dhcp_obtained_lease_time(dhcp_i)=31536000 'CORRECTED by primtec to 1E13380 for Windows, for Linux its FFFFFFFF ''first, assume max lease time           
 	t1_found=NO
 
 	'Look through options and extract the ones we need. Only one option-
 	'message type is REALLY a mast
 	for f=5 to len(s)
+		dim option,temp as byte
+		option=asc(mid(s,f,1))
+		
 		select case asc(mid(s,f,1))
 		case 255: 'reached the end of all options
 			goto exit_options
@@ -558,14 +564,33 @@ decode_packet:
 			end if
 			f=f+5
 		
-		case 59: 'T1- renewal time
+		case 58: 'T1 renewal time 
 			t1_found=YES
 get_lease:	if asc(mid(s,f+1,1))<>4 then
 				goto dhcp_proc_data_error
 			end if
+			temp=asc(mid(s,f+2,1))
+			temp=asc(mid(s,f+3,1))
+			temp=asc(mid(s,f+4,1))
+			temp=asc(mid(s,f+5,1))
+			dhcp_obtained_lease_time(dhcp_i)= asc(mid(s,f+2,1))*16777216+asc(mid(s,f+3,1))*65536+asc(mid(s,f+4,1))*256+asc(mid(s,f+5,1))
+			f=f+5
+			
+		case 59: 'T2 - rebinding time  (CORRECTED by primtec)''T1- renewal time
+'			t1_found=YES
+'get_lease:	if asc(mid(s,f+1,1))<>4 then
+			if asc(mid(s,f+1,1))<>4 then
+				goto dhcp_proc_data_error
+			end if
+			temp=asc(mid(s,f+2,1))
+			temp=asc(mid(s,f+3,1))
+			temp=asc(mid(s,f+4,1))
+			temp=asc(mid(s,f+5,1))
 
 			'renewal time is a 4-byte value (in seconds)
-			dhcp_obtained_lease_time(dhcp_i)= asc(mid(s,f+2,1))*16777216+asc(mid(s,f+3,1))*65536+asc(mid(s,f+4,1))*256+asc(mid(s,f+5,1))
+			
+			dhcp_obtained_rebinding_time(dhcp_i)=asc(mid(s,f+2,1))*16777216+asc(mid(s,f+3,1))*65536+asc(mid(s,f+4,1))*256+asc(mid(s,f+5,1))
+			
 			f=f+5
 		
 		case 54: 'server identifier option
