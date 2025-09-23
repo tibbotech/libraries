@@ -576,7 +576,7 @@ function find_shortest_decimal(f as real) as string(FLOAT_MAX_STRING_LENGTH)
 	
 	' Try different decimal places from high to low precision
 	dim decimal_places as byte
-	for decimal_places = 9 to 1 step -1
+	for decimal_places = 15 to 1 step -1
 		dim candidate as string(FLOAT_MAX_STRING_LENGTH) = ftostr(f, FTOSTR_MODE_PLAIN, decimal_places)
 		candidate = trim_trailing_zeros(candidate)
 		
