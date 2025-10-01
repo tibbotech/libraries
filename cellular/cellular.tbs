@@ -20,7 +20,7 @@ dim cell_username as string(50) = ""
 dim cell_password as string(50) = ""
 dim cell_pin as string(10) = ""
 dim cell_ppp_current_id as byte = 0
-dim cell_ppp_enabled as boolean = true
+dim cell_ppp_enabled as boolean = false
 dim cell_pdp_context as byte = 1
 dim cell_ppp_authenticated as boolean = false
 
@@ -279,7 +279,7 @@ sub cell_init(byref apn as string, byref username as string, byref password as s
     ser.num = CELL_SER_PORT
     ser.enabled = NO
     ser.interchardelay = 10
-    ser.rxbuffrq(4)
+    ser.rxbuffrq(10)
     ser.txbuffrq(4)
     sys.buffalloc()
     ser.rxclear()
@@ -861,6 +861,7 @@ sub cell_proc_state()
             dim creg_reg_3 as boolean = instr(1, cell_current_response, "+CREG: 1,3", 1) > 0 'registration denied
             if creg_reg_1 or creg_reg_5 then
                 cell_next_state(CELL_STATE_GET_OPERATOR)
+                cell_command_queue_push(CELL_CMD_AT_CMGL_LISTSMS, "=\x22ALL\x22")
             else if creg_reg_0 OR creg_reg_3 then
                 cell_next_state(CELL_STATE_ERROR)
             else
@@ -885,20 +886,27 @@ sub cell_proc_state()
         if cell_command_queue_is_empty() then
             if cell_ppp_enabled = true then
                 cell_next_state(CELL_STATE_DATA_MODE_CHECK)
+            else
+                if instr(1, cell_current_response, "+CMTI", 1) = 1 then
+                    'list SMS messages
+                    cell_command_queue_push(CELL_CMD_AT_CMGL_LISTSMS, "=\x22ALL\x22")
+                    cell_timeout = sys.timercountms + 100
+                end if
             end if
         else
             ' go through command queue
             dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
             select case command.command_type
                 case CELL_CMD_AT_CMGS_SENDSMS:
-                    cell_next_state(CELL_STATE_SEND_SMS_START)
+                    cell_next_state(CELL_STATE_SMS_SET_CMGF)
+                case CELL_CMD_AT_CMGL_LISTSMS:
+                    cell_next_state(CELL_STATE_SMS_SET_CMGF)
                 case else:
                     'unknown command
                     command = cell_command_queue_pop()
                     cell_send_at_command(command.command_type+command.command_data)
                     ' cell_next_state(CELL_STATE_PPP_START)
             end select
-            
         end if
     case CELL_STATE_DATA_MODE_CHECK:
         if sys.timercountms > cell_timeout then
@@ -911,7 +919,7 @@ sub cell_proc_state()
                 cell_next_state(CELL_STATE_PPP_LCP)
             end if
         end if
-    case CELL_STATE_SEND_SMS_START:
+    case CELL_STATE_SMS_SET_CMGF:
         if sys.timercountms > cell_timeout then
             'set sms to text mode
             cell_send_at_command("CMGF=1")
@@ -919,27 +927,34 @@ sub cell_proc_state()
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SEND_SMS_CSMP)
+                cell_next_state(CELL_STATE_SMS_SET_CSMP)
             end if
         end if
-    case CELL_STATE_SEND_SMS_CSMP:
+    case CELL_STATE_SMS_SET_CSMP:
         if sys.timercountms > cell_timeout then
             cell_send_at_command("CSMP=17,167,2,0")
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SEND_SMS_CSCS)
+                cell_next_state(CELL_STATE_SMS_SET_CSCS)
             end if
         end if
-    case CELL_STATE_SEND_SMS_CSCS:
+    case CELL_STATE_SMS_SET_CSCS:
         if sys.timercountms > cell_timeout then
             cell_send_at_command("CSCS=\x22GSM\x22")
         else
             if cell_current_response <> "OK" then
                 cell_send_at_command(cell_current_command)
             else
-                cell_next_state(CELL_STATE_SEND_SMS_SEND)
+                dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
+                if command.command_type = CELL_CMD_AT_CMGS_SENDSMS then
+                    cell_next_state(CELL_STATE_SEND_SMS_SEND)
+                else if command.command_type = CELL_CMD_AT_CMGL_LISTSMS then
+                    cell_next_state(CELL_STATE_SMS_SET_CNMI)
+                else
+                    cell_next_state(CELL_STATE_COMMAND_MODE)
+                end if
             end if
         end if
     case CELL_STATE_SEND_SMS_SEND:
@@ -979,6 +994,113 @@ sub cell_proc_state()
         if sys.timercountms > cell_timeout OR instr(1, cell_current_response, "OK", 1) > 0 then
             cell_next_state(CELL_STATE_COMMAND_MODE)
         end if
+    case CELL_STATE_SMS_SET_CNMI:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CNMI=1,1,0,0,0")
+        else
+            if cell_current_response <> "OK" then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_SMS_SET_CPMS)
+            end if
+        end if
+    case CELL_STATE_SMS_SET_CPMS:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPMS=\x22SM\x22,\x22SM\x22,\x22SM\x22")
+        else
+            if instr(1, cell_current_response, "OK", 1) = 0 then
+                cell_send_at_command(cell_current_command)
+            else
+                cell_next_state(CELL_STATE_LIST_SMS)
+            end if
+        end if
+    case CELL_STATE_SMS_CPMS_LIST_STORAGE:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CPMS?")
+        else
+            if instr(1, cell_current_response, "OK", 1) = 0 then
+                'parse number of messages in storage
+                '+CPMS: "SM",22,30,"SM",22,30,"SM",22,30
+                dim start_index as byte = instr(1, cell_current_response, ",", 1)
+                dim end_index as byte = instr(start_index, cell_current_response, ",", 1)
+                dim number_of_messages as byte = mid(cell_current_response, start_index + 1, end_index - start_index - 1)
+                if number_of_messages > 0 then
+                    cell_next_state(CELL_STATE_READ_SMS_ITEM)
+                else
+                    cell_next_state(CELL_STATE_COMMAND_MODE)
+                end if
+            else
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        end if
+    case CELL_STATE_LIST_SMS:
+        
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command(CELL_CMD_AT_CMGL_LISTSMS + "=\x22ALL\x22")
+            cell_next_state(CELL_STATE_LIST_SMS_WAIT)
+        end if
+    case CELL_STATE_LIST_SMS_WAIT:
+        dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
+        'parse it
+        if command.command_type = CELL_CMD_AT_CMGL_LISTSMS then
+            'get memory index
+            dim sms_index as byte=0
+            if instr(1, cell_current_response, "+CMGL: ", 1) > 0 then
+                cell_command_queue_pop()
+                dim start_index as byte = instr(1, cell_current_response, "+CMGL: ", 1)
+                dim end_index as byte = instr(start_index, cell_current_response, ",", 1)
+                sms_index = mid(cell_current_response, start_index + 6, end_index - start_index - 6)
+                cell_command_queue_push(CELL_CMD_AT_CMGRD_READSMS_AND_DELETE, "=" + str(sms_index))
+            else if cell_current_response = "OK" then
+                cell_command_queue_pop()
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        else
+            if cell_current_response = "ERROR" then
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            else
+                cell_next_state(CELL_STATE_LIST_SMS_WAIT)
+            end if
+        end if
+        if instr(1, cell_current_response, "\r\n\r\nOK", 1) > 0 then
+            cell_next_state(CELL_STATE_READ_SMS_ITEM)
+        end if
+    case CELL_STATE_READ_SMS_ITEM:
+        if sys.timercountms > cell_timeout then
+            'read one message
+            dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
+            if command.command_type = CELL_CMD_AT_CMGRD_READSMS_AND_DELETE then
+                cell_command_queue_pop()
+                cell_send_at_command(command.command_type + command.command_data)
+                cell_next_state(CELL_STATE_READ_SMS)
+            else
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        end if
+    case CELL_STATE_READ_SMS:
+        if instr(1, cell_current_response, CELL_CMD_AT_CMGRD_READSMS_AND_DELETE, 1) > 0 then
+            if instr(1, cell_current_response, "\r\n\r\nOK", 1) > 0 then
+                'parse sms
+                'first line third item is phone number
+                dim start_index as byte=instr(1, cell_current_response, "\x22", 3)
+                dim end_index as byte=instr(1, cell_current_response, "\x22", 4)
+                dim phone_number as string = mid(cell_current_response, start_index+1, end_index - start_index - 1)
+                'second line is message
+                start_index = instr(end_index, cell_current_response, "\n", 1) + 1
+                end_index = instr(start_index, cell_current_response, "\r\n\r\nOK", 1)
+                dim message as string = mid(cell_current_response, start_index, end_index - start_index)
+                cell_log(LOG_INFO, "SMS: " + phone_number + " " + message)
+                callback_sms_received(phone_number, message)
+                dim command as cell_command_queue_struct
+                command = cell_command_queue_pop()
+                cell_command_queue_push(CELL_CMD_AT_CMGL_LISTSMS, "=\x22ALL\x22")
+                cell_next_state(CELL_STATE_LIST_SMS)
+            else
+                'error or not found
+                cell_next_state(CELL_STATE_COMMAND_MODE)
+            end if
+        end if
+        
     case CELL_STATE_PPP_START:
         if sys.timercountms > cell_timeout then
             cell_send_at_command_with_timeout("CGDATA=\x22PPP\x22," + str(cell_pdp_context), 5000)
@@ -1335,10 +1457,25 @@ sub cell_proc_data()
         end if
         'check for overflow
         if len(cell_buf) + len(ser_data) > 255 then
-            cell_buf = ""
-            cell_current_response = ""
-            cell_log(LOG_ERROR, "Cell module buffer overflow")
-            exit sub
+            dim end_index as byte = 254 - len(cell_buf)
+            'divide into parts separated by \r\n
+            cell_buf = cell_buf + mid(ser_data,1,end_index)
+            ser_data = mid(ser_data,end_index, 255)
+            dim start_index as byte = 1
+            end_index = instr(start_index, cell_buf, "\r\n", 1)
+            if end_index=0 then
+                cell_buf = ""
+                cell_current_response = ""
+                cell_log(LOG_ERROR, "Cell module buffer overflow")
+                exit sub
+            end if
+            while end_index > 0 
+                cell_current_response = mid(cell_buf,1,end_index)
+                cell_log(LOG_DEBUG, "recv: " + cell_current_response)
+                cell_proc_state()
+                cell_buf = mid(cell_buf, end_index+2, 255)
+                end_index = instr(start_index, cell_buf, "\r\n", 1)
+            wend
         end if
         cell_buf = cell_buf + ser_data
         cell_log(LOG_DEBUG, "recv: " + ser_data)

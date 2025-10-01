@@ -41,6 +41,8 @@
 
 
 #define CELL_CMD_AT_CMGS_SENDSMS "CMGS"
+#define CELL_CMD_AT_CMGL_LISTSMS "CMGL"
+#define CELL_CMD_AT_CMGRD_READSMS_AND_DELETE "CMGRD"
 
 enum en_cell_states
     CELL_STATE_IDLE,
@@ -85,15 +87,22 @@ enum en_cell_states
     CELL_STATE_DATA_MODE_CHECK,
 
 'command mode states
-    CELL_STATE_SEND_SMS_START,
-    CELL_STATE_SEND_SMS_CSMP,
-    CELL_STATE_SEND_SMS_CSCS,
+    CELL_STATE_SMS_SET_CMGF,
+    CELL_STATE_SMS_SET_CSMP,
+    CELL_STATE_SMS_SET_CSCS,
     CELL_STATE_SEND_SMS_SEND,
     CELL_STATE_SEND_SMS_SEND_BODY,
     CELL_STATE_SEND_SMS_TEXT_WAIT,
     CELL_STATE_COMMAND_MODE,
     CELL_STATE_COMMAND_MODE_WAIT,
-
+    CELL_STATE_SMS_SET_CNMI,
+    CELL_STATE_SMS_SET_CPMS,
+    CELL_STATE_SMS_CPMS_LIST_STORAGE,
+    CELL_STATE_LIST_SMS,
+    CELL_STATE_LIST_SMS_WAIT,
+    CELL_STATE_READ_SMS_ITEM,
+    CELL_STATE_READ_SMS,
+    
 'ppp mode states
     CELL_STATE_PPP_START,
     CELL_STATE_PPP_LCP,
@@ -203,6 +212,7 @@ const CELL__PPP_LCP_CONFREQ_DATA_STR = CELL__PPP_LCP_OPTION_MRU_STR + CELL__PPP_
 
 
 declare cell_state as en_cell_states
+declare cell_ppp_enabled as boolean
 
 declare sub cell_proc_timer()
 declare sub cell_init(byref apn as string, byref username as string, byref password as string, byref pin as string)
@@ -215,6 +225,7 @@ declare sub cell_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl
 declare sub callback_ppp_disconnected()
 declare sub callback_ppp_connected()
 declare sub callback_gps_data_updated()
+declare sub callback_sms_received(phone_number as string, message as string)
 
 declare function cell_get_ip_address() as string
 declare function cell_get_operator() as string
