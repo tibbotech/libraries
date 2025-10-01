@@ -861,7 +861,9 @@ sub cell_proc_state()
             dim creg_reg_3 as boolean = instr(1, cell_current_response, "+CREG: 1,3", 1) > 0 'registration denied
             if creg_reg_1 or creg_reg_5 then
                 cell_next_state(CELL_STATE_GET_OPERATOR)
-                cell_command_queue_push(CELL_CMD_AT_CMGL_LISTSMS, "=\x22ALL\x22")
+                if cell_ppp_enabled = false then
+                    cell_command_queue_push(CELL_CMD_AT_CMGL_LISTSMS, "=\x22ALL\x22")
+                end if
             else if creg_reg_0 OR creg_reg_3 then
                 cell_next_state(CELL_STATE_ERROR)
             else
