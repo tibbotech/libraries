@@ -2033,6 +2033,10 @@ sub cell_command_queue_push(command_type as string, command_data as string)
     
     cell_command_queue_tail = (cell_command_queue_tail + 1) mod CELL_COMMAND_QUEUE_SIZE
     cell_command_queue_count = cell_command_queue_count + 1
+
+    if cell_timeout = 0 then
+        cell_timeout = sys.timercountms + 10
+    end if
     
     cell_log(LOG_DEBUG, "Command queued: " + command_type + ", count: " + str(cell_command_queue_count))
 end sub
