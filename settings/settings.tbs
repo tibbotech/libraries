@@ -1396,6 +1396,7 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 		stg_str=mid(stg_str,index*stg_sdr(num).member_size+1,stg_sdr(num).member_size)	
 				
 		'make sure this member has a valid value
+		dim skip_bounds_check as byte=0
 		select case stg_sdr(num).stype
 		case EN_STG_TYPE_BYTE:	'byte- convert into value
 			i=asc(stg_str)
@@ -1426,17 +1427,20 @@ public function stg_sg_internal(byref stg_name_or_num as string,index as byte,by
 			dim tmp_t as dword=0
 			strtobin(tmp_t,stg_str,4)
 			stg_value=lstr(tmp_t)
+			skip_bounds_check=1
 			goto lb1
 					
 		case else:	'dot-decimal string- take length
 			stg_value=ddstr(mid(stg_str,2,asc(left(stg_str,1))))
 			i=asc(left(stg_str,1))
-lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
+	lb1:		if skip_bounds_check=0 then
+				if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 				stg_sg_internal=EN_STG_STATUS_INVALID	'invalid checksum
 				#if STG_DEBUG_PRINT
 					stg_debug_print_error(debug_str,stg_sg_internal)
 				#endif
 				exit function
+				end if
 			end if
 		end select		
 
@@ -1464,6 +1468,7 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 	#endif
 
 		'Branch according to the setting type and verify new value
+		dim skip_bounds_check as byte=0
 		select case stg_sdr(num).stype
 		case EN_STG_TYPE_BYTE:	'byte- convert into value
 			i=val(stg_value)
@@ -1488,20 +1493,39 @@ lb1:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 			goto lb2
 		
 		case EN_STG_TYPE_TIMESTAMP:   'DateTime
-			dim dt as dword=stg_value
+			dim dt as dword=0
+			dim b1 as byte
+			dim k as byte
+			for k=1 to len(stg_value)
+				b1=asc(mid(stg_value,k,1))
+				if b1>=48 and b1<=57 then
+					dt=dt*10+(b1-48)
+				else if b1=32 then
+					'ignore spaces
+				else
+					stg_sg_internal=EN_STG_STATUS_INVALID
+					#if STG_DEBUG_PRINT
+						stg_debug_print_error(debug_str,stg_sg_internal)
+					#endif
+					exit function
+				end if
+			next k
 			bintostr(new_member_str,dt,4)
+			skip_bounds_check=1
 			goto lb2
 
 		case EN_STG_TYPE_DOTDECIMAL:	'dot-decimal string- take length
 			new_member_str=ddval(stg_value)
 			new_member_str=chr(len(new_member_str))+new_member_str
 			i=len(new_member_str)-1
-lb2:		if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
+	lb2:		if skip_bounds_check=0 then
+				if i<stg_sdr(num).p1 or i>stg_sdr(num).p2 then
 				stg_sg_internal=EN_STG_STATUS_INVALID	'invalid checksum
 				#if STG_DEBUG_PRINT
 					stg_debug_print_error(debug_str,stg_sg_internal)
 				#endif
 				exit function
+				end if
 			end if
 		
 		end select
