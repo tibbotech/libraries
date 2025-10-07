@@ -557,7 +557,7 @@ public function tbl_start() as en_tbl_status_codes
 			end select
 			field_item.p2=p2
 
-			if field_item.p2<field_item.p1 and field_item.field_type<>EN_TBL_FIELD_TIMESTRING then
+			if field_item.p2<field_item.p1 and field_item.field_type<>EN_TBL_FIELD_TIMESTAMP then
 				#if TBL_DEBUG_PRINT
 					tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): P2 parameter (now "+lstr(field_item.p2)+") cannot be smaller than P1 parameter (now "+lstr(field_item.p1)+").")
 				#endif
