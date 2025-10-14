@@ -2863,6 +2863,8 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 	dim table_data as tbl_type
 	dim line_end, field_start_pos, pointer_file as word
 	dim field_num, i as byte
+	dim fnum as byte
+	dim fd_status as pl_fd_status_codes
 	dim s, table_name, hash as string
 	dim schema_string as string=""
 	dim w as word
@@ -2902,11 +2904,57 @@ public function tbl_schema_check(byref file_name as string) as en_tbl_status_cod
 	tbl_attributes_sg(file_name,"SCHM",s,EN_TBL_GET)
 	'if schem stamp is null, file hasn't been initialized with schem stamp
 	if s="" then
+		' ensure filesystem is mounted and the data file exists/opened before attribute operations
+		if fd.ready=NO then
+			fd.mount
+			if fd.laststatus<>PL_FD_STATUS_OK then
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+		end if
+		fnum=filenum_open("TBL",file_name,fd_status)
+		select case fd_status
+		case PL_FD_STATUS_OK, PL_FD_STATUS_ALREADY_OPENED
+			' ok
+		case PL_FD_STATUS_NOT_FOUND
+			' create file and initialize attributes layout
+			if fd.transactionstart()<>PL_FD_STATUS_OK then
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+			if fd.create(file_name)<>PL_FD_STATUS_OK then
+				fd.transactioncommit()
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+			if tbl_attributes_sg(file_name,"","",EN_TBL_SET)<>PL_FD_STATUS_OK then
+				fd.transactioncommit()
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+			if fd.transactioncommit()<>PL_FD_STATUS_OK then
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+			fnum=filenum_open("TBL",file_name,fd_status)
+			if fd_status<>PL_FD_STATUS_OK and fd_status<>PL_FD_STATUS_ALREADY_OPENED then
+				tbl_result=EN_TBL_STATUS_FAILURE
+				goto finish
+			end if
+		case else
+			tbl_result=EN_TBL_STATUS_FAILURE
+			goto finish
+		end select
+
 		if fd.transactionstart()<>PL_FD_STATUS_OK then
 			tbl_result=EN_TBL_STATUS_FAILURE
 			goto finish
 		end if
-		tbl_attributes_sg(file_name,"SCHM",hash,EN_TBL_SET)
+		if tbl_attributes_sg(file_name,"SCHM",hash,EN_TBL_SET)<>PL_FD_STATUS_OK then
+			fd.transactioncommit()
+			tbl_result=EN_TBL_STATUS_FAILURE
+			goto finish
+		end if
 		for i=0 to table_index - 1
 		tbl_attributes_sg(tables_array(i),"SCHM",hash,EN_TBL_SET)
 		next i
