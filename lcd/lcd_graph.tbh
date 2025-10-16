@@ -1,45 +1,39 @@
-
+#ifndef LCD_GRAPH_LABELS
+	#define LCD_GRAPH_LABELS 10
+#endif
 
 #ifndef LCD_GRAPH_MAX_POINTS
 	#define LCD_GRAPH_MAX_POINTS 30
 #endif
 
-#ifndef LCD_GRAPH_DOT_SIZE
-	#define LCD_GRAPH_DOT_SIZE 5
-#endif
+type lcd_graph_widget
+    x_pos as short
+    y_pos as short
+    width as word
+    height as word
+	min_val as real
+	max_val as real
+	max_points as byte
+	background_color as word
+	foreground_color as word
+	fill_color as word
+	current_index as byte
+	points as real(LCD_GRAPH_MAX_POINTS + 2)
+    visible as boolean
+    screen as byte
+end type
 
-#ifndef LCD_GRAPH_BACKCOLOR
-	#define LCD_GRAPH_BACKCOLOR &h0000
-#endif
+declare LCD_GRAPH_BACKCOLOR as word
+declare LCD_GRAPH_FORECOLOR as word
+declare LCD_GRAPH_FILL as word
+declare LCD_GRAPH_X as word
+declare LCD_GRAPH_Y as word
+declare LCD_GRAPH_WIDTH as word
+declare LCD_GRAPH_HEIGHT as word
 
-#ifndef LCD_GRAPH_FORECOLOR
-	#define LCD_GRAPH_FORECOLOR &hffff
-#endif
-
-#ifndef LCD_GRAPH_FILL
-	#define LCD_GRAPH_FILL &h0f00
-#endif
-
-#ifndef LCD_GRAPH_X
-	#define LCD_GRAPH_X 0
-#endif
-
-#ifndef LCD_GRAPH_Y
-	#define LCD_GRAPH_Y 0
-#endif
-
-#ifndef LCD_GRAPH_WIDTH
-	#define LCD_GRAPH_WIDTH lcd.width
-#endif
-
-#ifndef LCD_GRAPH_HEIGHT
-	#define LCD_GRAPH_HEIGHT lcd.height
-#endif
-
-#ifndef LCD_GRAPH_LABELS
-	#define LCD_GRAPH_LABELS 10
-#endif
 
 declare sub lcd_graph_start(min as real, max as real)
+declare sub lcd_graph_init(byref widget as lcd_graph_widget)
 declare sub lcd_graph_add_point(y as real)
+declare sub lcd_draw_graph(byref widget as lcd_graph_widget)
 declare sub lcd_graph_clear()

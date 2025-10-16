@@ -1,5 +1,14 @@
 include "global.tbh"
 
+dim LCD_GRAPH_BACKCOLOR as word = &h0000
+dim LCD_GRAPH_FORECOLOR as word = &hffff
+dim LCD_GRAPH_FILL as word = &h0f00
+dim LCD_GRAPH_X as word = 0
+dim LCD_GRAPH_Y as word = 0
+dim LCD_GRAPH_WIDTH as word = 313
+dim LCD_GRAPH_HEIGHT as word = 131
+
+dim lcd_graph_current_max_points as byte = 30
 dim lcd_graph_points as real(LCD_GRAPH_MAX_POINTS + 2)
 dim lcd_graph_index as byte = 0
 dim lcd_graph_step as real = 0
@@ -15,10 +24,12 @@ dim lcd_graph_ratio as real
 dim lcd_graph_range as word = 0
 dim lcd_graph_label_step as real = 0
 dim lcd_graph_font as dword
+dim lcd_graph_current_widget as lcd_graph_widget
+
 
 sub lcd_graph_start(min as real, max as real)
 	lcd_graph_index = 0
-    lcd_graph_step = (LCD_GRAPH_WIDTH) * 100 / LCD_GRAPH_MAX_POINTS
+    lcd_graph_step = (LCD_GRAPH_WIDTH) * 100 / lcd_graph_current_max_points
 	lcd_graph_min_y = min
 	lcd_graph_max_y = max
 	
@@ -34,7 +45,22 @@ sub lcd_graph_start(min as real, max as real)
 	lcd_graph_font = romfile.offset
 end sub
 
-sub lcd_draw_graph()
+sub lcd_graph_init(byref widget as lcd_graph_widget)
+	LCD_GRAPH_X = widget.x_pos
+	LCD_GRAPH_Y = widget.y_pos
+	LCD_GRAPH_WIDTH = widget.width
+	LCD_GRAPH_HEIGHT = widget.height
+	LCD_GRAPH_BACKCOLOR = widget.background_color
+	LCD_GRAPH_FORECOLOR = widget.foreground_color
+	LCD_GRAPH_FILL = widget.fill_color
+	lcd_graph_current_max_points = widget.max_points
+	lcd_graph_points = widget.points
+	lcd_graph_current_widget = widget
+	lcd_graph_start(widget.min_val, widget.max_val)
+	lcd_draw_graph(widget)
+end sub
+
+sub lcd_draw_graph(byref widget as lcd_graph_widget)
 	dim i,j as byte
 	lcd.forecolor=LCD_GRAPH_BACKCOLOR
     lcd.lock()
@@ -43,7 +69,7 @@ sub lcd_draw_graph()
 	
 	lcd.backcolor=LCD_GRAPH_BACKCOLOR
 	lcd.forecolor=LCD_GRAPH_FORECOLOR
-	dim max as integer = lcd_graph_index - 2
+	dim max as integer = widget.current_index - 1
 	if max < 0 then
 		max = 0
 	end if
@@ -56,13 +82,12 @@ sub lcd_draw_graph()
 	if max > 0 then
 		for i=0 to max
 			x1 = (i * lcd_graph_step) / 100 + LCD_GRAPH_X
-			y1 = lcd_graph_zero - lcd_graph_points(i) * lcd_graph_ratio + LCD_GRAPH_Y
+			y1 = lcd_graph_zero - widget.points(i) * lcd_graph_ratio
 			x2 = ((i + 1) * lcd_graph_step) / 100 + LCD_GRAPH_X
-			y2 = lcd_graph_zero - lcd_graph_points(i + 1)  * lcd_graph_ratio + LCD_GRAPH_Y
+			y2 = lcd_graph_zero - widget.points(i + 1)  * lcd_graph_ratio
 			if y1 <= lcd_graph_draw_min_y AND y2 <= lcd_graph_draw_min_y AND y1 >= lcd_graph_draw_max_y AND y2 >= lcd_graph_draw_max_y then
 				lcd.forecolor=LCD_GRAPH_FORECOLOR
 				lcd.line(x1, y1, x2, y2)
-				#ifdef LCD_GRAPH_FILL
 				lcd.forecolor = LCD_GRAPH_FILL
 				y11 = y1
 				y22 = y2
@@ -71,7 +96,6 @@ sub lcd_draw_graph()
 					dim yy as word = slope * j
 					lcd.line(x1 + j, zero, x1 + j, y1 + yy)
 				next j
-				#endif
 			end if
 		next i
 	end if
@@ -100,21 +124,21 @@ end sub
 
 sub lcd_graph_add_point(y as real)
 	dim i as byte
-	if lcd_graph_index <= LCD_GRAPH_MAX_POINTS then
-		lcd_graph_index = lcd_graph_index + 1
+	if lcd_graph_current_widget.current_index <= lcd_graph_current_widget.max_points then
+		lcd_graph_current_widget.current_index = lcd_graph_current_widget.current_index + 1
 	else
-		for i=1 to LCD_GRAPH_MAX_POINTS - 1
-			lcd_graph_points(i-1) = lcd_graph_points(i)
+		for i=1 to lcd_graph_current_widget.max_points + 1
+			lcd_graph_current_widget.points(i-1) = lcd_graph_current_widget.points(i)
 		next i
 	end if
-	lcd_graph_points(lcd_graph_index) = y
+	lcd_graph_current_widget.points(lcd_graph_current_widget.current_index) = y
 	
-	lcd_draw_graph()
+	lcd_draw_graph(lcd_graph_current_widget)
 	
 end sub
 
 sub lcd_graph_clear()
-	lcd_graph_index = 0
+	lcd_graph_current_widget.current_index = 0
 	lcd.forecolor=LCD_GRAPH_BACKCOLOR
     lcd.lock()
     lcd.fill(LCD_GRAPH_X,LCD_GRAPH_Y,LCD_GRAPH_WIDTH,LCD_GRAPH_HEIGHT)
