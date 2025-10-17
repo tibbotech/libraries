@@ -379,7 +379,18 @@ function json_get_value(byref key as string, byref data as string) as string
             if start_pos<>0 then
                 end_pos=instr(start_pos,data,",",1)
                 if end_pos=0 then
-                    end_pos=instr(start_pos,data,"}",1)
+					'get last occurrence of }
+					dim last_pos as byte=0
+					while last_pos<len(data)
+						last_pos=instr(last_pos+1,data,"}",1)
+						if last_pos=0 then
+							exit while
+						end if
+						last_pos=last_pos+1
+					wend
+					if last_pos<>0 then
+                    	end_pos=last_pos-1
+					end if
                 end if
                 
             end if
