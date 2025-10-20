@@ -461,7 +461,7 @@ function json_get_value(byref key as string, byref data as string) as string
 				else if state = JSON_STATE_READING_STRING_VALUE then
 					' Finished reading string value
 					if key_found = 1 then
-						json_get_value = mid(data, value_start, i - value_start + 1)
+						json_get_value = mid(data, value_start, i - value_start)
 						exit function
 					end if
 					state = JSON_STATE_LOOKING_FOR_KEY
@@ -476,7 +476,7 @@ function json_get_value(byref key as string, byref data as string) as string
 					state = JSON_STATE_READING_KEY
 				else if state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE and key_found = 1 then
 					' Starting to read string value
-					value_start = i
+					value_start = i + 1
 					state = JSON_STATE_READING_STRING_VALUE
 				end if
 			end if
