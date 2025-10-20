@@ -361,68 +361,261 @@ function hex_mac(byref mac as string) as string
 end function
 
 
+' JSON Parser State Constants
+const JSON_STATE_LOOKING_FOR_KEY = 0
+const JSON_STATE_READING_KEY = 1
+const JSON_STATE_AFTER_KEY_EXPECTING_COLON = 2
+const JSON_STATE_AFTER_COLON_EXPECTING_VALUE = 3
+const JSON_STATE_READING_STRING_VALUE = 4
+const JSON_STATE_READING_COMPLEX_VALUE = 5
+const JSON_STATE_READING_PRIMITIVE_VALUE = 6
+
+
+' Complete JSON parser that fully parses JSON and extracts value by key
+' This implements the state machine algorithm
 function json_get_value(byref key as string, byref data as string) as string
-    json_get_value=""
-    dim start_pos as byte=0
-    dim end_pos as byte=0
-    dim current_key as string=""
-    start_pos=instr(1,data,"{",1)
-    while start_pos<>0
-        'get current key
-        start_pos=instr(start_pos,data,"\x22",1)
-        if start_pos<>0 then
-            end_pos=instr(start_pos+1,data,"\x22",1)
-            current_key=mid(data,start_pos+1,end_pos-start_pos-1)
-
-            'get value
-            start_pos=instr(end_pos,data,":",1)
-            if start_pos<>0 then
-                end_pos=instr(start_pos,data,",",1)
-                if end_pos=0 then
-					'get last occurrence of }
-					dim last_pos as byte=0
-					while last_pos<len(data)
-						last_pos=instr(last_pos+1,data,"}",1)
-						if last_pos=0 then
-							exit while
-						end if
-						last_pos=last_pos+1
-					wend
-					if last_pos<>0 then
-                    	end_pos=last_pos-1
+	
+	dim i as word
+	dim ch as string(1)
+	dim state as byte = JSON_STATE_LOOKING_FOR_KEY
+	dim depth as byte = 0
+	dim current_key as string(32) = ""
+	dim in_string as byte = 0
+	dim escape_next as byte = 0
+	dim key_found as byte = 0
+	dim value_start as word = 0
+	dim brace_count as byte = 0
+	dim bracket_count as byte = 0
+	
+	json_get_value = ""
+	
+	' Parse JSON to find the key and extract its value
+	' State machine using constants for clarity
+	
+	for i = 1 to len(data)
+		ch = mid(data, i, 1)
+		
+		' If we're capturing a complex value, track braces/brackets (but watch for strings!)
+		if state = JSON_STATE_READING_COMPLEX_VALUE then
+			' Handle escape sequences in strings
+			if escape_next = 1 then
+				escape_next = 0
+				goto next_char
+			end if
+			
+			if in_string = 1 and ch = "\x5C" then
+				escape_next = 1
+				goto next_char
+			end if
+			
+			' Track string boundaries
+			if ch = "\x22" then
+				in_string = 1 - in_string  ' Toggle: 0->1, 1->0
+				goto next_char
+			end if
+			
+			' Only count braces/brackets outside of strings
+			if in_string = 0 then
+				if ch = "{" then
+					brace_count = brace_count + 1
+				else if ch = "}" then
+					brace_count = brace_count - 1
+					if brace_count = 0 and bracket_count = 0 then
+						json_get_value = mid(data, value_start, i - value_start + 1)
+						exit function
 					end if
-                end if
-                
-            end if
-            if current_key=key then
-                dim is_string as boolean=instr(start_pos,data,"\x22",1)=start_pos+1
-                if is_string then
-                    'is string so look for closing quote
-                    dim tmp_end as byte=start_pos+1
-                    while tmp_end<len(data)
-                        tmp_end=instr(tmp_end+1,data,"\x22",1)
-                        if tmp_end=0 then
-                            exit while
-                        end if
-                        if mid(data,tmp_end-1,1)<>"\x5c" then
-                            end_pos=tmp_end+1
-                            exit while
-                        end if
-                    wend
-                end if
-                json_get_value=mid(data,start_pos+1,end_pos-start_pos-1)
-                if is_string then
-					json_get_value=unescape_string(json_get_value)
-                end if
-                if instr(1,json_get_value,"\x22",1)=1 then
-                    json_get_value=mid(json_get_value,2,len(json_get_value)-2)
-                end if
-                exit function
-            end if
-            start_pos=end_pos+1
+				else if ch = "[" then
+					bracket_count = bracket_count + 1
+				else if ch = "]" then
+					bracket_count = bracket_count - 1
+					if brace_count = 0 and bracket_count = 0 then
+						json_get_value = mid(data, value_start, i - value_start + 1)
+						exit function
+					end if
+				end if
+			end if
+			goto next_char
+		end if
+		
+		' Handle escape sequences in strings
+		if escape_next = 1 then
+			escape_next = 0
+			goto next_char
+		end if
+		
+		if in_string = 1 and ch = "\x5C" then
+			escape_next = 1
+			goto next_char
+		end if
+		
+		' Process quotes
+		if ch = "\x22" then ' Quote
+			if in_string = 1 then
+				in_string = 0
+				if state = JSON_STATE_READING_KEY then
+					' Finished reading key
+					if current_key = key and depth = 1 then
+						key_found = 1
+					end if
+					state = JSON_STATE_AFTER_KEY_EXPECTING_COLON
+				else if state = JSON_STATE_READING_STRING_VALUE then
+					' Finished reading string value
+					if key_found = 1 then
+						json_get_value = mid(data, value_start, i - value_start + 1)
+						exit function
+					end if
+					state = JSON_STATE_LOOKING_FOR_KEY
+					current_key = ""
+					key_found = 0
+				end if
+			else
+				in_string = 1
+				if state = JSON_STATE_LOOKING_FOR_KEY and depth >= 1 then
+					' Starting to read a key
+					current_key = ""
+					state = JSON_STATE_READING_KEY
+				else if state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE and key_found = 1 then
+					' Starting to read string value
+					value_start = i
+					state = JSON_STATE_READING_STRING_VALUE
+				end if
+			end if
+			goto next_char
+		end if
+		
+		' Build current string (key or string value)
+		if in_string = 1 then
+			if state = JSON_STATE_READING_KEY then
+				current_key = current_key + ch
+			end if
+			goto next_char
+		end if
+		
+		' Process structural characters (not in string)
+		' Handle { for objects
+		if ch = "{" then
+			if state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE and key_found = 1 then
+				' Start capturing object value
+				value_start = i
+				brace_count = 1
+				bracket_count = 0
+				state = JSON_STATE_READING_COMPLEX_VALUE
+			else
+				depth = depth + 1
+			end if
+			goto next_char
+		end if
+		
+		' Handle [ for arrays
+		if ch = "[" then
+			if state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE and key_found = 1 then
+				' Start capturing array value
+				value_start = i
+				bracket_count = 1
+				brace_count = 0
+				state = JSON_STATE_READING_COMPLEX_VALUE
+			end if
+			goto next_char
+		end if
+		
+		select case ch
+		case "{", "[":
+			' Already handled above
+			goto next_char
+			
+		case "}":
+			if depth > 0 then depth = depth - 1
+			' Check if we're at end of primitive value
+			if state = JSON_STATE_READING_PRIMITIVE_VALUE and key_found = 1 then
+				json_get_value = mid(data, value_start, i - value_start)
+				json_get_value = json_trim(json_get_value)
+				exit function
+			end if
+			
+		case "]":
+			' Check if we're at end of primitive value
+			if state = JSON_STATE_READING_PRIMITIVE_VALUE and key_found = 1 then
+				json_get_value = mid(data, value_start, i - value_start)
+				json_get_value = json_trim(json_get_value)
+				exit function
+			end if
+			
+		case ":":
+			if state = JSON_STATE_AFTER_KEY_EXPECTING_COLON then
+				state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE
+			end if
+			
+		case ",":
+			if state = JSON_STATE_READING_PRIMITIVE_VALUE and key_found = 1 then
+				' End of primitive value
+				json_get_value = mid(data, value_start, i - value_start)
+				json_get_value = json_trim(json_get_value)
+				exit function
+			else if state = JSON_STATE_READING_STRING_VALUE then
+				' Just finished string value but didn't return - not our key
+				state = JSON_STATE_LOOKING_FOR_KEY
+				current_key = ""
+				key_found = 0
+			else if state <> JSON_STATE_READING_COMPLEX_VALUE then
+				' Reset for next key-value pair (but not if capturing complex value)
+				state = JSON_STATE_LOOKING_FOR_KEY
+				current_key = ""
+				key_found = 0
+			end if
+			
+		case " ", "\t", "\r", "\n":
+			' Ignore whitespace outside strings
+			
+		case else:
+			' Any other character
+			if state = JSON_STATE_AFTER_COLON_EXPECTING_VALUE and key_found = 1 then
+				' Start of primitive value (number, true, false, null)
+				value_start = i
+				state = JSON_STATE_READING_PRIMITIVE_VALUE
+			end if
+		end select
+		
+next_char:
+	next i
+	
+	' Handle end of data
+	if state = JSON_STATE_READING_PRIMITIVE_VALUE and key_found = 1 then
+		json_get_value = mid(data, value_start, len(data) - value_start + 1)
+		json_get_value = json_trim(json_get_value)
+		' Remove trailing }
+		while len(json_get_value) > 0 and right(json_get_value, 1) = "}"
+			json_get_value = left(json_get_value, len(json_get_value) - 1)
+		wend
+		json_get_value = json_trim(json_get_value)
+	end if
+	
+end function
 
-        end if
-    wend
+' Helper function to trim whitespace
+function json_trim(s as string) as string
+	dim result as string = s
+	dim ch as string(1)
+	' Trim leading whitespace
+	while len(result) > 0
+		ch = left(result, 1)
+		if ch = " " or ch = "\t" or ch = "\r" or ch = "\n" then
+			result = mid(result, 2, len(result) - 1)
+		else
+			exit while
+		end if
+	wend
+	
+	' Trim trailing whitespace
+	while len(result) > 0
+		ch = right(result, 1)
+		if ch = " " or ch = "\t" or ch = "\r" or ch = "\n" then
+			result = left(result, len(result) - 1)
+		else
+			exit while
+		end if
+	wend
+	
+	json_trim = result
 end function
 
 function escape_string(data as string) as string
