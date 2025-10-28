@@ -373,6 +373,8 @@ const JSON_STATE_READING_PRIMITIVE_VALUE = 6
 
 ' Complete JSON parser that fully parses JSON and extracts value by key
 ' This implements the state machine algorithm
+' Properly handles all JSON escape sequences including: \", \\, \/, \n, \r, \t, \b, \f
+' Automatically converts escape sequences to actual characters in string values
 function json_get_value(byref key as string, byref data as string) as string
 	
 	dim i as word
@@ -397,19 +399,21 @@ function json_get_value(byref key as string, byref data as string) as string
 		
 		' If we're capturing a complex value, track braces/brackets (but watch for strings!)
 		if state = JSON_STATE_READING_COMPLEX_VALUE then
-			' Handle escape sequences in strings
+			' Handle escape sequences in strings: \", \\, \/, \n, \r, \t, \b, \f
+			' If previous char was backslash, this char is escaped - skip it
 			if escape_next = 1 then
 				escape_next = 0
 				goto next_char
 			end if
 			
+			' If we see a backslash in a string, mark next char as escaped
 			if in_string = 1 and ch = "\x5C" then
 				escape_next = 1
 				goto next_char
 			end if
 			
-			' Track string boundaries
-			if ch = "\x22" then
+			' Track string boundaries (but not if escaped)
+			if ch = "\x22" and escape_next = 0 then
 				in_string = 1 - in_string  ' Toggle: 0->1, 1->0
 				goto next_char
 			end if
@@ -437,18 +441,22 @@ function json_get_value(byref key as string, byref data as string) as string
 			goto next_char
 		end if
 		
-		' Handle escape sequences in strings
-		if escape_next = 1 then
-			escape_next = 0
-			goto next_char
-		end if
-		
+		' Handle escape sequences in strings - MUST come before quote processing
+		' This handles all JSON escape sequences: \", \\, \/, \n, \r, \t, \b, \f
+		' When we see a backslash in a string, mark the next character as escaped
 		if in_string = 1 and ch = "\x5C" then
 			escape_next = 1
 			goto next_char
 		end if
 		
-		' Process quotes
+		' If the previous character was a backslash, this character is escaped
+		' Skip it (don't treat it as having special meaning like quote, brace, etc.)
+		if escape_next = 1 then
+			escape_next = 0
+			goto next_char
+		end if
+		
+		' Process quotes (only if not escaped)
 		if ch = "\x22" then ' Quote
 			if in_string = 1 then
 				in_string = 0
@@ -462,6 +470,8 @@ function json_get_value(byref key as string, byref data as string) as string
 					' Finished reading string value
 					if key_found = 1 then
 						json_get_value = mid(data, value_start, i - value_start)
+						' Convert escape sequences to actual characters
+						json_get_value = unescape_string(json_get_value)
 						exit function
 					end if
 					state = JSON_STATE_LOOKING_FOR_KEY
@@ -650,28 +660,33 @@ function unescape_string(data as string) as string
     dim unescaped_char as string(1)=""
     unescape_string=data
 
-	while k < len(unescape_string) - 1
+	' Loop through string, checking each position for backslash
+	' Need to check up to second-to-last position (to look ahead at k+1)
+	while k < len(unescape_string)
 		dim current_char as string(1)=mid(unescape_string,k,1)
 		'\
 		if current_char="\x5c" then
-			current_char=mid(unescape_string,k + 1,1)
-			select case current_char
-			case "r":
-				unescaped_char="\r"
-			case "n":
-				unescaped_char="\n"
-			case "t":
-				unescaped_char="\t"
-			case "\x5c":
-				unescaped_char="\x5c"
-			case "\x22":
-				unescaped_char="\x22"
-			case else:
-				unescaped_char=current_char
-			end select
-			dim tmp1 as string=mid(unescape_string,1,k-1)
-			dim tmp2 as string=mid(unescape_string,k + 2,255)
-			unescape_string=tmp1+unescaped_char+tmp2
+			' Only process if there's a character after the backslash
+			if k < len(unescape_string) then
+				current_char=mid(unescape_string,k + 1,1)
+				select case current_char
+				case "r":
+					unescaped_char="\r"
+				case "n":
+					unescaped_char="\n"
+				case "t":
+					unescaped_char="\t"
+				case "\x5c":
+					unescaped_char="\x5c"
+				case "\x22":
+					unescaped_char="\x22"
+				case else:
+					unescaped_char=current_char
+				end select
+				dim tmp1 as string=mid(unescape_string,1,k-1)
+				dim tmp2 as string=mid(unescape_string,k + 2,255)
+				unescape_string=tmp1+unescaped_char+tmp2
+			end if
 		end if
 		
 		k=k+1
