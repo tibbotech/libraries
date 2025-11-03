@@ -13,6 +13,8 @@ const MAX_IR_CMD_LEN=250
 const IR_PROTOCOL_NEC=1 
 const IR_PROTOCOL_JVC=2 
 const IR_PROTOCOL_HITACHI=3
+const IR_PROTOCOL_DAIKIN=4
+const IR_PROTOCOL_MITSUBISHI=5
 
 
 type ir_protocol_struct
@@ -28,7 +30,7 @@ type ir_protocol_struct
 	trailer_space as word
 end type
 
-dim ir_protocols(4) as ir_protocol_struct
+dim ir_protocols(6) as ir_protocol_struct
 
 dim bcount as dword=0
 
@@ -191,6 +193,26 @@ function tbt26_init(byref signature as string, pin_miso as byte, pin_mosi as byt
 	ir_protocols(3).logic_0_mark=400
 	ir_protocols(3).logic_0_space=500
 	ir_protocols(3).protocol_name="Hitachi"
+
+	'Daikin protocol
+	ir_protocols(4).protocol=IR_PROTOCOL_DAIKIN
+	ir_protocols(4).header_mark=3600
+	ir_protocols(4).header_space=1600
+	ir_protocols(4).logic_1_mark=400
+	ir_protocols(4).logic_1_space=1300
+	ir_protocols(4).logic_0_mark=400
+	ir_protocols(4).logic_0_space=428
+	ir_protocols(4).protocol_name="Daikin"
+
+	'Mitsubishi protocol
+	ir_protocols(5).protocol=IR_PROTOCOL_MITSUBISHI
+	ir_protocols(5).header_mark=3400
+	ir_protocols(5).header_space=1750
+	ir_protocols(5).logic_1_mark=450
+	ir_protocols(5).logic_1_space=1300
+	ir_protocols(5).logic_0_mark=400
+	ir_protocols(5).logic_0_space=428
+	ir_protocols(5).protocol_name="Mitsubishi"
 end function
 
 sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq_div as word, pin_cs as byte, channel as byte) 
@@ -576,22 +598,12 @@ function tbt26_get_data(pin_cs as byte, channel as byte) as string
 		else
 			' Collecting data bits
 			current_bit_value = 0
-			if protocol = IR_PROTOCOL_NEC then
+			if protocol<>0 then 
 				off_duration=tbt26_get_duration()
 				f=f+2
-				if on_duration + off_duration > 1500 then
-					current_bit_value = 1
-				end if
-			else if protocol = IR_PROTOCOL_JVC then
-				off_duration=tbt26_get_duration()
-				f=f+2
-				if on_duration + off_duration > 900 then
-					current_bit_value = 1
-				end if
-			else if protocol = IR_PROTOCOL_HITACHI then
-				off_duration=tbt26_get_duration()
-				f=f+2
-				if on_duration + off_duration > 1000 then
+				dim bit_duration as word = ir_protocols(protocol).logic_1_mark + ir_protocols(protocol).logic_1_space
+				dim bit_duration_tolerance as word = bit_duration * 0.15
+				if on_duration + off_duration > bit_duration - bit_duration_tolerance and on_duration + off_duration <= bit_duration + bit_duration_tolerance then
 					current_bit_value = 1
 				end if
 			else
