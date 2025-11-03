@@ -272,7 +272,7 @@ function tbt26_get_duration() as word
 	data_high=ssi.value(&h00,8)
 	tbt26_get_duration=(data_high SHL 8) + data_low
 	tbt26_get_duration=tbt26_get_duration*tbt26_multiplier
-	sys.debugprint("IRWR> READ" + str(tbt26_get_duration) + "\r\n")
+	' sys.debugprint("IRWR> READ" + str(tbt26_get_duration) + "\r\n")
 end function
 
 function tbt26_get_byte_nec() as byte
@@ -405,7 +405,7 @@ sub tbt26_write_duration(data as word)
 	tmp=gg SHR 8
 	ssi.value(tmp,8)
 	bcount=bcount+2
-	sys.debugprint("IRWR>" + str(data)+"\r\n")
+	' sys.debugprint("IRWR>" + str(data)+"\r\n")
 end sub
 
 sub tbt26_write_byte_nec(data as byte)
