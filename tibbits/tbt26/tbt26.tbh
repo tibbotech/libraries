@@ -30,11 +30,11 @@ end enum
 
 
 'DECLARATIONS--------------------------------------------------------
-declare function tbt26_init()as errcheck
+declare function tbt26_init(byref signature as string, pin_miso as byte, pin_mosi as byte, pin_clk as byte, pin_cs as byte, byref channel as byte) as errcheck
 'Call this function to initialize the Tibbit.
 'This library requires an SSI channel. If all channels are already occupied then this function will return TBT26_NO_SSI_AVAILABLE.
 
-declare sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq as word)
+declare sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq_div as word, pin_cs as byte, channel as byte) 
 'Call this function to start the IR signal recording process, i.e. before pressing a button on a remote control you want to clone.
 'Call tbt26_get_data() to read out the recorded data (after you've pressed the button on the remote control you are cloning).<br><br>
 'Arguments:<br><br>
@@ -44,29 +44,14 @@ declare sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq as
 'Returns: IR data. First two bytes are low and high bytes of the divider value for the carrier frequency.
 'Subsequent byte pairs are low and high bytes of "IR ON" and "IR OFF" periods of the signal expressed in clocks of the carrier frequency.<br><br>
 
-declare function tbt26_get_data_nec() as string
 
-declare function tbt26_get_data() as string
+declare function tbt26_get_data(pin_cs as byte, channel as byte) as string
 'Call this function to read out the recorded IR signal. Do this only after the signal has been received
 '(after you've pressed the button on the remote control you are cloning).
 
-declare sub tbt26_send_nec(byref dt as string, inverted as no_yes)
-
-declare sub tbt26_play_back(byref dt as string, inverted as no_yes)
+declare sub tbt26_play_back(byref data as string, pin_cs as byte, channel as byte)
 'Call this function to play back the IR command.<br><br>
 'Arguments:<br><br>
 'dt: IR data. First two bytes are low and high bytes of the divider value for the carrier frequency (modulation_freq = 12MHz / freq_div).
 'Subsequent byte pairs are low and high bytes of "IR ON" and "IR OFF" periods of the signal expressed in clocks of the carrier frequency.<br><br>
 'inverted: NO- for emitters that turn on when the IR OUTPUT is LOW, YES- for emitters that turn on when the IR OUTPUT is HIGH.
-
-declare function tbt26_get_data_raw_long(byref filename as string) as string
-'Call this function to read out the recorded IR signal. Do this only after the signal has been received
-'(after you've pressed the button on the remote control you are cloning).
-
-declare sub tbt26_play_back_raw_long(byref filename as string, inverted as no_yes)
-'Call this function to play back the IR command.<br><br>
-'Arguments:<br><br>
-'filename: filename of the IR signal to play back.
-
-declare function tbt26_get_data_parsed() as string
-declare sub tbt26_play_back_parsed(byref data as string)
