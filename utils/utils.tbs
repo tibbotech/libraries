@@ -698,6 +698,9 @@ function str_to_hex(hash as string) as string
 	dim j as byte
     dim result as byte(255)
 	str_to_hex=""
+	if len(hash)=0 then
+		exit function
+	end if
 	for i=0 to len(hash)-1
 		dim part as string(2)=mid(hex(asc(mid(hash,i+1,1))),3,2)
 		if len(part)=1 then
