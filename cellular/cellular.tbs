@@ -951,12 +951,25 @@ sub cell_proc_state()
             else
                 dim command as cell_command_queue_struct = cell_command_queue(cell_command_queue_head)
                 if command.command_type = CELL_CMD_AT_CMGS_SENDSMS then
-                    cell_next_state(CELL_STATE_SEND_SMS_SEND)
+                    cell_next_state(CELL_STATE_SMS_CSMS_CHECK_SMS)
                 else if command.command_type = CELL_CMD_AT_CMGL_LISTSMS then
                     cell_next_state(CELL_STATE_SMS_SET_CNMI)
                 else
                     cell_next_state(CELL_STATE_COMMAND_MODE)
                 end if
+            end if
+        end if
+    case CELL_STATE_SMS_CSMS_CHECK_SMS:
+        if sys.timercountms > cell_timeout then
+            cell_send_at_command("CSMS?")
+        else
+            if instr(1, cell_current_response, "+CSMS: 1,1", 1) > 0
+            OR instr(1, cell_current_response, "+CSMS: 0,1", 1) > 0 then
+                cell_next_state(CELL_STATE_SEND_SMS_SEND)
+            else
+                cell_log(LOG_ERROR, "SMS is not enabled")
+                cell_command_queue_pop()
+                cell_next_state(CELL_STATE_COMMAND_MODE)
             end if
         end if
     case CELL_STATE_SEND_SMS_SEND:
