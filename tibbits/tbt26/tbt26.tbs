@@ -30,7 +30,7 @@ type ir_protocol_struct
 	trailer_space as word
 end type
 
-dim ir_protocols(6) as ir_protocol_struct
+dim ir_protocols(7) as ir_protocol_struct
 
 dim bcount as dword=0
 
@@ -213,6 +213,16 @@ function tbt26_init(byref signature as string, pin_miso as byte, pin_mosi as byt
 	ir_protocols(5).logic_0_mark=400
 	ir_protocols(5).logic_0_space=428
 	ir_protocols(5).protocol_name="Mitsubishi"
+	
+	'Panasonic protocol
+	ir_protocols(6).protocol=IR_PROTOCOL_PANASONIC
+	ir_protocols(6).header_mark=3500
+	ir_protocols(6).header_space=1750
+	ir_protocols(6).logic_1_mark=435
+	ir_protocols(6).logic_1_space=1300
+	ir_protocols(6).logic_0_mark=435
+	ir_protocols(6).logic_0_space=435
+	ir_protocols(6).protocol_name="Panasonic"
 end function
 
 sub tbt26_start_recording(inverted as no_yes, carrier as no_yes, freq_div as word, pin_cs as byte, channel as byte) 
