@@ -446,6 +446,22 @@ condition=
 locked=no
 location=
 
+[file57]
+path=libraries/smtp/smtp.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
+[file58]
+path=libraries/smtp/smtp.tbh
+type=header
+format=
+condition=
+locked=no
+location=
+
 [address2]
 platform=TPP2W(G2)
 transport=udp_broadcast

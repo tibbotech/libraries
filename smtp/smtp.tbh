@@ -1,0 +1,103 @@
+'***********************************************************************************************************
+'			SMTP LIBRARY
+'***********************************************************************************************************
+
+#ifndef SMTP_DEBUG_PRINT
+	#define SMTP_DEBUG_PRINT 1
+#endif
+
+#ifndef SMTP_REPLY_TIMEOUT
+	#define SMTP_REPLY_TIMEOUT 30
+#endif
+
+#ifndef SMTP_MAX_RETRIES
+	#define SMTP_MAX_RETRIES 3
+#endif
+
+'SMTP status codes
+enum en_smtp_status_codes
+	EN_STATUS_SMTP_OK,
+	EN_STATUS_SMTP_NOT_INITIALIZED,
+	EN_STATUS_SMTP_BUSY,
+	EN_STATUS_SMTP_INVALID_SOCKET,
+	EN_STATUS_SMTP_INVALID_INTERFACE,
+	EN_STATUS_SMTP_DNS_FAILED,
+	EN_STATUS_SMTP_CONNECTION_FAILED,
+	EN_STATUS_SMTP_AUTH_FAILED,
+	EN_STATUS_SMTP_SEND_FAILED,
+	EN_STATUS_SMTP_TIMEOUT,
+	EN_STATUS_SMTP_INSUFFICIENT_BUFFER_SPACE
+end enum
+
+'SMTP response codes
+enum en_smtp_response_codes
+	SMTP_RESP_NONE = 0,
+	SMTP_RESP_220_READY = 220,
+	SMTP_RESP_221_CLOSING = 221,
+	SMTP_RESP_250_OK = 250,
+	SMTP_RESP_251_FORWARD = 251,
+	SMTP_RESP_354_START_MAIL = 354,
+	SMTP_RESP_421_NOT_AVAILABLE = 421,
+	SMTP_RESP_450_MAILBOX_BUSY = 450,
+	SMTP_RESP_451_ACTION_ABORTED = 451,
+	SMTP_RESP_452_INSUFFICIENT_STORAGE = 452,
+	SMTP_RESP_500_SYNTAX_ERROR = 500,
+	SMTP_RESP_501_PARAMETER_ERROR = 501,
+	SMTP_RESP_502_NOT_IMPLEMENTED = 502,
+	SMTP_RESP_503_BAD_SEQUENCE = 503,
+	SMTP_RESP_504_PARAMETER_NOT_IMPLEMENTED = 504,
+	SMTP_RESP_550_MAILBOX_UNAVAILABLE = 550,
+	SMTP_RESP_551_USER_NOT_LOCAL = 551,
+	SMTP_RESP_552_EXCEEDED_STORAGE = 552,
+	SMTP_RESP_553_MAILBOX_NAME_INVALID = 553,
+	SMTP_RESP_554_TRANSACTION_FAILED = 554
+end enum
+
+'SMTP state machine
+enum en_smtp_state
+	SMTP_STATE_IDLE,
+	SMTP_STATE_DNS_LOOKUP,
+	SMTP_STATE_CONNECTING,
+	SMTP_STATE_WAIT_GREETING,
+	SMTP_STATE_SEND_EHLO,
+	SMTP_STATE_WAIT_EHLO,
+	SMTP_STATE_SEND_STARTTLS,
+	SMTP_STATE_WAIT_STARTTLS,
+	SMTP_STATE_TLS_HANDSHAKE,
+	SMTP_STATE_SEND_EHLO_TLS,
+	SMTP_STATE_WAIT_EHLO_TLS,
+	SMTP_STATE_SEND_AUTH,
+	SMTP_STATE_WAIT_AUTH,
+	SMTP_STATE_SEND_MAIL_FROM,
+	SMTP_STATE_WAIT_MAIL_FROM,
+	SMTP_STATE_SEND_RCPT_TO,
+	SMTP_STATE_WAIT_RCPT_TO,
+	SMTP_STATE_SEND_DATA,
+	SMTP_STATE_WAIT_DATA,
+	SMTP_STATE_SEND_BODY,
+	SMTP_STATE_WAIT_BODY,
+	SMTP_STATE_SEND_QUIT,
+	SMTP_STATE_WAIT_QUIT,
+	SMTP_STATE_ERROR,
+	SMTP_STATE_COMPLETE
+end enum
+
+declare function smtp_start() as en_smtp_status_codes
+declare sub smtp_stop()
+declare sub smtp_init(byref server_domain as string, server_port as word, encrypted as boolean, byref username as string, byref password as string)
+declare function smtp_send_email(byref recipient as string, byref sender as string, byref subject as string, byref body as string, interface as pl_sock_interfaces) as en_smtp_status_codes
+declare sub smtp_proc_data()
+declare sub smtp_proc_timer()
+declare sub smtp_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_state_simple)
+declare sub smtp_proc_data_sent()
+
+declare sub callback_smtp_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+declare sub callback_smtp_send_complete(status as en_smtp_status_codes)
+declare sub callback_smtp_pre_buffrq(num_of_pages_required as byte)
+declare sub callback_smtp_buff_released()
+
+'Helper functions to check server AUTH capabilities
+declare function smtp_get_auth_plain_support() as boolean
+declare function smtp_get_auth_login_support() as boolean
+declare function smtp_get_auth_cram_md5_support() as boolean
+declare function smtp_get_auth_xoauth2_support() as boolean

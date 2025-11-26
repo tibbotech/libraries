@@ -80,6 +80,7 @@ include "libraries/tables/tables_web.tbh"
 include "libraries/mqtt/mqtt.tbh"
 include "libraries/lcd/lcd_graph.tbh"
 include "libraries/pic/PIC_LVP.tbh"
+include "libraries/smtp/smtp.tbh"
 
 
 'DECLARATIONS--------------------------------------------------------

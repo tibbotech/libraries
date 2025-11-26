@@ -1,0 +1,1222 @@
+include "global.tbh"
+
+'=============================================================================
+' SMTP LIBRARY - Full implementation with DNS lookup, response handling
+'=============================================================================
+
+'--- Private variables ---
+dim smtp_socket as byte
+dim smtp_interface as pl_sock_interfaces
+dim smtp_state as en_smtp_state
+dim smtp_server_domain as string(128)
+dim smtp_server_ip as string(16)
+dim smtp_server_port as word
+dim smtp_encrypted as boolean
+dim smtp_initialized as boolean
+
+'Email data
+dim smtp_recipient as string(128)
+dim smtp_sender as string(128)
+dim smtp_subject as string
+dim smtp_body as string
+dim smtp_hostname as string(64)
+
+'Authentication
+dim smtp_username as string(128)
+dim smtp_password as string(128)
+dim smtp_use_auth as boolean
+
+'TLS/STARTTLS
+dim smtp_use_tls as boolean
+dim smtp_tls_active as boolean
+dim smtp_starttls_required as boolean
+dim smtp_server_supports_starttls as boolean
+dim smtp_server_supports_auth as boolean
+
+'AUTH mechanism support flags
+dim smtp_server_supports_auth_plain as boolean
+dim smtp_server_supports_auth_login as boolean
+dim smtp_server_supports_auth_cram_md5 as boolean
+dim smtp_server_supports_auth_xoauth2 as boolean
+
+'State tracking
+dim smtp_response_buffer as string  'Larger buffer for long error messages
+dim smtp_last_response_code as en_smtp_response_codes
+dim smtp_timeout_counter as byte
+dim smtp_retry_counter as byte
+dim smtp_mx_server as string(128)
+
+declare sub smtp_handle_error(status as en_smtp_status_codes)
+declare sub smtp_complete(status as en_smtp_status_codes)
+declare sub smtp_connect_to_server()
+declare sub smtp_send_command(byref command as string)
+declare sub smtp_send_ehlo()
+declare sub smtp_send_mail_from()
+declare sub smtp_send_rcpt_to()
+declare sub smtp_send_data_cmd()
+declare sub smtp_send_message_body()
+declare sub smtp_send_quit()
+declare sub smtp_send_auth()
+declare sub smtp_send_starttls()
+declare sub smtp_start_tls_handshake()
+declare sub smtp_parse_ehlo_capabilities(byref response as string)
+declare function smtp_get_rfc5322_date() as string
+declare function smtp_format_2digit(value as byte) as string
+declare function smtp_get_day_name(dayofweek as byte) as string
+declare function smtp_get_month_name(month as byte) as string
+declare sub smtp_daycount_to_date(days as word, byref year as word, byref month as byte, byref day as byte, byref dayofweek as byte)
+declare function smtp_is_leap_year(year as word) as byte
+
+'--- Public Functions ---
+
+function smtp_start() as en_smtp_status_codes
+    SMTP_socket=sock_get("SMTP")
+
+	smtp_start = EN_STATUS_SMTP_OK
+	
+	smtp_state = SMTP_STATE_IDLE
+	smtp_initialized = true
+	smtp_timeout_counter = 0
+	smtp_retry_counter = 0
+	smtp_response_buffer = ""
+	smtp_last_response_code = SMTP_RESP_NONE
+	smtp_use_auth = false
+	smtp_username = ""
+	smtp_password = ""
+	smtp_use_tls = false
+	smtp_tls_active = false
+	smtp_starttls_required = false
+	smtp_server_supports_starttls = false
+	smtp_server_supports_auth = false
+	smtp_server_supports_auth_plain = false
+	smtp_server_supports_auth_login = false
+	smtp_server_supports_auth_cram_md5 = false
+	smtp_server_supports_auth_xoauth2 = false
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Started on socket " + str(smtp_socket) + "\r\n")
+	#endif
+end function
+
+sub smtp_stop()
+	smtp_initialized = false
+	smtp_state = SMTP_STATE_IDLE
+	
+	if sock.num <> smtp_socket then
+		sock.num = smtp_socket
+	end if
+	
+	if sock.statesimple <> PL_SSTS_CLOSED then
+		sock.close()
+	end if
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Stopped\r\n")
+	#endif
+end sub
+
+sub smtp_init(byref server_domain as string, server_port as word, encrypted as boolean, byref username as string, byref password as string)
+	smtp_server_domain = server_domain
+	smtp_server_port = server_port
+	smtp_encrypted = encrypted
+	smtp_hostname = DEVICE_NAME
+	
+	'Store authentication credentials
+	smtp_username = username
+	smtp_password = password
+	
+	'Enable auth if username is provided
+	if len(username) > 0 then
+		smtp_use_auth = true
+	else
+		smtp_use_auth = false
+	end if
+	
+	'Enable TLS/STARTTLS if encrypted is true
+	smtp_use_tls = encrypted
+	smtp_tls_active = false
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Initialized - Server: " + server_domain + ":" + str(server_port))
+		if smtp_use_tls then
+			sys.debugprint(" (with TLS)")
+		end if
+		if smtp_use_auth then
+			sys.debugprint(" (with authentication)")
+		end if
+		sys.debugprint("\r\n")
+	#endif
+end sub
+
+function smtp_send_email(byref recipient as string, byref sender as string, byref subject as string, byref body as string, interface as pl_sock_interfaces) as en_smtp_status_codes
+	smtp_send_email = EN_STATUS_SMTP_OK
+	smtp_interface = interface
+	'Store email data
+	smtp_recipient = recipient
+	smtp_sender = sender
+	smtp_subject = subject
+	smtp_body = body
+	smtp_retry_counter = 0
+	smtp_timeout_counter = 0
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Sending email\r\n")
+		sys.debugprint("  From: " + sender + "\r\n")
+		sys.debugprint("  To: " + recipient + "\r\n")
+		sys.debugprint("  Subject: " + subject + "\r\n")
+	#endif
+	
+	'Extract domain from recipient email for MX lookup
+	dim at_pos as byte
+	at_pos = instr(1, recipient, "@", 1)
+	if at_pos > 0 then
+		smtp_mx_server = right(recipient, len(recipient) - at_pos)
+	else
+		smtp_mx_server = smtp_server_domain
+	end if
+	
+	'Start DNS lookup for MX record or A record
+	smtp_state = SMTP_STATE_DNS_LOOKUP
+	
+	'Try MX record lookup first
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Looking up MX record for " + smtp_server_domain + "\r\n")
+	#endif
+	dns_connect(smtp_interface, DNS_DEFAULT_SERVER, 0)
+	dns_query(smtp_server_domain)
+	
+end function
+
+'--- Response Code Parsing ---
+
+function smtp_parse_response(byref response as string) as en_smtp_response_codes
+	dim code_str as string(3)
+	dim code as word
+	
+	if len(response) < 3 then
+		smtp_parse_response = SMTP_RESP_NONE
+		exit function
+	end if
+	
+	code_str = left(response, 3)
+	code = val(code_str)
+	
+	smtp_parse_response = code
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Response code: " + str(code) + "\r\n")
+	#endif
+end function
+
+function smtp_is_positive_response(code as en_smtp_response_codes) as boolean
+	'2xx and 3xx are positive responses
+	if code >= 200 and code < 400 then
+		smtp_is_positive_response = true
+	else
+		smtp_is_positive_response = false
+	end if
+end function
+
+function smtp_is_response_complete(byref response as string) as boolean
+	'Check if multiline response is complete
+	'SMTP multiline responses: intermediate lines have "XXX-" and final line has "XXX "
+	'A response is complete when it ends with CRLF and the last line has format "XXX <text>"
+	
+	dim last_line_start as word
+	dim last_line as string
+	dim fourth_char as string(1)
+	
+	smtp_is_response_complete = false
+	
+	'Must end with CRLF
+	if right(response, 2) <> chr(13) + chr(10) then
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Response doesn't end with CRLF\r\n")
+		#endif
+		exit function
+	end if
+	
+	'Find the start of the last line
+	'Look for the last CRLF before the final CRLF
+	dim temp_response as string
+	temp_response = left(response, len(response) - 2)  'Remove final CRLF
+	
+	last_line_start = 1
+	dim i as word
+	for i = len(temp_response) to 1 step -1
+		if mid(temp_response, i, 2) = chr(13) + chr(10) then
+			last_line_start = i + 2
+			exit for
+		end if
+	next i
+	
+	'Extract last line
+	last_line = mid(response, last_line_start, len(response) - last_line_start - 1)
+	
+	' #if SMTP_DEBUG_PRINT
+	' 	sys.debugprint("SMTP: Last line: [" + last_line + "]\r\n")
+	' #endif
+	
+	'Check if last line has format "XXX <text>" (space at position 4)
+	if len(last_line) < 4 then
+		' #if SMTP_DEBUG_PRINT
+		' 	sys.debugprint("SMTP: Last line too short (< 4 chars)\r\n")
+		' #endif
+		exit function
+	end if
+	
+	fourth_char = mid(last_line, 4, 1)
+	
+	' #if SMTP_DEBUG_PRINT
+	' 	sys.debugprint("SMTP: Fourth char: [" + fourth_char + "] (ASCII: " + str(asc(fourth_char)) + ")\r\n")
+	' #endif
+	
+	'If fourth character is a space, response is complete
+	'If fourth character is a dash, more lines are coming
+	if fourth_char = " " then
+		smtp_is_response_complete = true
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Response is complete (space found)\r\n")
+		#endif
+	else if fourth_char = "-" then
+		smtp_is_response_complete = false
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Response is incomplete (dash found)\r\n")
+		#endif
+	else
+		'Single line response (no dash or space, just code and text)
+		smtp_is_response_complete = true
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Response is complete (single line format)\r\n")
+		#endif
+	end if
+	
+end function
+
+'--- SMTP Protocol Commands ---
+
+sub smtp_send_command(byref command as string)
+	dim full_cmd as string
+	full_cmd = command + chr(13) + chr(10)  'CR+LF
+	
+	sock.num = smtp_socket
+	
+	'Use TLS send if TLS is active
+	if smtp_tls_active then
+		sock.tlssetdata(full_cmd)
+	else
+		sock.setdata(full_cmd)
+	end if
+	
+	sock.send()
+	
+	smtp_timeout_counter = 0
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: >>> " + command + "\r\n")
+	#endif
+end sub
+
+sub smtp_send_ehlo()
+	smtp_send_command("EHLO " + smtp_hostname)
+	smtp_state = SMTP_STATE_WAIT_EHLO
+end sub
+
+sub smtp_send_auth()
+	'Send AUTH PLAIN command with base64-encoded credentials
+	'Format: AUTH PLAIN base64("\0username\0password")
+	dim auth_string as string
+	dim auth_plain as string
+	
+	'Build auth string: null byte + username + null byte + password
+	auth_string = chr(0) + smtp_username + chr(0) + smtp_password
+    base64_encode(auth_string, len(auth_string), auth_plain)
+	
+	smtp_send_command("AUTH PLAIN " + auth_plain)
+	smtp_state = SMTP_STATE_WAIT_AUTH
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Authenticating as " + smtp_username + "\r\n")
+	#endif
+end sub
+
+sub smtp_send_starttls()
+	'Send STARTTLS command to upgrade connection to TLS
+	smtp_send_command("STARTTLS")
+	smtp_state = SMTP_STATE_WAIT_STARTTLS
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Initiating STARTTLS\r\n")
+	#endif
+end sub
+
+sub smtp_start_tls_handshake()
+	'Initialize TLS and start handshake
+	dim tls_result as pl_tls_result
+	
+	sock.num = smtp_socket
+	
+	'Initialize TLS (without certificate verification)
+	tls_result = sock.tlsinit(0)
+	
+	if tls_result <> PL_TLS_SUCCESS then
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: TLS init failed: " + str(tls_result) + "\r\n")
+		#endif
+		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+		exit sub
+	end if
+	
+	'Start TLS handshake
+	tls_result = sock.tlshandshake(smtp_server_domain)
+	
+	if tls_result <> PL_TLS_SUCCESS then
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: TLS handshake failed: " + str(tls_result) + "\r\n")
+		#endif
+		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+		exit sub
+	end if
+	
+	smtp_state = SMTP_STATE_TLS_HANDSHAKE
+	smtp_timeout_counter = 0
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: TLS handshake in progress...\r\n")
+	#endif
+end sub
+
+sub smtp_parse_ehlo_capabilities(byref response as string)
+	'Parse EHLO response to detect server capabilities
+	'Look for STARTTLS and AUTH support
+	'Detect specific AUTH mechanisms: PLAIN, LOGIN, CRAM-MD5, XOAUTH2
+	
+	dim response_upper as string
+	
+	smtp_server_supports_starttls = false
+	smtp_server_supports_auth = false
+	smtp_server_supports_auth_plain = false
+	smtp_server_supports_auth_login = false
+	smtp_server_supports_auth_cram_md5 = false
+	smtp_server_supports_auth_xoauth2 = false
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Parsing server capabilities...\r\n")
+	#endif
+	
+	'Convert response to uppercase once for case-insensitive matching
+	response_upper = str_uppercase(response)
+	
+	'Check for STARTTLS capability
+	if instr(1, response_upper, "STARTTLS", 1) > 0 then
+		smtp_server_supports_starttls = true
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Server supports STARTTLS\r\n")
+		#endif
+	end if
+	
+	'Check for AUTH capability (any AUTH mechanism)
+	if instr(1, response_upper, "AUTH", 1) > 0 then
+		smtp_server_supports_auth = true
+		
+		'Now check for specific AUTH mechanisms
+		'Check for AUTH PLAIN
+		if instr(1, response_upper, "PLAIN", 1) > 0 then
+			smtp_server_supports_auth_plain = true
+			#if SMTP_DEBUG_PRINT
+				sys.debugprint("SMTP: Server supports AUTH PLAIN\r\n")
+			#endif
+		end if
+		
+		'Check for AUTH LOGIN
+		if instr(1, response_upper, "LOGIN", 1) > 0 then
+			smtp_server_supports_auth_login = true
+			#if SMTP_DEBUG_PRINT
+				sys.debugprint("SMTP: Server supports AUTH LOGIN\r\n")
+			#endif
+		end if
+		
+		'Check for AUTH CRAM-MD5
+		if instr(1, response_upper, "CRAM-MD5", 1) > 0 then
+			smtp_server_supports_auth_cram_md5 = true
+			#if SMTP_DEBUG_PRINT
+				sys.debugprint("SMTP: Server supports AUTH CRAM-MD5\r\n")
+			#endif
+		end if
+		
+		'Check for AUTH XOAUTH2 (used by Gmail and modern services)
+		if instr(1, response_upper, "XOAUTH2", 1) > 0 then
+			smtp_server_supports_auth_xoauth2 = true
+			#if SMTP_DEBUG_PRINT
+				sys.debugprint("SMTP: Server supports AUTH XOAUTH2\r\n")
+			#endif
+		end if
+		
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Server supports AUTH\r\n")
+		#endif
+	end if
+end sub
+
+sub smtp_send_mail_from()
+	smtp_send_command("MAIL FROM:<" + smtp_sender + ">")
+	smtp_state = SMTP_STATE_WAIT_MAIL_FROM
+end sub
+
+sub smtp_send_rcpt_to()
+	smtp_send_command("RCPT TO:<" + smtp_recipient + ">")
+	smtp_state = SMTP_STATE_WAIT_RCPT_TO
+end sub
+
+sub smtp_send_data_cmd()
+	smtp_send_command("DATA")
+	smtp_state = SMTP_STATE_WAIT_DATA
+end sub
+
+function smtp_get_rfc5322_date() as string
+	'Generate RFC 5322 compliant date string from Unix timestamp
+	'Format: "Day, DD Mon YYYY HH:MM:SS +0000"
+	'Example: "Mon, 26 Nov 2025 12:34:56 +0000"
+	
+	dim timestamp as dword
+	dim days as word
+	dim mins as word
+	dim secs as byte
+	dim year as word
+	dim month as byte
+	dim day as byte
+	dim dayofweek as byte
+	dim hours as byte
+	dim minutes as byte
+	dim result as string
+	
+	'Get current timestamp
+	timestamp = datetime_current_timestamp()
+	
+	'Convert timestamp to days/mins/secs
+	datetime_from_timestamp(timestamp, days, mins, secs)
+	
+	'Convert daycount to date components (year, month, day, dayofweek)
+	smtp_daycount_to_date(days, year, month, day, dayofweek)
+	
+	'Convert mins to hours:minutes
+	hours = mins / 60
+	minutes = mins - (hours * 60)
+	
+	'Build RFC 5322 date string
+	result = smtp_get_day_name(dayofweek) + ", "
+	result = result + smtp_format_2digit(day) + " "
+	result = result + smtp_get_month_name(month) + " "
+	result = result + str(year) + " "
+	result = result + smtp_format_2digit(hours) + ":"
+	result = result + smtp_format_2digit(minutes) + ":"
+	result = result + smtp_format_2digit(secs) + " +0000"
+	
+	smtp_get_rfc5322_date = result
+end function
+
+function smtp_format_2digit(value as byte) as string
+	'Format a number with leading zero if < 10
+	if value < 10 then
+		smtp_format_2digit = "0" + str(value)
+	else
+		smtp_format_2digit = str(value)
+	end if
+end function
+
+function smtp_get_day_name(dayofweek as byte) as string
+	'Return 3-letter day name (0=Sun, 1=Mon, etc.)
+	select case dayofweek
+		case 0: smtp_get_day_name = "Sun"
+		case 1: smtp_get_day_name = "Mon"
+		case 2: smtp_get_day_name = "Tue"
+		case 3: smtp_get_day_name = "Wed"
+		case 4: smtp_get_day_name = "Thu"
+		case 5: smtp_get_day_name = "Fri"
+		case 6: smtp_get_day_name = "Sat"
+		case else: smtp_get_day_name = "Mon"
+	end select
+end function
+
+function smtp_get_month_name(month as byte) as string
+	'Return 3-letter month name (1=Jan, 2=Feb, etc.)
+	select case month
+		case 1: smtp_get_month_name = "Jan"
+		case 2: smtp_get_month_name = "Feb"
+		case 3: smtp_get_month_name = "Mar"
+		case 4: smtp_get_month_name = "Apr"
+		case 5: smtp_get_month_name = "May"
+		case 6: smtp_get_month_name = "Jun"
+		case 7: smtp_get_month_name = "Jul"
+		case 8: smtp_get_month_name = "Aug"
+		case 9: smtp_get_month_name = "Sep"
+		case 10: smtp_get_month_name = "Oct"
+		case 11: smtp_get_month_name = "Nov"
+		case 12: smtp_get_month_name = "Dec"
+		case else: smtp_get_month_name = "Jan"
+	end select
+end function
+
+sub smtp_daycount_to_date(days as word, byref year as word, byref month as byte, byref day as byte, byref dayofweek as byte)
+	'Convert daycount (days since 2000-01-01) to year/month/day/dayofweek
+	'This matches TiOS daycount convention
+	
+	dim days_in_month(12) as byte
+	dim is_leap as byte
+	dim days_remaining as word
+	dim i as byte
+	
+	'Day of week: Jan 1, 2000 was a Saturday (6)
+	dayofweek = (days + 6) MOD 7
+	
+	'Start from year 2000
+	year = 2000
+	days_remaining = days
+	
+	'Calculate year
+	while days_remaining >= 365
+		if smtp_is_leap_year(year) then
+			if days_remaining >= 366 then
+				days_remaining = days_remaining - 366
+				year = year + 1
+			else
+				exit while
+			end if
+		else
+			days_remaining = days_remaining - 365
+			year = year + 1
+		end if
+	wend
+	
+	'Set days in each month
+	days_in_month(0) = 31
+	if smtp_is_leap_year(year) then
+		days_in_month(1) = 29
+	else
+		days_in_month(1) = 28
+	end if
+	days_in_month(2) = 31
+	days_in_month(3) = 30
+	days_in_month(4) = 31
+	days_in_month(5) = 30
+	days_in_month(6) = 31
+	days_in_month(7) = 31
+	days_in_month(8) = 30
+	days_in_month(9) = 31
+	days_in_month(10) = 30
+	days_in_month(11) = 31
+	
+	'Calculate month and day
+	month = 1
+	for i = 1 to 12
+		if days_remaining < days_in_month(i-1) then
+			day = days_remaining + 1
+			exit for
+		end if
+		days_remaining = days_remaining - days_in_month(i-1)
+		month = month + 1
+	next i
+end sub
+
+function smtp_is_leap_year(year as word) as byte
+	'Check if year is a leap year
+	if year MOD 400 = 0 then
+		smtp_is_leap_year = 1
+	else if year MOD 100 = 0 then
+		smtp_is_leap_year = 0
+	else if year MOD 4 = 0 then
+		smtp_is_leap_year = 1
+	else
+		smtp_is_leap_year = 0
+	end if
+end function
+
+sub smtp_send_message_body()
+	dim message as string
+	dim message_id as string
+	dim timestamp as dword
+	
+	'Generate unique Message-ID using Unix timestamp and hostname
+	'Format: <timestamp.milliseconds@hostname>
+	timestamp = datetime_current_timestamp()
+	message_id = "<" + str(timestamp) + "." + str(sys.timercountms) + "@" + smtp_hostname + ">"
+	
+    sock.num = smtp_socket
+	'Build email headers following RFC 5322
+	message = "From: " + smtp_sender + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "To: " + smtp_recipient + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "Subject: " + smtp_subject + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "Message-ID: " + message_id + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "Date: " + smtp_get_rfc5322_date() + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "MIME-Version: 1.0" + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "Content-Type: text/plain; charset=UTF-8" + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = chr(13) + chr(10)  'Blank line between headers and body
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = smtp_body + chr(13) + chr(10)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	message = "." + chr(13) + chr(10)  'End of message indicator
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+	sock.send()
+	
+	smtp_state = SMTP_STATE_WAIT_BODY
+	smtp_timeout_counter = 0
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: >>> [Message body sent, waiting for final response...]\r\n")
+	#endif
+end sub
+
+sub smtp_send_quit()
+	smtp_send_command("QUIT")
+	smtp_state = SMTP_STATE_WAIT_QUIT
+end sub
+
+'--- Data Processing ---
+
+sub smtp_proc_data()
+	dim data as string
+	dim response_code as en_smtp_response_codes
+	dim current_sock as byte
+	
+	'Save current socket and check if it's ours
+	current_sock = sock.num
+	
+	if smtp_state = SMTP_STATE_IDLE then
+		exit sub
+	end if
+	
+	if current_sock <> smtp_socket then
+		exit sub
+	end if
+	
+	if sock.statesimple <> PL_SSTS_EST then
+		exit sub
+	end if
+	
+	'Read incoming data (use TLS if active)
+	if smtp_tls_active then
+		if sock.tlsrxlen = 0 then
+			exit sub
+		end if
+		data = sock.tlsgetdata(sock.tlsrxlen)
+	else
+		if sock.rxlen = 0 then
+			exit sub
+		end if
+		data = sock.getdata(sock.rxlen)
+	end if
+	
+	if len(data) = 0 then
+		exit sub
+	end if
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: <<< Received " + str(len(data)) + " bytes in state " + str(smtp_state) + "\r\n")
+	#endif
+	
+	'Append to response buffer
+	smtp_response_buffer = smtp_response_buffer + data
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Buffer length: " + str(len(smtp_response_buffer)) + "\r\n")
+		sys.debugprint("SMTP: Buffer content: [" + smtp_response_buffer + "]\r\n")
+	#endif
+	
+	'Check if we have a complete response (handles multiline responses)
+	if smtp_is_response_complete(smtp_response_buffer) = false then
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Response not yet complete, waiting for more data...\r\n")
+		#endif
+		exit sub
+	end if
+	
+	'Parse response code (from the first line of response)
+	response_code = smtp_parse_response(smtp_response_buffer)
+	smtp_last_response_code = response_code
+	smtp_timeout_counter = 0
+	
+	'Handle response based on current state
+	select case smtp_state
+		
+		case SMTP_STATE_WAIT_GREETING:
+			if response_code = SMTP_RESP_220_READY then
+				smtp_response_buffer = ""
+				smtp_send_ehlo()
+			else
+				smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+			end if
+			
+	case SMTP_STATE_WAIT_EHLO:
+		if smtp_is_positive_response(response_code) = true then
+			'Parse server capabilities from EHLO response
+			smtp_parse_ehlo_capabilities(smtp_response_buffer)
+			
+			'Determine next step based on server capabilities and requirements
+			if smtp_use_tls and not smtp_tls_active then
+				'User requested TLS - send STARTTLS
+				smtp_response_buffer = ""
+				smtp_send_starttls()
+			else if smtp_use_auth and not smtp_tls_active and smtp_server_supports_starttls and not smtp_server_supports_auth then
+				'Need authentication but server only shows AUTH after STARTTLS
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Server requires STARTTLS before AUTH\r\n")
+				#endif
+				smtp_response_buffer = ""
+				smtp_send_starttls()
+			else if smtp_use_auth then
+				'Can authenticate now
+				smtp_response_buffer = ""
+				smtp_send_auth()
+			else
+				'No auth needed, proceed to MAIL FROM
+				smtp_response_buffer = ""
+				smtp_send_mail_from()
+			end if
+		else
+			smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+		end if
+			
+		case SMTP_STATE_WAIT_STARTTLS:
+			if response_code = SMTP_RESP_220_READY then
+				'Server is ready for TLS
+				smtp_response_buffer = ""
+				smtp_start_tls_handshake()
+			else
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: STARTTLS rejected with code " + str(response_code) + "\r\n")
+				#endif
+				smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_EHLO_TLS:
+			'EHLO after TLS handshake
+			if smtp_is_positive_response(response_code) = true then
+				smtp_response_buffer = ""
+				'Now we can authenticate over encrypted connection
+				if smtp_use_auth then
+					smtp_send_auth()
+				else
+					smtp_send_mail_from()
+				end if
+			else
+				smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_AUTH:
+			if smtp_is_positive_response(response_code) = true then
+				'Authentication successful
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Authentication successful\r\n")
+				#endif
+				smtp_response_buffer = ""
+				smtp_send_mail_from()
+			else
+				'Authentication failed
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Authentication failed with code " + str(response_code) + "\r\n")
+				#endif
+				smtp_handle_error(EN_STATUS_SMTP_AUTH_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_MAIL_FROM:
+			if response_code = SMTP_RESP_250_OK then
+				smtp_response_buffer = ""
+				smtp_send_rcpt_to()
+			else
+				smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_RCPT_TO:
+			if response_code = SMTP_RESP_250_OK then
+				smtp_response_buffer = ""
+				smtp_send_data_cmd()
+			else
+				smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_DATA:
+			if response_code = SMTP_RESP_354_START_MAIL then
+				smtp_response_buffer = ""
+				smtp_send_message_body()
+			else
+				smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_BODY:
+			if response_code = SMTP_RESP_250_OK then
+				smtp_response_buffer = ""
+				smtp_send_quit()
+			else
+				'Handle rejection or error response
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Email rejected by server with code " + str(response_code) + "\r\n")
+				#endif
+				smtp_response_buffer = ""
+				
+				'Try to close gracefully even though server may have already closed
+				smtp_send_quit()
+				
+				'Report the failure
+				smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+			end if
+			
+		case SMTP_STATE_WAIT_QUIT:
+			smtp_response_buffer = ""
+			smtp_complete(EN_STATUS_SMTP_OK)
+			
+	end select
+	
+end sub
+
+'--- Socket Event Handling ---
+
+sub smtp_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_state_simple)
+	dim current_sock as byte
+	
+	'Save current socket number
+	current_sock = sock.num
+	
+	if smtp_state = SMTP_STATE_IDLE then
+		exit sub
+	end if
+	
+	if current_sock <> smtp_socket then
+		exit sub
+	end if
+	
+	'Handle TLS handshake completion
+	if newstate = PL_SST_EST_TLS then
+		if smtp_state = SMTP_STATE_TLS_HANDSHAKE then
+			#if SMTP_DEBUG_PRINT
+				sys.debugprint("SMTP: TLS handshake complete\r\n")
+			#endif
+			smtp_tls_active = true
+			smtp_response_buffer = ""
+			'Send EHLO again over encrypted connection
+			smtp_send_command("EHLO " + smtp_hostname)
+			smtp_state = SMTP_STATE_WAIT_EHLO_TLS
+		end if
+	end if
+	
+	select case newstatesimple
+		
+		case PL_SSTS_EST:
+			if smtp_state = SMTP_STATE_CONNECTING then
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Connected to " + smtp_server_ip + "\r\n")
+				#endif
+				smtp_state = SMTP_STATE_WAIT_GREETING
+				smtp_timeout_counter = 0
+			end if
+			
+		case PL_SSTS_CLOSED:
+			if smtp_state <> SMTP_STATE_IDLE and smtp_state <> SMTP_STATE_COMPLETE and smtp_state <> SMTP_STATE_WAIT_QUIT then
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Connection closed unexpectedly in state " + str(smtp_state) + "\r\n")
+				#endif
+				
+				'Check if we have a partial response that indicates an error
+				if len(smtp_response_buffer) > 0 then
+					dim response_code as en_smtp_response_codes
+					response_code = smtp_parse_response(smtp_response_buffer)
+					
+					if response_code >= 400 and response_code < 600 then
+						'Server sent an error response before closing
+						#if SMTP_DEBUG_PRINT
+							sys.debugprint("SMTP: Server sent error " + str(response_code) + " before closing\r\n")
+						#endif
+						smtp_response_buffer = ""
+						smtp_handle_error(EN_STATUS_SMTP_SEND_FAILED)
+						exit sub
+					end if
+				end if
+				
+				smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+			else if smtp_state = SMTP_STATE_WAIT_QUIT then
+				'Normal close after QUIT - consider it success if we haven't completed yet
+				#if SMTP_DEBUG_PRINT
+					sys.debugprint("SMTP: Connection closed after QUIT\r\n")
+				#endif
+				if smtp_state <> SMTP_STATE_COMPLETE then
+					smtp_complete(EN_STATUS_SMTP_OK)
+				end if
+			end if
+			
+	end select
+	
+end sub
+
+sub smtp_proc_data_sent()
+	dim current_sock as byte
+	
+	'Data sent successfully
+	current_sock = sock.num
+	
+	if smtp_state = SMTP_STATE_IDLE then
+		exit sub
+	end if
+	
+	if current_sock <> smtp_socket then
+		exit sub
+	end if
+	
+	#if SMTP_DEBUG_PRINT
+		'sys.debugprint("SMTP: Data sent event in state " + str(smtp_state) + "\r\n")
+	#endif
+end sub
+
+'--- Timer Processing ---
+
+sub smtp_proc_timer()
+	
+	if smtp_state = SMTP_STATE_IDLE then
+		exit sub
+	end if
+	
+	smtp_timeout_counter = smtp_timeout_counter + 1
+	
+	if smtp_timeout_counter >= SMTP_REPLY_TIMEOUT then
+		#if SMTP_DEBUG_PRINT
+			sys.debugprint("SMTP: Timeout in state " + str(smtp_state) + "\r\n")
+		#endif
+		
+		smtp_retry_counter = smtp_retry_counter + 1
+		
+		if smtp_retry_counter >= SMTP_MAX_RETRIES then
+			smtp_handle_error(EN_STATUS_SMTP_TIMEOUT)
+		else
+			'Retry connection
+			smtp_connect_to_server()
+		end if
+	end if
+	
+end sub
+
+'--- DNS Callback ---
+
+sub callback_smtp_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
+	
+	if smtp_state <> SMTP_STATE_DNS_LOOKUP then
+		exit sub
+	end if
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: DNS answer - Type: " + str(return_type) + " Value: " + ddstr(return_string) + "\r\n")
+	#endif
+	
+	select case return_type
+		
+		case EN_DNS_RET_MAIL_EXCHANGE_SERVER:
+			'Got MX record - extract server name
+			smtp_server_ip = return_string
+			'Need to resolve MX server to IP
+			dns_query(return_string)
+			
+		case EN_DNS_RET_IP:
+			'Got IP address
+			smtp_server_ip = ddstr(return_string)
+			smtp_connect_to_server()
+			
+		case else:
+			'Try direct IP connection to configured server
+			smtp_server_ip = smtp_server_domain
+			smtp_connect_to_server()
+			
+	end select
+	
+end sub
+
+'--- Connection Management ---
+
+sub smtp_connect_to_server()
+	
+	sock.num = smtp_socket
+	
+	'Close existing connection if any
+	if sock.statesimple <> PL_SSTS_CLOSED then
+		sock.close()
+		dim timeout as byte = 0
+		while sock.statesimple <> PL_SSTS_CLOSED and timeout < 50
+			timeout = timeout + 1
+		wend
+	end if
+
+
+	
+	'Setup socket
+	sock.targetinterface = smtp_interface
+	sock.protocol = PL_SOCK_PROTOCOL_TCP
+	sock.reconmode = PL_SOCK_RECONMODE_0
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Connecting to " + smtp_server_ip + ":" + str(smtp_server_port) + "\r\n")
+	#endif
+	
+	sock.targetip = smtp_server_ip
+	sock.targetport = smtp_server_port
+
+    if sock.txbuffrq(2) <> 2 then
+		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+		exit sub
+	end if
+	if sock.rxbuffrq(2) <> 2 then
+		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+		exit sub
+	end if
+	sys.buffalloc()
+	sock.rxclear()
+	sock.txclear()
+	
+	'For direct TLS (port 465), initialize TLS before connecting
+	'For STARTTLS (port 587), we'll initialize TLS after STARTTLS command
+	if smtp_encrypted = true then
+		#if SUPPORTS_TLS
+            sock.tlsdeinit()
+			#if PLATFORM_ID<>WM2000
+            dim ii as byte = sock.tlsbuffrq(40)
+            sys.buffalloc()
+            #endif
+            ' if sock.tlsinit(callback_smtp_open_romfile())<>PL_TLS_SUCCESS then
+            if sock.tlsinit(0)<>PL_TLS_SUCCESS then
+                smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+                exit sub
+            end if
+            smtp_tls_active = true
+		#else
+            smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+            exit sub
+		#endif
+	else if smtp_use_tls then
+		'Allocate TLS buffers for STARTTLS (will be used later)
+		#if SUPPORTS_TLS
+			#if PLATFORM_ID<>WM2000
+            dim ii as byte = sock.tlsbuffrq(40)
+            sys.buffalloc()
+            #endif
+		#else
+            smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+            exit sub
+		#endif
+	end if
+    
+	
+	sock.connect()
+	
+	smtp_state = SMTP_STATE_CONNECTING
+	smtp_timeout_counter = 0
+	smtp_response_buffer = ""
+	
+end sub
+
+'--- Error Handling ---
+
+sub smtp_handle_error(status as en_smtp_status_codes)
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Error - Status: " + str(status) + "\r\n")
+	#endif
+	
+	smtp_state = SMTP_STATE_ERROR
+	
+	'Close connection
+	sock.num = smtp_socket
+	if sock.statesimple <> PL_SSTS_CLOSED then
+		sock.close()
+	end if
+	
+	callback_smtp_send_complete(status)
+	
+	smtp_state = SMTP_STATE_IDLE
+	
+end sub
+
+'--- Completion ---
+
+sub smtp_complete(status as en_smtp_status_codes)
+	
+	#if SMTP_DEBUG_PRINT
+		sys.debugprint("SMTP: Email sent successfully\r\n")
+	#endif
+	
+	smtp_state = SMTP_STATE_COMPLETE
+	
+	'Close connection
+	sock.num = smtp_socket
+	if sock.statesimple <> PL_SSTS_CLOSED then
+		sock.close()
+	end if
+	
+	callback_smtp_send_complete(status)
+	
+	smtp_state = SMTP_STATE_IDLE
+	
+end sub
+
+'--- Helper functions to check AUTH mechanism support ---
+
+function smtp_get_auth_plain_support() as boolean
+	'Returns true if server supports AUTH PLAIN mechanism
+	smtp_get_auth_plain_support = smtp_server_supports_auth_plain
+end function
+
+function smtp_get_auth_login_support() as boolean
+	'Returns true if server supports AUTH LOGIN mechanism
+	smtp_get_auth_login_support = smtp_server_supports_auth_login
+end function
+
+function smtp_get_auth_cram_md5_support() as boolean
+	'Returns true if server supports AUTH CRAM-MD5 mechanism
+	smtp_get_auth_cram_md5_support = smtp_server_supports_auth_cram_md5
+end function
+
+function smtp_get_auth_xoauth2_support() as boolean
+	'Returns true if server supports AUTH XOAUTH2 mechanism
+	smtp_get_auth_xoauth2_support = smtp_server_supports_auth_xoauth2
+end function
