@@ -989,3 +989,19 @@ end sub
 function callback_http_server_endpoint_called(byref server as http_server_state) as boolean
 
 end function
+
+sub callback_smtp_send_complete(status as en_smtp_status_codes)
+	if status = EN_STATUS_SMTP_OK then
+		sys.debugprint("SMTP: Email sent successfully!\r\n")
+	else
+		sys.debugprint("SMTP: Email failed with status: " + str(status) + "\r\n")
+	end if
+end sub
+
+sub callback_smtp_pre_buffrq(num_of_pages_required as byte)
+	'Request buffer pages if needed
+end sub
+
+sub callback_smtp_buff_released()
+	'Buffer released
+end sub
