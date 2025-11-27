@@ -84,7 +84,7 @@ end enum
 
 declare function smtp_start() as en_smtp_status_codes
 declare sub smtp_stop()
-declare sub smtp_init(byref server_domain as string, server_port as word, encrypted as boolean, byref username as string, byref password as string)
+declare sub smtp_init(byref server_domain as string, server_port as word, byref username as string, byref password as string)
 declare function smtp_send_email(byref recipient as string, byref sender as string, byref subject as string, byref body as string, interface as pl_sock_interfaces) as en_smtp_status_codes
 declare sub smtp_proc_data()
 declare sub smtp_proc_timer()

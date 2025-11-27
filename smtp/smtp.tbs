@@ -115,11 +115,11 @@ sub smtp_stop()
 	#endif
 end sub
 
-sub smtp_init(byref server_domain as string, server_port as word, encrypted as boolean, byref username as string, byref password as string)
+sub smtp_init(byref server_domain as string, server_port as word, byref username as string, byref password as string)
 	smtp_server_domain = server_domain
 	smtp_server_port = server_port
-	smtp_encrypted = encrypted
-	smtp_hostname = server_domain
+	smtp_encrypted = false
+	smtp_hostname = DEVICE_NAME
 	
 	'Store authentication credentials
 	smtp_username = username
@@ -133,7 +133,13 @@ sub smtp_init(byref server_domain as string, server_port as word, encrypted as b
 	end if
 	
 	'Enable TLS/STARTTLS if encrypted is true
-	smtp_use_tls = encrypted
+	if server_port = 465 then
+		smtp_use_tls = true
+	else if server_port = 587 then
+		smtp_use_tls = false
+	else
+		smtp_use_tls = false
+	end if
 	smtp_tls_active = false
 	
 	#if SMTP_DEBUG_PRINT
@@ -320,6 +326,11 @@ end sub
 sub smtp_send_ehlo()
 	smtp_send_command("EHLO " + smtp_hostname)
 	smtp_state = SMTP_STATE_WAIT_EHLO
+
+
+	' 'Send EHLO again over encrypted connection
+	' 		smtp_send_command("EHLO " + smtp_hostname)
+	' 		smtp_state = SMTP_STATE_WAIT_EHLO_TLS
 end sub
 
 sub smtp_send_auth()
@@ -355,18 +366,14 @@ sub smtp_start_tls_handshake()
 	dim tls_result as pl_tls_result
 	
 	sock.num = smtp_socket
-	
-	'Initialize TLS (without certificate verification)
-	tls_result = sock.tlsinit(0)
-	
-	if tls_result <> PL_TLS_SUCCESS then
-		#if SMTP_DEBUG_PRINT
-			sys.debugprint("SMTP: TLS init failed: " + str(tls_result) + "\r\n")
-		#endif
+
+	dim res as pl_tls_result = sock.tlsinit(0)
+	if res<>PL_TLS_SUCCESS then
 		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
 		exit sub
 	end if
-	
+	smtp_use_tls = true
+	smtp_tls_active = true
 	'Start TLS handshake
 	tls_result = sock.tlshandshake(smtp_server_domain)
 	
@@ -377,8 +384,11 @@ sub smtp_start_tls_handshake()
 		smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
 		exit sub
 	end if
-	
-	smtp_state = SMTP_STATE_TLS_HANDSHAKE
+	if smtp_state=SMTP_STATE_WAIT_STARTTLS then
+		smtp_state=SMTP_STATE_SEND_AUTH
+	else
+		smtp_state = SMTP_STATE_WAIT_GREETING
+	end if
 	smtp_timeout_counter = 0
 	
 	#if SMTP_DEBUG_PRINT
@@ -418,6 +428,7 @@ sub smtp_parse_ehlo_capabilities(byref response as string)
 	'Check for AUTH capability (any AUTH mechanism)
 	if instr(1, response_upper, "AUTH", 1) > 0 then
 		smtp_server_supports_auth = true
+		smtp_use_auth = true
 		
 		'Now check for specific AUTH mechanisms
 		'Check for AUTH PLAIN
@@ -631,6 +642,14 @@ function smtp_is_leap_year(year as word) as byte
 	end if
 end function
 
+sub smtp_sock_set_data(byref message as string)
+	if smtp_tls_active then
+		sock.tlssetdata(message)
+	else
+		sock.setdata(message)
+	end if
+end sub
+
 sub smtp_send_message_body()
 	dim message as string
 	dim message_id as string
@@ -644,65 +663,25 @@ sub smtp_send_message_body()
     sock.num = smtp_socket
 	'Build email headers following RFC 5322
 	message = "From: " + smtp_sender + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "To: " + smtp_recipient + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "Subject: " + smtp_subject + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "Message-ID: " + message_id + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "Date: " + smtp_get_rfc5322_date() + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "MIME-Version: 1.0" + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "Content-Type: text/plain; charset=UTF-8" + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = chr(13) + chr(10)  'Blank line between headers and body
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = smtp_body + chr(13) + chr(10)
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	message = "." + chr(13) + chr(10)  'End of message indicator
-	if smtp_tls_active then
-		sock.tlssetdata(message)
-	else
-		sock.setdata(message)
-	end if
+	smtp_sock_set_data(message)
 	sock.send()
 	
 	smtp_state = SMTP_STATE_WAIT_BODY
@@ -939,9 +918,8 @@ sub smtp_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_st
 			#endif
 			smtp_tls_active = true
 			smtp_response_buffer = ""
-			'Send EHLO again over encrypted connection
-			smtp_send_command("EHLO " + smtp_hostname)
-			smtp_state = SMTP_STATE_WAIT_EHLO_TLS
+		else if smtp_state = SMTP_STATE_SEND_AUTH then
+			smtp_send_auth()
 		end if
 	end if
 	
@@ -953,6 +931,10 @@ sub smtp_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_st
 					sys.debugprint("SMTP: Connected to " + smtp_server_ip + "\r\n")
 				#endif
 				smtp_state = SMTP_STATE_WAIT_GREETING
+				if smtp_use_tls then
+					smtp_start_tls_handshake()
+				end if
+				
 				smtp_timeout_counter = 0
 			end if
 			
@@ -961,6 +943,15 @@ sub smtp_proc_sock_event(newstate as pl_sock_state, newstatesimple as pl_sock_st
 				#if SMTP_DEBUG_PRINT
 					sys.debugprint("SMTP: Connection closed unexpectedly in state " + str(smtp_state) + "\r\n")
 				#endif
+				sock.txclear()
+				sock.rxclear()
+				#if TLS_AVAILABLE
+					sock.tlsdeinit()
+				#endif
+				sock.txbuffrq(0)
+				sock.rxbuffrq(0)
+				sock.tlsbuffrq(0)
+				sys.buffalloc()
 				
 				'Check if we have a partial response that indicates an error
 				if len(smtp_response_buffer) > 0 then
@@ -1116,36 +1107,17 @@ sub smtp_connect_to_server()
 	
 	'For direct TLS (port 465), initialize TLS before connecting
 	'For STARTTLS (port 587), we'll initialize TLS after STARTTLS command
-	if smtp_encrypted = true then
-		#if SUPPORTS_TLS
-            sock.tlsdeinit()
-			#if PLATFORM_ID<>WM2000
-            dim ii as byte = sock.tlsbuffrq(40)
-            sys.buffalloc()
-            #endif
-            ' if sock.tlsinit(callback_smtp_open_romfile())<>PL_TLS_SUCCESS then
-            if sock.tlsinit(0)<>PL_TLS_SUCCESS then
-                smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
-                exit sub
-            end if
-            smtp_tls_active = true
-		#else
-            smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
-            exit sub
-		#endif
-	else if smtp_use_tls then
-		'Allocate TLS buffers for STARTTLS (will be used later)
-		#if SUPPORTS_TLS
-			#if PLATFORM_ID<>WM2000
-            dim ii as byte = sock.tlsbuffrq(40)
-            sys.buffalloc()
-            #endif
-		#else
-            smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
-            exit sub
-		#endif
-	end if
-    
+	sock.tlsdeinit()
+	#if PLATFORM_ID<>WM2000
+	dim ii as byte = sock.tlsbuffrq(130)
+	sys.buffalloc()
+	#endif
+	' if sock.tlsinit(callback_smtp_open_romfile())<>PL_TLS_SUCCESS then
+	' dim res as pl_tls_result = sock.tlsinit(0)
+	' if res<>PL_TLS_SUCCESS then
+	' 	smtp_handle_error(EN_STATUS_SMTP_CONNECTION_FAILED)
+	' 	exit sub
+	' end if
 	
 	sock.connect()
 	
