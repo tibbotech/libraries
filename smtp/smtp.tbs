@@ -188,8 +188,26 @@ function smtp_send_email(byref recipient as string, byref sender as string, byre
 	#if SMTP_DEBUG_PRINT
 		sys.debugprint("SMTP: Looking up MX record for " + smtp_server_domain + "\r\n")
 	#endif
-	dns_connect(smtp_interface, DNS_DEFAULT_SERVER, 0)
-	dns_query(smtp_server_domain)
+	'determine if smtp_server_domain is an IP address or a domain name
+	dim is_ip_address as boolean=true
+	dim b as byte
+	for b=0 to len(smtp_server_domain)-1
+		dim s as string=mid(smtp_server_domain,b,1)
+		dim ascii as byte=asc(s)
+		if ascii>=46 and ascii<=57 then
+		else
+			is_ip_address=false
+			exit for
+		end if
+	next b
+	if is_ip_address=true then
+		smtp_server_ip = smtp_server_domain
+		smtp_connect_to_server()
+	else
+		dns_connect(smtp_interface, DNS_DEFAULT_SERVER, 0)
+		dns_query(smtp_server_domain)
+		smtp_state = SMTP_STATE_DNS_LOOKUP
+	end if
 	
 end function
 
