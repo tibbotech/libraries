@@ -28,3 +28,4 @@ declare function truncate_last_digit(s as string(FLOAT_MAX_STRING_LENGTH)) as st
 declare function round_up_last_digit(s as string(FLOAT_MAX_STRING_LENGTH)) as string(FLOAT_MAX_STRING_LENGTH)
 declare function str_uppercase(byref s as string) as string
 declare function str_lowercase(byref s as string) as string
+declare function flip_byte(data as byte) as byte

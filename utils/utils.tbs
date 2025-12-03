@@ -1006,3 +1006,18 @@ function str_lowercase(byref s as string) as string
 	
 	str_lowercase = result
 end function
+
+function flip_byte(data as byte) as byte
+    ' Reverse the bit order within a byte (MSB <-> LSB)
+    ' Example: &b10110010 -> &b01001101
+    dim result as byte = 0
+    dim i as byte
+    
+    for i = 0 to 7
+        result = result SHL 1
+        result = result OR (data AND 1)
+        data = data SHR 1
+    next i
+    
+    flip_byte = result
+end function
