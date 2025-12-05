@@ -661,6 +661,11 @@ sub tbt26_play_back(byref data as string, pin_cs as byte, channel as byte)
 	dim carrier_divider as word = (asc(mid(carrier,2,1)) SHL 8) + asc(mid(carrier,1,1))
 	tbt26_multiplier = carrier_divider / 12.0
 
+	if protocol = IR_PROTOCOL_PANASONIC then
+		'dim s1 as string="\x74\x03\x42\x01\x06\x40\x04\x07\x20\x00\x00\x00\x60\x40\x04\x07\x20\x00\x90\xcc\x01\xf5\xb0\x00\x70\x07\x00\x00\x91\x00\x60\xdf"
+		data_len = 884
+	end if
+	
 	tbt26_start_send(carrier,data_len,pin_cs,channel)
 
 
@@ -675,6 +680,8 @@ sub tbt26_play_back(byref data as string, pin_cs as byte, channel as byte)
 	end if
 	f=6
 	
+	dim panasonic_crc as byte=0
+	
 	while f <= data_send_len
 		dim partial_data as string=mid(data,f,2)
 		dim tmp as word = 0
@@ -683,6 +690,19 @@ sub tbt26_play_back(byref data as string, pin_cs as byte, channel as byte)
 		if protocol <> 0 then
 			partial_data=mid(data,f,1)
 			tmp_data = asc(partial_data)
+			
+			if protocol=IR_PROTOCOL_PANASONIC AND (f-6) > 7 then
+				'convert to lsb
+				dim tmp_b as byte=0
+				dim tmp_data_copy as byte=tmp_data
+				for i = 0 to 7
+					tmp_b = tmp_b SHL 1
+					tmp_b = tmp_b OR (tmp_data_copy AND 1)
+					tmp_data_copy = tmp_data_copy SHR 1
+				next i
+
+				panasonic_crc = panasonic_crc + tmp_b
+			end if
 			for i=1 to 8
 				tmp = tmp_data SHR (8-i) AND &h01
 				if tmp = 1 then
@@ -693,6 +713,33 @@ sub tbt26_play_back(byref data as string, pin_cs as byte, channel as byte)
 					tbt26_write_duration(ir_protocols(protocol).logic_0_space)
 				end if
 			next i
+			
+			if protocol=IR_PROTOCOL_PANASONIC then
+				if (f-6)=7 then
+					'frame 1 end
+					tbt26_write_duration(ir_protocols(protocol).logic_0_mark)
+					tbt26_write_duration(10000) 'pause
+					
+					'frame 2 start
+					tbt26_write_duration(ir_protocols(protocol).header_mark)
+					tbt26_write_duration(ir_protocols(protocol).header_space)
+				else if (f-6)=26 then
+					'crc
+'					for i=8 to 1 step -1
+'						tmp = panasonic_crc SHR (8-i) AND &h01
+'						if tmp = 1 then
+'							tbt26_write_duration(ir_protocols(protocol).logic_1_mark)
+'							tbt26_write_duration(ir_protocols(protocol).logic_1_space)
+'						else
+'							tbt26_write_duration(ir_protocols(protocol).logic_0_mark)
+'							tbt26_write_duration(ir_protocols(protocol).logic_0_space)
+'						end if
+'					next i
+					tbt26_write_duration(ir_protocols(protocol).logic_0_mark)
+					tbt26_write_duration(ir_protocols(protocol).logic_0_space)
+
+				end if
+			end if
 			f=f+1
 		else
 			tmp = (asc(mid(partial_data,2,1)) SHL 8) + asc(mid(partial_data,1,1))
