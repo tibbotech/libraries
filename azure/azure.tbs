@@ -557,7 +557,8 @@ end function
 sub iot_header_arrival(header_type as string, header_value as string)
 
 	if header_type = "Date" then
-		azure_set_datetime(header_value)
+		' azure_set_datetime(header_value)
+		'not needed because sntp sets the datetime
 	end if
 	
 end sub
