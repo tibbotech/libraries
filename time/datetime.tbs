@@ -17,7 +17,9 @@ end function
 function datetime_current_timestamp() as dword
 	dim datetime_days,datetime_minutes as word
 	dim datetime_secs as byte
+#IF RTC_AVAILABLE
 	rtc.getdata(datetime_days,datetime_minutes,datetime_secs)
+#ENDIF
 	td_local_to_gmt(datetime_days,datetime_minutes,datetime_tz_offset,PL_OFF)
 	datetime_current_timestamp = datetime_seconds_since_epoch
 	datetime_current_timestamp = datetime_current_timestamp + (datetime_days * DT_SECS_IN_DAY) + (datetime_minutes * 60) + datetime_secs

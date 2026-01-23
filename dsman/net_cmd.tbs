@@ -405,6 +405,7 @@ d1:			if x>=num_sdf then goto reply_err
 
 
 	case "D" 'upload one data block of firmware -----------------
+#IF OBJECT_FD=FD_ENABLED
 		if len(s)<>131 then goto reply_err
 		curr_block_num=256*asc(mid(s,2,1))+asc(mid(s,3,1))
 		if curr_block_num>fware_block_ctr then goto reply_out_of_seq 'out of sequence		 
@@ -426,9 +427,13 @@ d1:			if x>=num_sdf then goto reply_err
 		x=fware_block_ctr/256
 		reply_str=chr(x)+chr(fware_block_ctr-x*256) 
 		goto reply_ok_have_data
+#ELSE
+goto reply_err
+#ENDIF
 
 
 	case "N" 'firmware programming request ----------------------
+#IF OBJECT_FD=FD_ENABLED
 		if cmd_src_valid=NO then goto reply_denied
 		pat.channel=0
 		pat.play(PAT_GREEN_LOOP,PL_PAT_CANINT)
@@ -448,6 +453,9 @@ d1:			if x>=num_sdf then goto reply_err
 		end if
 		'copy between areas of flash
 		fd.copyfirmware(num_sectors)
+#ELSE
+goto reply_err
+#ENDIF
 
 	case else: 'invalid command ---------------------------------
 
