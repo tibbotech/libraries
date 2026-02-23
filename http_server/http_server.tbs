@@ -460,6 +460,11 @@ sub http_server_proc_sock_data_sent()
 			dim content_type as string(30)="text/html"
 			select case extension
 				case "json":
+					romfile.open(http_servers(index).request_file_name+".gz")
+					if romfile.size<>0 then
+						http_servers(index).request_file_name=http_servers(index).request_file_name+".gz"
+						content_encoding="Content-Encoding: gzip\r\n"
+					end if
 					content_type="application/json"
 				case "js":
 					romfile.open(http_servers(index).request_file_name+".gz")
