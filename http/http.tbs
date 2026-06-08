@@ -3,14 +3,19 @@ include "global.tbh"
 dim http_start_called as boolean=false
 dim http_methods(6) as string(7) = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH"}
 dim http_request_item as http_request_type
+dim http_requests as http_request_type(HTTP_MAX_CONCURRENT)
+dim http_current_slot as byte = 255
 dim http_timer_count as dword = 0
 dim http_chunk_length as dword = 0
-dim http_last_domain as string = ""
 dim http_header_end as string(4) = ""
 dim http_header_name as string(50) = ""
 dim http_header_value as string(50) = ""
 
 declare function http_time_elapsed(end_time as dword) as boolean
+declare sub http_load_slot(slot as byte)
+declare sub http_save_slot(slot as byte)
+declare function http_find_slot(socket_num as byte) as byte
+declare sub http_pump_dns()
 
 sub http_debugprint(byref print_data as string) 
 	
@@ -21,26 +26,98 @@ sub http_debugprint(byref print_data as string)
 end sub
 
 sub http_start()
-	
-	if http_start_called=true then		
+
+	if http_start_called=true then
 		exit sub
 	else
 		http_start_called=true
-	end if	
-	http_request_item.state=FREE
-	http_request_item.socket = sock_get("HTT")
-	
+	end if
+	dim ii as byte
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		http_requests(ii).state=FREE
+		http_requests(ii).socket = sock_get("HT"+str(ii))
+		http_requests(ii).timer_count=0
+	next ii
+
 end sub
 
 sub http_stop()
 
-	if http_start_called=true then		
-		http_request_item.state=FREE
-		sock_release(http_request_item.socket)		
+	if http_start_called=true then
+		dim ii as byte
+		for ii=0 to HTTP_MAX_CONCURRENT-1
+			http_requests(ii).state=FREE
+			sock_release(http_requests(ii).socket)
+		next ii
 	end if
 	http_start_called=false
-	
+
 end sub
+
+'Copy a stored request slot into the working item (http_request_item) plus the
+'transient parse globals. All internal processing operates on the working item;
+'this swap-in/swap-out scheme lets a single set of globals serve many concurrent
+'requests while keeping the public http_request_item interface intact.
+sub http_load_slot(slot as byte)
+	http_current_slot=slot
+	http_request_item.long_request=http_requests(slot).long_request
+	http_request_item.state=http_requests(slot).state
+	http_request_item.url=http_requests(slot).url
+	http_request_item.data=http_requests(slot).data
+	http_request_item.domain_name=http_requests(slot).domain_name
+	http_request_item.socket=http_requests(slot).socket
+	http_request_item.port=http_requests(slot).port
+	http_request_item.ip=http_requests(slot).ip
+	http_request_item.tls=http_requests(slot).tls
+	http_request_item.remaining_response_content_length=http_requests(slot).remaining_response_content_length
+	http_request_item.remaining_content_length=http_requests(slot).remaining_content_length
+	http_request_item.chunked=http_requests(slot).chunked
+	http_request_item.method=http_requests(slot).method
+	http_request_item.interface=http_requests(slot).interface
+	http_header_end=http_requests(slot).header_end
+	http_header_name=http_requests(slot).header_name
+	http_header_value=http_requests(slot).header_value
+	http_chunk_length=http_requests(slot).chunk_length
+	http_timer_count=http_requests(slot).timer_count
+end sub
+
+'Persist the working item (and transient parse globals) back into a slot.
+sub http_save_slot(slot as byte)
+	http_requests(slot).long_request=http_request_item.long_request
+	http_requests(slot).state=http_request_item.state
+	http_requests(slot).url=http_request_item.url
+	http_requests(slot).data=http_request_item.data
+	http_requests(slot).domain_name=http_request_item.domain_name
+	http_requests(slot).socket=http_request_item.socket
+	http_requests(slot).port=http_request_item.port
+	http_requests(slot).ip=http_request_item.ip
+	http_requests(slot).tls=http_request_item.tls
+	http_requests(slot).remaining_response_content_length=http_request_item.remaining_response_content_length
+	http_requests(slot).remaining_content_length=http_request_item.remaining_content_length
+	http_requests(slot).chunked=http_request_item.chunked
+	http_requests(slot).method=http_request_item.method
+	http_requests(slot).interface=http_request_item.interface
+	http_requests(slot).header_end=http_header_end
+	http_requests(slot).header_name=http_header_name
+	http_requests(slot).header_value=http_header_value
+	http_requests(slot).chunk_length=http_chunk_length
+	http_requests(slot).timer_count=http_timer_count
+end sub
+
+'Find the slot that owns the given socket number, or 255 if none.
+function http_find_slot(socket_num as byte) as byte
+	http_find_slot=255
+	if socket_num=255 then
+		exit function
+	end if
+	dim ii as byte
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).socket=socket_num then
+			http_find_slot=ii
+			exit function
+		end if
+	next ii
+end function
 
 sub http_reset_socket()
 	dim i as word
@@ -67,15 +144,6 @@ sub http_request_complete()
 	callback_http_request_complete()
 
 end sub
-
-function http_check_socket_list() as ok_ng
-	
-	http_check_socket_list=NG
-	if http_start_called=true and http_request_item.socket=sock.num and sock.num<>255 then
-		http_check_socket_list=ok
-	end if	
-	
-end function
 
 sub http_send_data(byref data as string)
 	sock.num=http_request_item.socket
@@ -319,18 +387,27 @@ end sub
 
 sub http_proc_data()
 
-	if http_start_called=false or http_check_socket_list()=NG then		
+	if http_start_called=false then
 		exit sub
-	end if		
-	
+	end if
+	dim slot as byte=http_find_slot(sock.num)
+	if slot=255 then
+		exit sub
+	end if
+	http_load_slot(slot)
+	if http_request_item.state=FREE then
+		exit sub
+	end if
+
 	http_timer_count=sys.timercountms + HTTP_TIMEOUT * 1000
 	select case http_request_item.state
-	
+
 	case REQUEST_SENT,HTTP_RESPONSE_PROCESSED,HTTP_RESPONSE_HEADER_NAME,HTTP_RESPONSE_HEADER_VALUE:
 		http_get_headers()
 	case HTTP_HEADERS_PROCESSED:
 		http_get_content()
 	end select
+	http_save_slot(slot)
 
 end sub
 
@@ -398,9 +475,7 @@ sub http_init_request_socket()
 	sock.txclear()
 	
 #if TLS_AVAILABLE
-	if http_request_item.domain_name<>http_last_domain then
-		sock.tlsdeinit()
-	end if
+	sock.tlsdeinit()
 	if http_request_item.tls=true then
 	
 #if PLATFORM_ID<>WM2000
@@ -419,7 +494,6 @@ sub http_init_request_socket()
 		sock.close()
 		while sock.statesimple<>PL_SSTS_CLOSED and sys.timercount-i<3 and sys.timercount>=i
 		wend
-		http_last_domain=http_request_item.domain_name
 		sock.connect()
 	end if
 	sock.num=dns_socket
@@ -452,11 +526,58 @@ sub http_start_request()
 		http_request_item.state=DNS_COMPLETE
 		http_init_request_socket()
 	else
-		dns_connect(http_request_item.interface, HTTP_DNS_SERVER, 0)
-		dns_query(http_request_item.domain_name)
-		http_request_item.state=DNS_REQUEST_SENT
+		'Mark this request as awaiting DNS. The single shared DNS resource only
+		'resolves one domain at a time, so the actual query is issued by
+		'http_pump_dns() which serializes lookups and lets requests that share a
+		'domain ride the same answer.
+		http_request_item.state=DNS_NOT_COMPLETE
 	end if
-		
+
+end sub
+
+'Drive the shared DNS resource. At most one domain is resolved at a time;
+'requests awaiting the same domain are batched onto the in-flight query.
+sub http_pump_dns()
+	if http_start_called=false then
+		exit sub
+	end if
+	dim ii as byte
+	dim busy as byte=255
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=DNS_REQUEST_SENT then
+			busy=ii
+			exit for
+		end if
+	next ii
+	if busy<>255 then
+		'DNS already in flight; attach any pending request for the same domain
+		for ii=0 to HTTP_MAX_CONCURRENT-1
+			if http_requests(ii).state=DNS_NOT_COMPLETE and http_requests(ii).domain_name=http_requests(busy).domain_name then
+				http_requests(ii).state=DNS_REQUEST_SENT
+			end if
+		next ii
+		exit sub
+	end if
+	'DNS free: pick the first pending request and resolve its domain
+	dim pending as byte=255
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=DNS_NOT_COMPLETE then
+			pending=ii
+			exit for
+		end if
+	next ii
+	if pending=255 then
+		exit sub
+	end if
+	dim prev_sock as byte=sock.num
+	dns_connect(http_requests(pending).interface, HTTP_DNS_SERVER, 0)
+	dns_query(http_requests(pending).domain_name)
+	sock.num=prev_sock
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=DNS_NOT_COMPLETE and http_requests(ii).domain_name=http_requests(pending).domain_name then
+			http_requests(ii).state=DNS_REQUEST_SENT
+		end if
+	next ii
 end sub
 
 sub http_set_port() 
@@ -492,16 +613,25 @@ end sub
 
 sub http_proc_timer()
 
-	if http_start_called=false then		
+	if http_start_called=false then
 		exit sub
 	end if
-	if http_request_item.state>DNS_REQUEST_SENT AND http_timer_count<>0 then
-		if sys.timercountms > http_timer_count then
-			http_timer_count=0
-			http_failed("Timeout, state " + str(http_request_item.state))
+	dim ii as byte
+	dim prev_sock as byte=sock.num
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state>DNS_REQUEST_SENT AND http_requests(ii).timer_count<>0 then
+			if sys.timercountms > http_requests(ii).timer_count then
+				http_load_slot(ii)
+				http_timer_count=0
+				http_failed("Timeout, state " + str(http_request_item.state))
+				http_save_slot(ii)
+			end if
 		end if
-	end if	
-	
+	next ii
+	'advance any DNS resolution queued behind the single shared DNS resource
+	http_pump_dns()
+	sock.num=prev_sock
+
 end sub
 
 function http_time_elapsed(end_time as dword) as boolean
@@ -535,15 +665,27 @@ end sub
 function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, request_length as dword) as byte
 
 	http_start()
-	if http_request_item.state<>FREE then
-		http_reset_socket()
-		http_debugprint("Current HTTP request cancelled, starting new request.")
+	'find a free slot for this request so it can run alongside others
+	dim slot as byte=255
+	dim ii as byte
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=FREE then
+			slot=ii
+			exit for
+		end if
+	next ii
+	if slot=255 then
+		http_debugprint("No free HTTP slot, request rejected")
+		http_request_merged=255
+		exit function
 	end if
+	http_load_slot(slot)
 	http_timer_count = sys.timercountms + HTTP_TIMEOUT * 1000
 	http_request_item.data=data
 	http_request_item.url=url
 	http_request_item.method=method
 	http_request_item.remaining_content_length=request_length
+	http_request_item.remaining_response_content_length=0
 	http_request_item.chunked=false
 	if request_length=0 then
 		http_request_item.long_request=false
@@ -552,22 +694,22 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 		http_request_item.long_request=true
 	end if
 	http_request_merged=http_request_item.socket
-	http_request_item.interface=interface	
-	http_request_item.chunked=false
+	http_request_item.interface=interface
 	http_header_end=""
 	http_header_name=""
 	http_header_value=""
-	if http_request_item.state=FREE then
-		http_set_port()
+	http_set_port()
 #if TLS_AVAILABLE <> 1
-		if http_request_item.tls=true then
-			http_failed("Device does not support TLS")
-			exit function
-		end if
+	if http_request_item.tls=true then
+		http_failed("Device does not support TLS")
+		http_save_slot(slot)
+		exit function
+	end if
 #endif
-		http_start_request()
-	end if	
-	
+	http_start_request()
+	http_save_slot(slot)
+	http_pump_dns()
+
 end function
 
 function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
@@ -585,17 +727,23 @@ function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, 
 end function
 
 sub http_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)
-	
-	if http_request_item.state=DNS_REQUEST_SENT then		
-		if dns_current_domain() = http_request_item.domain_name then
-			if(return_type=EN_DNS_RET_IP) then
-				http_request_item.ip=ddstr(return_string)
-				http_request_item.state=DNS_COMPLETE
-				http_init_request_socket()
-			end if
-		end if
+
+	if return_type<>EN_DNS_RET_IP then
+		exit sub
 	end if
-	
+	dim domain as string=dns_current_domain()
+	dim ii as byte
+	'resolve every request that was waiting on this domain
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=DNS_REQUEST_SENT and http_requests(ii).domain_name=domain then
+			http_load_slot(ii)
+			http_request_item.ip=ddstr(return_string)
+			http_request_item.state=DNS_COMPLETE
+			http_init_request_socket()
+			http_save_slot(ii)
+		end if
+	next ii
+
 end sub
 
 function http_send_post_data(byref data as string) as word
@@ -650,29 +798,37 @@ function http_decode(encoded_string as string) as string
 end function
 
 sub http_dns_failure()
-	if http_request_item.domain_name<>dns_current_domain() then
-		exit sub
-	end if
-	http_failed("DNS failure")
-end sub 
+	dim domain as string=dns_current_domain()
+	dim ii as byte
+	for ii=0 to HTTP_MAX_CONCURRENT-1
+		if http_requests(ii).state=DNS_REQUEST_SENT and http_requests(ii).domain_name=domain then
+			http_load_slot(ii)
+			http_failed("DNS failure")
+			http_save_slot(ii)
+		end if
+	next ii
+end sub
 
 sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
-	
-	if http_start_called=false then		
+
+	if http_start_called=false then
 		exit sub
-	end if	
-	if http_check_socket_list()=NG then
+	end if
+	dim slot as byte=http_find_slot(sock.num)
+	if slot=255 then
 		exit sub
-	end if	
+	end if
+	http_load_slot(slot)
 	if sock.statesimple=PL_SSTS_CLOSED and http_request_item.state >= DNS_COMPLETE and sock.rxlen=0 then
 		http_failed("Connection closed")
+		http_save_slot(slot)
 		exit sub
 	end if
 	if newstatesimple<>PL_SSTS_EST then
 		exit sub
 	end if
 
-	if http_request_item.tls=true then		
+	if http_request_item.tls=true then
 #if TLS_AVAILABLE
 		if sock.state=PL_SST_EST_AOPENED then
 			dim domain as string = http_request_item.domain_name
@@ -682,11 +838,13 @@ sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
 			end if
 		end if
 		if sock.state<>PL_SST_EST_TLS then
+			http_save_slot(slot)
 			exit sub
 		end if
-		
+
 #else
 		http_failed("HTTPS not available")
+		http_save_slot(slot)
 		exit sub
 #endif
 	end if
@@ -705,6 +863,7 @@ sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
 			http_request_item.state=REQUEST_SENT
 		end if
 	end if
+	http_save_slot(slot)
 end sub
 
 sub http_send_headers(header_name as string, header_value as string)
@@ -716,7 +875,15 @@ end sub
 
 sub http_on_sock_data_sent()
 
-	if http_check_socket_list()=NG then
+	if http_start_called=false then
+		exit sub
+	end if
+	dim slot as byte=http_find_slot(sock.num)
+	if slot=255 then
+		exit sub
+	end if
+	http_load_slot(slot)
+	if http_request_item.state=FREE then
 		exit sub
 	end if
 	if http_request_item.remaining_content_length>0 then
@@ -726,5 +893,6 @@ sub http_on_sock_data_sent()
 		http_request_item.state=REQUEST_SENT
 		http_debugprint("HTTP Post Data Sent")
 	end if
-	
+	http_save_slot(slot)
+
 end sub

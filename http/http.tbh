@@ -14,6 +14,10 @@
 	#define HTTP_TIMEOUT 30
 #endif
 
+#ifndef HTTP_MAX_CONCURRENT 'number of HTTP requests that can run at the same time
+	#define HTTP_MAX_CONCURRENT 3
+#endif
+
 #ifndef HTTP_TLS_BUFF_PAGES
 	#define HTTP_TLS_BUFF_PAGES 40
 #endif
@@ -78,7 +82,13 @@ type http_request_type
 	chunked as boolean
 	method as HTTP_REQUEST_METHODS
 	interface as pl_sock_interfaces
-	
+	'per-request transient state (kept here so concurrent requests don't clobber each other)
+	header_end as string(4)
+	header_name as string(50)
+	header_value as string(50)
+	chunk_length as dword
+	timer_count as dword
+
 end type
 
 declare function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
@@ -112,3 +122,4 @@ declare sub callback_http_request_failed(byref error_message as string)
 declare sub callback_http_send_headers()
 
 declare http_request_item as http_request_type
+declare http_requests as http_request_type(HTTP_MAX_CONCURRENT)
