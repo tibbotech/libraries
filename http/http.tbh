@@ -84,7 +84,7 @@ type http_request_type
 	remaining_response_content_length as dword
 	remaining_content_length as dword
 	chunked as boolean
-
+	socket as byte
 end type
 
 'A request waiting in the queue only needs the inputs required to start it once it

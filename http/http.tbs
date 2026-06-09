@@ -9,7 +9,6 @@ dim http_request_item as http_request_type
 dim http_requests as http_queue_type(HTTP_MAX_QUEUE)
 'The one socket shared by every request. http_request_item.state=FREE means idle;
 'http_enqueue_counter stamps arrival order for FIFO dequeueing.
-dim http_socket as byte = 255
 dim http_enqueue_counter as dword = 0
 dim http_timer_count as dword = 0
 dim http_chunk_length as dword = 0
@@ -42,7 +41,7 @@ sub http_start()
 		http_requests(ii).used=false
 	next ii
 	'one socket serves the whole queue, used by whichever request is running
-	http_socket = sock_get("HTTP")
+	http_request_item.socket=sock_get("HTTP")
 	http_request_item.state=FREE
 	http_enqueue_counter=0
 
@@ -56,7 +55,7 @@ sub http_stop()
 			http_requests(ii).used=false
 		next ii
 		http_request_item.state=FREE
-		sock_release(http_socket)
+		sock_release(http_request_item.socket)
 	end if
 	http_start_called=false
 
@@ -64,7 +63,7 @@ end sub
 
 sub http_reset_socket()
 	dim i as word
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	http_request_item.remaining_response_content_length=0
 	sock.txclear()
 	sock.rxclear()
@@ -89,7 +88,7 @@ sub http_request_complete()
 end sub
 
 sub http_send_data(byref data as string)
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	dim b as byte=len(data)
 	dim buf as string=data
 	if http_request_item.tls=true then
@@ -111,7 +110,7 @@ sub http_send_data(byref data as string)
 end sub
 
 function http_get_data(size as byte) as string
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	if http_request_item.tls=true then
 #if TLS_AVAILABLE
 		http_get_data=sock.tlsgetdata(size)
@@ -155,7 +154,7 @@ sub http_parse_headers(byref input_string as string)
 end sub
 
 function http_peek_data(size as byte) as string
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	if http_request_item.tls=true then
 #if TLS_AVAILABLE
 		http_peek_data=sock.tlspeekdata(size)
@@ -201,7 +200,7 @@ end function
 
 sub http_get_headers()
 
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	dim http_reply, next_byte as string
 	while http_request_item.state<HTTP_HEADERS_PROCESSED 
 		if http_request_item.tls then
@@ -334,7 +333,7 @@ sub http_proc_data()
 		exit sub
 	end if
 	'only act on events for our socket while a request is actually running
-	if sock.num<>http_socket then
+	if sock.num<>http_request_item.socket then
 		exit sub
 	end if
 	if http_request_item.state=FREE then
@@ -396,7 +395,7 @@ sub http_init_request_socket()
 	dim dns_socket as byte=sock.num
 	dim sock_error as boolean = false
 
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	sock.connectiontout=HTTP_TIMEOUT
 	sock.targetip=http_request_item.ip
 	sock.protocol=PL_SOCK_PROTOCOL_TCP
@@ -608,7 +607,7 @@ function http_get_path(url as string) as string
 end function
 
 sub http_send_required_data()
-	sock.num=http_socket
+	sock.num=http_request_item.socket
 	http_send_data(http_methods(http_request_item.method) + " " + http_get_path(http_request_item.url))
 	if (http_request_item.method=HTTP_GET or http_request_item.method=HTTP_HEAD) and (http_request_item.data<>"") then
 		http_send_data("?" + http_request_item.data)
@@ -651,7 +650,7 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 	http_requests(slot).enqueue_seq=http_enqueue_counter
 	http_enqueue_counter=http_enqueue_counter+1
 	http_requests(slot).used=true
-	http_request_merged=http_socket
+	http_request_merged=http_request_item.socket
 
 end function
 
@@ -748,7 +747,7 @@ sub http_sock_state_update(newstatesimple as enum pl_sock_state_simple)
 		exit sub
 	end if
 	'only act on events for our socket while a request is actually running
-	if sock.num<>http_socket then
+	if sock.num<>http_request_item.socket then
 		exit sub
 	end if
 	if http_request_item.state=FREE then
@@ -813,7 +812,7 @@ sub http_on_sock_data_sent()
 		exit sub
 	end if
 	'only act on events for our socket while a request is actually running
-	if sock.num<>http_socket then
+	if sock.num<>http_request_item.socket then
 		exit sub
 	end if
 	if http_request_item.state=FREE then
