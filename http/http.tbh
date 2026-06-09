@@ -14,8 +14,8 @@
 	#define HTTP_TIMEOUT 30
 #endif
 
-#ifndef HTTP_MAX_CONCURRENT 'number of HTTP requests that can run at the same time
-	#define HTTP_MAX_CONCURRENT 3
+#ifndef HTTP_MAX_QUEUE 'number of HTTP requests that can be waiting in the queue (one runs at a time)
+	#define HTTP_MAX_QUEUE 5
 #endif
 
 #ifndef HTTP_TLS_BUFF_PAGES
@@ -53,7 +53,7 @@ enum HTTP_REQUEST_METHODS
 end enum
 
 enum http_reply_states
-	
+
 	FREE,
 	DNS_NOT_COMPLETE,
 	DNS_REQUEST_SENT,
@@ -66,6 +66,9 @@ enum http_reply_states
 
 end enum
 
+'The working state of the single request that is currently running. Only one
+'request runs at a time, so there is just one of these (http_request_item) and all
+'runtime/parse state lives in library globals rather than per queued request.
 type http_request_type
 
 	long_request as boolean
@@ -73,21 +76,30 @@ type http_request_type
 	url as string
 	data as string
 	domain_name as string
-	socket as byte
-	port as word 
+	port as word
 	ip as string(15)
 	tls as boolean
+	method as HTTP_REQUEST_METHODS
+	interface as pl_sock_interfaces
 	remaining_response_content_length as dword
 	remaining_content_length as dword
 	chunked as boolean
+
+end type
+
+'A request waiting in the queue only needs the inputs required to start it once it
+'reaches the front; it carries no runtime/parse state.
+type http_queue_type
+
+	used as boolean
 	method as HTTP_REQUEST_METHODS
+	url as string
+	data as string
 	interface as pl_sock_interfaces
-	'per-request transient state (kept here so concurrent requests don't clobber each other)
-	header_end as string(4)
-	header_name as string(50)
-	header_value as string(50)
-	chunk_length as dword
-	timer_count as dword
+	long_request as boolean
+	content_length as dword
+	'arrival order, used to dequeue waiting requests first-in-first-out
+	enqueue_seq as dword
 
 end type
 
@@ -122,4 +134,4 @@ declare sub callback_http_request_failed(byref error_message as string)
 declare sub callback_http_send_headers()
 
 declare http_request_item as http_request_type
-declare http_requests as http_request_type(HTTP_MAX_CONCURRENT)
+declare http_requests as http_queue_type(HTTP_MAX_QUEUE)
