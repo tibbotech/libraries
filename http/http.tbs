@@ -515,6 +515,7 @@ sub http_start_next()
 	end if
 	'move the queued inputs into the single working item and free the queue slot
 	http_request_item.method=http_requests(best).method
+	http_request_item.id=http_requests(best).id
 	http_request_item.url=http_requests(best).url
 	http_request_item.data=http_requests(best).data
 	http_request_item.interface=http_requests(best).interface
@@ -619,10 +620,12 @@ sub http_send_required_data()
 	end if
 end sub
 
-function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, request_length as dword) as byte
+function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, request_length as dword, id as word) as byte
 
 	http_start()
-	'park this request's inputs in a free queue slot until it reaches the front
+	'park this request's inputs in a free queue slot until it reaches the front.
+	'The id identifies the callable block (used to dispatch the callbacks); the same
+	'id may appear on several queued requests - each still gets its own slot.
 	dim slot as byte=255
 	dim ii as byte
 	for ii=0 to HTTP_MAX_QUEUE-1
@@ -638,6 +641,7 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 	end if
 	http_requests(slot).data=data
 	http_requests(slot).url=url
+	http_requests(slot).id=id
 	http_requests(slot).method=method
 	http_requests(slot).interface=interface
 	if request_length=0 then
@@ -654,18 +658,18 @@ function http_request_merged(method as HTTP_REQUEST_METHODS, byref url as string
 
 end function
 
-function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
-''The "Content-Type" header is a requirement for most HTTP requests	
+function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, id as word) as byte
+''The "Content-Type" header is a requirement for most HTTP requests
 
-	http_request=http_request_merged(method, url, interface, data, 0) 
-	
+	http_request=http_request_merged(method, url, interface, data, 0, id)
+
 end function
 
-function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword) as byte
-'Sends a HTTP request to the specified path on a specified domain name. 
-	
-	http_request_long=http_request_merged(method, url, interface, "", request_length) 
-	
+function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword, id as word) as byte
+'Sends a HTTP request to the specified path on a specified domain name.
+
+	http_request_long=http_request_merged(method, url, interface, "", request_length, id)
+
 end function
 
 sub http_dns_answer_acquired(return_type as en_dns_return_type, byref return_string as string)

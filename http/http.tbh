@@ -73,6 +73,9 @@ type http_request_type
 
 	long_request as boolean
 	state as http_reply_states
+	'caller-supplied identifier, used to dispatch callbacks without relying on the
+	'URL string (different requests can resolve to the same URL and would collide)
+	id as word
 	url as string
 	data as string
 	domain_name as string
@@ -93,6 +96,9 @@ type http_queue_type
 
 	used as boolean
 	method as HTTP_REQUEST_METHODS
+	'caller-supplied identifier, carried through the queue so the running request
+	'can be matched in callbacks by id rather than by its (possibly shared) URL
+	id as word
 	url as string
 	data as string
 	interface as pl_sock_interfaces
@@ -103,8 +109,8 @@ type http_queue_type
 
 end type
 
-declare function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string) as byte
-declare function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword) as byte
+declare function http_request(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, byref data as string, id as word) as byte
+declare function http_request_long(method as HTTP_REQUEST_METHODS, byref url as string, interface as pl_sock_interfaces, request_length as dword, id as word) as byte
 declare function http_encode_url(unencoded_url as string) as string
 declare function http_decode(encoded_string as string) as string
 declare function http_send_post_data(byref data as string) as word
