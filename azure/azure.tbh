@@ -17,6 +17,8 @@ enum en_azure_states
 	EN_AZURE_CONNECTED
 end enum
 
+
+declare azure_current_url as string
 declare azure_state as en_azure_states
 declare function azure_update_json(byref original as string, byref attribute as string, byref value as string) as string
 declare sub azure_start(byref device_id as string, byref scope_id as string, byref dps_url as string, byref symmetricKey as string, interface as pl_sock_interfaces)
