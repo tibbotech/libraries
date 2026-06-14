@@ -172,6 +172,8 @@ sub on_sys_timer()
 
     mqtt_proc_timer()
 
+    azure_proc_timer()
+
     timer_1s_lf276ggdlg9nar1w1cj_count = timer_1s_lf276ggdlg9nar1w1cj_count + 1
     if timer_1s_lf276ggdlg9nar1w1cj_count > timer_1s_lf276ggdlg9nar1w1cj_timer then
         
@@ -303,6 +305,8 @@ sub on_button_pressed()
 
     http_request(HTTP_GET, "http://tibbo.com", current_interface,
     "",0)
+
+    azure_start("device_id","scope_id","dps.example.com","symmetricKey",current_interface)
 
 end sub
 

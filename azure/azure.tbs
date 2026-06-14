@@ -7,6 +7,7 @@ const AZURE_TOPIC_PROPERTY_REPORTED="$iothub/twin/PATCH/properties/reported/"
 const AZURE_TOPIC_TWIN="$iothub/twin/"
 const AZURE_TOPIC_STREAMS="$iothub/streams/POST/"
 const AZURE_TOPIC_RESULT="$iothub/twin/res/"
+const AZURE_HTTP_REQUEST_ID=0
 const AZURE_API_VERSION="?api-version=2019-03-31"
 const AZURE_MQTT_API_VERSION="?api-version=2018-06-30"
 const TOPIC_TIMESTAMP="iothub-creation-time-utc="
@@ -51,7 +52,7 @@ type sha256_ctx
 end type
 
 
-declare azure_current_url as string
+dim azure_current_url as string
 declare mqtt_sock_num as byte
 
 declare function azure_generate_sas_token(byref resourceUri as string, byref signingKey as string, expiresInMins as word) as string
@@ -458,8 +459,8 @@ sub azure_device_lookup()
 	azure_dps_authorization=azure_generate_sas_token(azure_current_scope_id+"%2Fregistrations%2F"+azure_current_device_id, azure_current_primary_key, 525600)
 	azure_current_url = "https://" + azure_current_dps_server  + "/" + azure_current_scope_id + "/registrations/"+azure_current_device_id+AZURE_API_VERSION
 	azure_http_reset()
-	http_request(HTTP_POST, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}")
-	azure_state=EN_AZURE_DEVICE_LOOKUP	
+	http_request(HTTP_POST, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}",AZURE_HTTP_REQUEST_ID)
+	azure_state=EN_AZURE_DEVICE_LOOKUP
 
 end sub
 
@@ -469,7 +470,7 @@ sub azure_dps_device_provisioning()
 		azure_state=EN_AZURE_PROVISIONING
 		azure_current_url = "https://" + azure_current_dps_server + "/" + azure_current_scope_id +"/registrations/"+azure_current_device_id+"/register"+AZURE_API_VERSION
 		azure_http_reset()
-		http_request(HTTP_PUT, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}")	
+		http_request(HTTP_PUT, azure_current_url, azure_interface,"{registrationId: \x22"+azure_current_device_id+"\x22}",AZURE_HTTP_REQUEST_ID)
 	end if
 	
 end sub

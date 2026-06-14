@@ -9,10 +9,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: ln -s ${GITHUB_WORKSPACE} /TIDEProjects
-      - name: Compile test project
+      - name: Compile test projects (G2 and G3)
         run: |
-          wine "/home/tibbo/.wine/drive_c/Program Files/Tibbo/TIDE/Bin/tmake.exe" "C:\users\tibbo\TIDEProjects\.tests\librariestest\librariestest.tpr" -p "C:\users\tibbo\TIDEProjects\.tests\librariestest\Platforms" -r 2>&1 | tee tmake.log
-          if grep -qE "error C[0-9]+|Compilation failed" tmake.log; then
-            echo "::error::tmake reported compilation errors"
-            exit 1
-          fi
+          tmake="/home/tibbo/.wine/drive_c/Program Files/Tibbo/TIDE/Bin/tmake.exe"
+          status=0
+          for proj in librariestest librariestestg3; do
+            echo "=== Compiling $proj ==="
+            base="C:\\users\\tibbo\\TIDEProjects\\.tests\\$proj"
+            wine "$tmake" "$base\\librariestest.tpr" -p "$base\\Platforms" -r 2>&1 | tee "tmake-$proj.log"
+            if grep -qE "error C[0-9]+|Compilation failed" "tmake-$proj.log"; then
+              echo "::error::tmake reported compilation errors in $proj"
+              status=1
+            fi
+          done
+          exit $status

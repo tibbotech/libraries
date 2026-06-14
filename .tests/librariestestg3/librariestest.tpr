@@ -446,6 +446,22 @@ condition=
 locked=no
 location=
 
+[file57]
+path=libraries/azure/azure.tbh
+type=header
+format=
+condition=
+locked=no
+location=project
+
+[file58]
+path=libraries/azure/azure.tbs
+type=basic
+format=
+condition=
+locked=no
+location=
+
 [address2]
 platform=TPP2W(G2)
 transport=udp_broadcast

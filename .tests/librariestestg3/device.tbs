@@ -508,7 +508,7 @@ end sub
 
 
 sub callback_http_header_arrival(byref header_type as string, byref header_value as string)
-    
+    iot_header_arrival(header_type,header_value)
 end sub
 
 
@@ -521,11 +521,12 @@ sub callback_http_content_arrival(byref data as string)
     
 
     if http_request_item.url = "http://tibbo.com" then
-        
+
 
     sys.debugprint(data)
-    
+
     end if
+    azure_content_arrival(data)
 end sub
 
 
@@ -543,13 +544,14 @@ sub callback_http_send_headers()
     
 
     if http_request_item.url = "http://tibbo.com" then
-        
+
     end if
+    iot_send_headers()
 end sub
 
 
 sub callback_http_request_complete()
-    
+    azure_http_request_complete()
 end sub
 
 
@@ -956,22 +958,43 @@ end function
 
 sub callback_mqtt_connect_ok()
     pat.play("G~",PL_PAT_CANINT)
-    
+    azure_on_connected()
 end sub
-        
+
 
 sub callback_mqtt_connect_lost()
-    
+
     mqtt_connect_lost=YES
+    azure_on_disconnected()
 end sub
-        
-       
+
+
 sub callback_mqtt_notif(byref topic as string,byref data as string,remaining_bytes as dword)
-    
+    azure_proc_mqtt_msg(topic,data)
 end sub
 
 sub callback_mqtt_sub_ok()
-    
+    azure_mqtt_sub_ok()
+end sub
+
+
+sub callback_azure_command_triggered(byref command as string, byref param as string, rid as string)
+    azure_command_respond(command,"",rid,EN_AZURE_OK)
+end sub
+
+
+sub callback_azure_property_desired(byref property_name as string, byref property_value as string)
+
+end sub
+
+
+sub callback_azure_device_assigned(byref assigned_hub as string)
+
+end sub
+
+
+sub callback_on_telemetry_sent()
+
 end sub
         
 sub ui_menu_exit()
