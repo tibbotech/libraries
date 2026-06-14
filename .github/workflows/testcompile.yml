@@ -9,4 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: ln -s ${GITHUB_WORKSPACE} /TIDEProjects
-      - run: wine "/home/tibbo/.wine/drive_c/Program Files/Tibbo/TIDE/Bin/tmake.exe" "C:\users\tibbo\TIDEProjects\.tests\librariestest\librariestest.tpr" -p "C:\users\tibbo\TIDEProjects\.tests\librariestest\Platforms" -r
+      - name: Compile test project
+        run: |
+          set -o pipefail
+          wine "/home/tibbo/.wine/drive_c/Program Files/Tibbo/TIDE/Bin/tmake.exe" "C:\users\tibbo\TIDEProjects\.tests\librariestest\librariestest.tpr" -p "C:\users\tibbo\TIDEProjects\.tests\librariestest\Platforms" -r 2>&1 | tee tmake.log
+          if grep -qE "error C[0-9]+|Compilation failed" tmake.log; then
+            echo "::error::tmake reported compilation errors"
+            exit 1
+          fi
