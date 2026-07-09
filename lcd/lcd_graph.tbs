@@ -62,6 +62,9 @@ end sub
 
 sub lcd_draw_graph(byref widget as lcd_graph_widget)
 	dim i,j as byte
+	if widget.visible = false then
+		exit sub
+	end if
 	lcd.forecolor=LCD_GRAPH_BACKCOLOR
     lcd.lock()
     lcd.fill(LCD_GRAPH_X,LCD_GRAPH_Y,LCD_GRAPH_WIDTH,LCD_GRAPH_HEIGHT)
