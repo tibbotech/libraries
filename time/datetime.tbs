@@ -92,7 +92,7 @@ sub datetime_string_format(byref result as string(14),
 	dim max as byte=len(format)
 	dim index as byte=1
 	dim dstr as string(50)=""
-	while index<max
+	while index<=max
 		dim cur_str as string=mid(format,index,1)
 		select case cur_str
 		case "Y":
@@ -112,12 +112,12 @@ sub datetime_string_format(byref result as string(14),
 			if value >= 12 then
 				value = value - 12
 				am_pm = "PM"
-				if value >= 1 and value < 10 then
-						  dstr=dstr+"0"
-				end if
 			end if
 			if value = 0 then
 				value = 12
+			end if
+			if value < 10 then
+				dstr=dstr+"0"
 			end if
 			dstr=dstr+str(value)
 			index=index+2
@@ -239,27 +239,120 @@ sub datetime_type_convert(
 	end select
 end sub
 
-function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
-    datetime_str_to_timestamp=0
-    dim param_str as string(50)=datestr
-    dim days as word=0
-    dim mins as word=0
-    dim secs as byte=0
-    select case format
-        case "YYYYMMDD":
-            param_str=param_str+"000000"
-        case "YYYYMMDDhhmm":
-            param_str=param_str+"00"
-        case "YYYYMMDDhhmmss":
-            param_str=param_str
-        case "hhmmss":
-            param_str="20000101"+param_str
-        case "hhmm":
-            param_str="20000101"+param_str+"00"
-    end select
+'Reads up to max_digits consecutive digits from src, starting at index.
+'Stops early on the first non-digit, so both padded ("09") and delimited
+'("9:05") numbers are handled. index is advanced past the digits consumed.
+function datetime_read_number(byref src as string, byref index as word, max_digits as byte) as word
+	dim num_str as string(5)=""
+	dim count as byte=0
+	dim src_len as word=len(src)
+	while count<max_digits and index<=src_len
+		dim cur_str as string(1)=mid(src,index,1)
+		if asc(cur_str)<`0` or asc(cur_str)>`9` then
+			exit while
+		end if
+		num_str=num_str+cur_str
+		index=index+1
+		count=count+1
+	wend
+	datetime_read_number=val(num_str)
+end function
 
-    datetime_type_convert(param_str,days,mins,secs,STR_TO_TIME)
-    datetime_str_to_timestamp=datetime_to_timestamp(days,mins,secs)
+'Parses datestr according to format and returns a GMT timestamp.
+'format uses the same tokens as datetime_string_format: YYYY, MM, DD,
+'HH (24-hour), hh (12-hour, needs tt), mm, ss, tt (AM/PM). Any other
+'character in format is a literal and is skipped in both strings.
+'Fields missing from format default to 2000-01-01 00:00:00.
+'datestr is taken as local time and converted to GMT, so this is the
+'exact inverse of datetime_timestamp_to_string.
+'datetime_convert_err is set to NG if the string does not hold a valid date.
+function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
+	datetime_str_to_timestamp=0
+	datetime_convert_err=OK
+
+	dim time_year as byte=0 'years since 2000
+	dim time_month as byte=1
+	dim time_date as byte=1
+	dim time_hour as byte=0
+	dim time_min as byte=0
+	dim time_sec as byte=0
+	dim is_12_hour as boolean=false
+	dim has_am_pm as boolean=false
+	dim is_pm as boolean=false
+	dim value as word=0
+	dim days as word=0
+	dim mins as word=0
+	dim f_index as byte=1
+	dim f_max as byte=len(format)
+	dim d_index as word=1
+	dim d_max as word=len(datestr)
+
+	while f_index<=f_max
+		dim cur_str as string(1)=mid(format,f_index,1)
+		select case cur_str
+		case "Y":
+			value=datetime_read_number(datestr,d_index,4)
+			if value>=2000 then
+				value=value-2000
+			end if
+			time_year=value
+			f_index=f_index+4
+		case "M":
+			time_month=datetime_read_number(datestr,d_index,2)
+			f_index=f_index+2
+		case "D":
+			time_date=datetime_read_number(datestr,d_index,2)
+			f_index=f_index+2
+		case "H":
+			time_hour=datetime_read_number(datestr,d_index,2)
+			f_index=f_index+2
+		case "h":
+			time_hour=datetime_read_number(datestr,d_index,2)
+			is_12_hour=true
+			f_index=f_index+2
+		case "m":
+			time_min=datetime_read_number(datestr,d_index,2)
+			f_index=f_index+2
+		case "s":
+			time_sec=datetime_read_number(datestr,d_index,2)
+			f_index=f_index+2
+		case "t":
+			has_am_pm=true
+			if d_index<=d_max then
+				if asc(mid(datestr,d_index,1))=`P` or asc(mid(datestr,d_index,1))=`p` then
+					is_pm=true
+				end if
+			end if
+			d_index=d_index+2
+			f_index=f_index+2
+		case else:
+			'literal separator - skip one character in both strings
+			d_index=d_index+1
+			f_index=f_index+1
+		end select
+	wend
+
+	if is_12_hour=true and has_am_pm=true then
+		if is_pm=true then
+			if time_hour<12 then
+				time_hour=time_hour+12
+			end if
+		else
+			if time_hour=12 then
+				time_hour=0
+			end if
+		end if
+	end if
+
+	days=daycount(time_year,time_month,time_date)
+	mins=mincount(time_hour,time_min)
+	if days=65535 or mins=65535 or time_sec>59 then
+		datetime_convert_err=NG
+		exit function
+	end if
+
+	td_local_to_gmt(days,mins,datetime_tz_offset,PL_OFF)
+	datetime_str_to_timestamp=datetime_to_timestamp(days,mins,time_sec)
 end function
 
 sub datetime_astro(byref a as astro_struct)

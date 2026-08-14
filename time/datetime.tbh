@@ -66,6 +66,7 @@ end type
 declare function datetime_to_timestamp(days as word, mins as word, secs as byte) as dword
 declare function datetime_current_timestamp() as dword
 declare function datetime_str_to_timestamp(byref datestr as string, byref format as string) as dword
+declare function datetime_read_number(byref src as string, byref index as word, max_digits as byte) as word
 declare function datetime_next_cron(next_cron as crontab) as dword
 declare function datetime_timestamp_to_string(timestamp as dword, byref format as string) as string
 declare sub datetime_from_timestamp(timestamp as dword, byref days as word, byref mins as word, byref secs as byte)
