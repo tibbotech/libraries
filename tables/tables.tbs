@@ -483,9 +483,10 @@ public function tbl_start() as en_tbl_status_codes
 					exit function
 				end if
 			case EN_TBL_FIELD_TIMESTAMP: ' Timestamp
-				if p1>2147483647 then
+				dim dword_p1 as dword=p1
+				if dword_p1>4294967295 then
 					#if TBL_DEBUG_PRINT
-						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 2147483647 for datetime type. It is now "+s)
+						tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): minimum value (P1 param) can't exceed 4294967295 for datetime type. It is now "+s)
 					#endif
 					tbl_info_index=0
 					tbl_start=EN_TBL_STATUS_WRONG_DESCRIPTOR
@@ -556,7 +557,7 @@ public function tbl_start() as en_tbl_status_codes
 			end select
 			field_item.p2=p2
 
-			if field_item.p2<field_item.p1 and field_item.field_type<>EN_TBL_FIELD_TIMESTRING then
+			if field_item.p2<field_item.p1 and field_item.field_type<>EN_TBL_FIELD_TIMESTAMP then
 				#if TBL_DEBUG_PRINT
 					tbl_debugprint("ERROR (table '"+tbl_item.table_name+"'/field '"+field_item.field_name+"'): P2 parameter (now "+lstr(field_item.p2)+") cannot be smaller than P1 parameter (now "+lstr(field_item.p1)+").")
 				#endif
@@ -2273,12 +2274,10 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			w3=asc(mid(s,3,1))*256+asc(mid(s,4,1))
 			d=w2*65536+w3
 			field_value =lstr(d)
-			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIMESTAMP then
-				p1=0
-				p2=2147483647
+			if tbl_field_info(field_index).field_type<>EN_TBL_FIELD_TIMESTAMP then
+				if lval(field_value)<p1 then goto tbl_invalid
+				if lval(field_value)>p2 then goto tbl_invalid
 			end if
-			if lval(field_value)<p1 then goto tbl_invalid
-			if lval(field_value)>p2 then goto tbl_invalid
 		case EN_TBL_FIELD_TIME,EN_TBL_FIELD_FLOAT:
 			dim tmp_f as float=0
 			strtobin(tmp_f,s,4)
@@ -2331,12 +2330,10 @@ public function tbl_field_sg(byref field_name as string,byref field_value as str
 			if len(field_value) > p2 then goto tbl_invalid
 			s=chr(len(field_value))+field_value+strgen(fld_sz-len(field_value)-1,chr(TBL_NULL))
 		case EN_TBL_FIELD_DWORD,EN_TBL_FIELD_TIMESTAMP:
-			if tbl_field_info(field_index).field_type=EN_TBL_FIELD_TIMESTAMP then
-				p1=0
-				p2=2147483647
+			if tbl_field_info(field_index).field_type<>EN_TBL_FIELD_TIMESTAMP then
+				if lval(field_value) < p1 then goto tbl_invalid
+				if lval(field_value) > p2 then goto tbl_invalid
 			end if
-			if lval(field_value) < p1 then goto tbl_invalid
-			if lval(field_value) > p2 then goto tbl_invalid
 			w2=lval(field_value)/65536
 			w3=lval(field_value) mod 65536
 			s=chr(w2/256)+chr(w2 mod 256)+chr(w3/256)+chr(w3 mod 256)
